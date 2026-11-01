@@ -2917,6 +2917,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
+        color: isRefusal ? Theme.of(context).colorScheme.errorContainer : null,
+        shape: isRefusal
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.error,
+                  width: 1.5,
+                ),
+              )
+            : null,
 
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -2946,6 +2956,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ),
                   CircleAvatar(
                     radius: 21,
+                    backgroundColor: isRefusal
+                        ? Theme.of(context).colorScheme.error
+                        : null,
 
                     child: Icon(
                       isRefusal
@@ -2955,6 +2968,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           : isReturn
                           ? Icons.assignment_return_outlined
                           : Icons.payments_outlined,
+                      color: isRefusal
+                          ? Theme.of(context).colorScheme.onError
+                          : null,
                     ),
                   ),
 
@@ -2982,6 +2998,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             fontSize: 17,
 
                             fontWeight: FontWeight.bold,
+                            color: isRefusal
+                                ? Theme.of(context).colorScheme.error
+                                : null,
                           ),
                         ),
 
