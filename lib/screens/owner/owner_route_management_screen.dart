@@ -40,6 +40,7 @@ class _OwnerRouteManagementScreenState
   List<Map<String, dynamic>> _routes = [];
   List<Map<String, dynamic>> _salesmen = [];
   final Map<String, List<String>> _todayAssignments = {};
+  final Map<String, List<String>> _todayCustomerAssignments = {};
   Map<String, String> _todayCustomerStatuses = {};
   final Map<String, String> _customerFiltersBySalesman = {};
   final Map<String, String> _customerSearchBySalesman = {};
@@ -110,7 +111,7 @@ class _OwnerRouteManagementScreenState
         _client.from('profiles').select('id, name, role').order('name'),
         _client
             .from('salesman_daily_route_selections')
-            .select('salesman_id, locations, route_date')
+            .select('salesman_id, locations, customer_ids, route_date')
             .lte('route_date', todayKey)
             .order('route_date', ascending: false),
         SalesmanVisitService.loadTodayStatusesForOwner(),
@@ -123,6 +124,7 @@ class _OwnerRouteManagementScreenState
         results[3] as Map<String, String>,
       );
       final assignments = <String, List<String>>{};
+      final customerAssignments = <String, List<String>>{};
       for (final row in assignmentRows) {
         final id = (row['salesman_id'] ?? '').toString();
         final rawLocations = row['locations'];
@@ -130,6 +132,12 @@ class _OwnerRouteManagementScreenState
             rawLocations is List &&
             !assignments.containsKey(id)) {
           assignments[id] = rawLocations.map((e) => e.toString()).toList();
+        }
+        final rawCustomerIds = row['customer_ids'];
+        if (id.isNotEmpty && rawCustomerIds is List) {
+          customerAssignments[id] = rawCustomerIds
+              .map((e) => e.toString())
+              .toList();
         }
       }
       final salesmen = allProfiles
@@ -144,6 +152,9 @@ class _OwnerRouteManagementScreenState
         _todayAssignments
           ..clear()
           ..addAll(assignments);
+        _todayCustomerAssignments
+          ..clear()
+          ..addAll(customerAssignments);
         _todayCustomerStatuses = todayStatuses;
         _selectedRouteId ??= _routes.isEmpty
             ? null
@@ -336,7 +347,8 @@ class _OwnerRouteManagementScreenState
   }
 
   Future<void> _selectRouteCustomers() async {
-    final eligible = CustomerService.customers
+    final eligible =
+        CustomerService.customers
             .where(
               (customer) =>
                   // A route should only be assigned from customers who
@@ -367,110 +379,114 @@ class _OwnerRouteManagementScreenState
                 customer.phone.toLowerCase().contains(query);
           }).toList();
           return AlertDialog(
-          title: Text(
-            selected.isEmpty
-                ? 'Choose customers to visit'
-                : '${selected.length} customers selected',
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          content: SizedBox(
-            width: MediaQuery.sizeOf(context).width * 0.82,
-            height: MediaQuery.sizeOf(context).height * 0.68,
-            child: Column(
-              children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Select only the customers this route should include. '
-                    'Leave everything unselected to include all customers in the chosen locations.',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search customers',
-                    hintText: 'Search by name, location, or phone',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => setDialogState(
-                    () => searchQuery = value,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (eligible.isEmpty)
-                  const Expanded(
-                    child: Center(
-                      child: Text('Choose at least one location first.'),
+            title: Text(
+              selected.isEmpty
+                  ? 'Choose customers to visit'
+                  : '${selected.length} customers selected',
+            ),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            content: SizedBox(
+              width: MediaQuery.sizeOf(context).width * 0.82,
+              height: MediaQuery.sizeOf(context).height * 0.68,
+              child: Column(
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Select only the customers this route should include. '
+                      'Leave everything unselected to include all customers in the chosen locations.',
                     ),
-                  )
-                else if (filteredEligible.isEmpty)
-                  const Expanded(
-                    child: Center(child: Text('No matching customers found.')),
-                  )
-                else
-                  Expanded(
-                    child: ListView(
-                      children: filteredEligible
-                          .map(
-                            (customer) => CheckboxListTile(
-                              value: selected.contains(customer.id),
-                              title: Text(customer.businessName),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(customer.location),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    CurrencyFormatter.customerBalance(
-                                      TransactionService.getCustomerBalance(
-                                        customer.id,
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Search customers',
+                      hintText: 'Search by name, location, or phone',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => searchQuery = value),
+                  ),
+                  const SizedBox(height: 10),
+                  if (eligible.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text('Choose at least one location first.'),
+                      ),
+                    )
+                  else if (filteredEligible.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text('No matching customers found.'),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView(
+                        children: filteredEligible
+                            .map(
+                              (customer) => CheckboxListTile(
+                                value: selected.contains(customer.id),
+                                title: Text(customer.businessName),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(customer.location),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      CurrencyFormatter.customerBalance(
+                                        TransactionService.getCustomerBalance(
+                                          customer.id,
+                                        ),
+                                      ),
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                onChanged: (checked) => setDialogState(() {
+                                  if (checked == true) {
+                                    selected.add(customer.id);
+                                  } else {
+                                    selected.remove(customer.id);
+                                  }
+                                }),
                               ),
-                              onChanged: (checked) => setDialogState(() {
-                                if (checked == true) {
-                                  selected.add(customer.id);
-                                } else {
-                                  selected.remove(customer.id);
-                                }
-                              }),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: eligible.isEmpty
-                  ? null
-                  : () => setDialogState(() => selected.clear()),
-              child: const Text('Use all customers'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                setState(() => _selectedCustomerIds = selected);
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Save selection'),
-            ),
-          ],
-        );
+            actions: [
+              TextButton(
+                onPressed: eligible.isEmpty
+                    ? null
+                    : () => setDialogState(() => selected.clear()),
+                child: const Text('Use all customers'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  setState(() => _selectedCustomerIds = selected);
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Save selection'),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -532,12 +548,18 @@ class _OwnerRouteManagementScreenState
             .from('salesman_daily_route_selections')
             .upsert(assignments, onConflict: 'salesman_id,route_date');
       } catch (_) {
-        await _client.from('salesman_daily_route_selections').upsert(
-          assignments
-              .map((assignment) => Map<String, dynamic>.from(assignment)..remove('customer_ids'))
-              .toList(),
-          onConflict: 'salesman_id,route_date',
-        );
+        await _client
+            .from('salesman_daily_route_selections')
+            .upsert(
+              assignments
+                  .map(
+                    (assignment) =>
+                        Map<String, dynamic>.from(assignment)
+                          ..remove('customer_ids'),
+                  )
+                  .toList(),
+              onConflict: 'salesman_id,route_date',
+            );
       }
       if (!mounted) return;
       setState(() {
@@ -933,7 +955,9 @@ class _OwnerRouteManagementScreenState
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
-                        const Text('Choose either whole locations or specific customers.'),
+                        const Text(
+                          'Choose either whole locations or specific customers.',
+                        ),
                         const SizedBox(height: 8),
                         SegmentedButton<bool>(
                           segments: const [
@@ -952,13 +976,13 @@ class _OwnerRouteManagementScreenState
                           onSelectionChanged: _selectedRoute == null
                               ? null
                               : (selection) => setState(() {
-                                    _customerWiseSelection = selection.first;
-                                    if (_customerWiseSelection) {
-                                      _selectedLocations.clear();
-                                    } else {
-                                      _selectedCustomerIds.clear();
-                                    }
-                                  }),
+                                  _customerWiseSelection = selection.first;
+                                  if (_customerWiseSelection) {
+                                    _selectedLocations.clear();
+                                  } else {
+                                    _selectedCustomerIds.clear();
+                                  }
+                                }),
                         ),
                         const SizedBox(height: 12),
                         if (_customerWiseSelection)
@@ -970,68 +994,77 @@ class _OwnerRouteManagementScreenState
                                   ? 'No customers selected'
                                   : '${_selectedCustomerIds.length} customers selected',
                             ),
-                            subtitle: const Text('Only these customers will be shown to the salesman.'),
+                            subtitle: const Text(
+                              'Only these customers will be shown to the salesman.',
+                            ),
                             trailing: OutlinedButton(
                               onPressed: _selectedRoute == null
                                   ? null
                                   : _selectRouteCustomers,
-                              child: Text(_selectedCustomerIds.isEmpty ? 'Choose' : 'Change'),
+                              child: Text(
+                                _selectedCustomerIds.isEmpty
+                                    ? 'Choose'
+                                    : 'Change',
+                              ),
                             ),
                           )
                         else ...[
-                        if (_availableLocations.isEmpty)
-                          const Text(
-                            'Add customer locations before configuring a route.',
-                          )
-                        else
-                          ..._availableLocations.map(
-                            (location) => CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              value: _selectedLocations.contains(location),
-                              title: Text(location),
-                              onChanged: _selectedRoute == null
+                          if (_availableLocations.isEmpty)
+                            const Text(
+                              'Add customer locations before configuring a route.',
+                            )
+                          else
+                            ..._availableLocations.map(
+                              (location) => CheckboxListTile(
+                                contentPadding: EdgeInsets.zero,
+                                value: _selectedLocations.contains(location),
+                                title: Text(location),
+                                onChanged: _selectedRoute == null
+                                    ? null
+                                    : (checked) {
+                                        setState(() {
+                                          if (checked == true) {
+                                            _selectedLocations.add(location);
+                                          } else {
+                                            _selectedLocations.remove(location);
+                                          }
+                                        });
+                                      },
+                              ),
+                            ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Step 2: Choose customers (optional)',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.people_alt_outlined),
+                            title: Text(
+                              _selectedCustomerIds.isEmpty
+                                  ? 'All customers in these locations'
+                                  : '${_selectedCustomerIds.length} specific customers',
+                            ),
+                            subtitle: Text(
+                              _selectedCustomerIds.isEmpty
+                                  ? 'Everyone with a pending balance will be shown.'
+                                  : 'Only the selected customers will be shown to the salesman.',
+                            ),
+                            trailing: OutlinedButton(
+                              onPressed:
+                                  _selectedRoute == null ||
+                                      _selectedLocations.isEmpty
                                   ? null
-                                  : (checked) {
-                                      setState(() {
-                                        if (checked == true) {
-                                          _selectedLocations.add(location);
-                                        } else {
-                                          _selectedLocations.remove(location);
-                                        }
-                                      });
-                                    },
+                                  : _selectRouteCustomers,
+                              child: Text(
+                                _selectedCustomerIds.isEmpty
+                                    ? 'Choose'
+                                    : 'Change',
+                              ),
                             ),
                           ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Step 2: Choose customers (optional)',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.people_alt_outlined),
-                          title: Text(
-                            _selectedCustomerIds.isEmpty
-                                ? 'All customers in these locations'
-                                : '${_selectedCustomerIds.length} specific customers',
-                          ),
-                          subtitle: Text(
-                            _selectedCustomerIds.isEmpty
-                                ? 'Everyone with a pending balance will be shown.'
-                                : 'Only the selected customers will be shown to the salesman.',
-                          ),
-                          trailing: OutlinedButton(
-                            onPressed: _selectedRoute == null ||
-                                    _selectedLocations.isEmpty
-                                ? null
-                                : _selectRouteCustomers,
-                            child: Text(
-                              _selectedCustomerIds.isEmpty ? 'Choose' : 'Change',
-                            ),
-                          ),
-                        ),
                         ],
                         const SizedBox(height: 8),
                         Wrap(
@@ -1233,16 +1266,37 @@ class _OwnerRouteManagementScreenState
                     .map((location) => location.trim().toLowerCase())
                     .where((location) => location.isNotEmpty)
                     .toSet();
-                final routeCustomers =
-                    CustomerService.customers.where((customer) {
-                      return normalizedLocations.contains(
-                        customer.location.trim().toLowerCase(),
-                      );
-                    }).toList()..sort(
-                      (a, b) => a.businessName.toLowerCase().compareTo(
-                        b.businessName.toLowerCase(),
-                      ),
-                    );
+                final routeCustomers = CustomerService.customers.where((
+                  customer,
+                ) {
+                  final assignedIds =
+                      _todayCustomerAssignments[salesmanId] ?? const [];
+                  if (assignedIds.isNotEmpty) {
+                    return assignedIds.contains(customer.id);
+                  }
+                  return normalizedLocations.contains(
+                    customer.location.trim().toLowerCase(),
+                  );
+                }).toList();
+                final assignedIds =
+                    _todayCustomerAssignments[salesmanId] ?? const <String>[];
+                if (assignedIds.isNotEmpty) {
+                  final order = {
+                    for (var i = 0; i < assignedIds.length; i++)
+                      assignedIds[i]: i,
+                  };
+                  routeCustomers.sort(
+                    (a, b) => (order[a.id] ?? 999999).compareTo(
+                      order[b.id] ?? 999999,
+                    ),
+                  );
+                } else {
+                  routeCustomers.sort(
+                    (a, b) => a.businessName.toLowerCase().compareTo(
+                      b.businessName.toLowerCase(),
+                    ),
+                  );
+                }
                 final customerFilter =
                     _customerFiltersBySalesman[salesmanId] ?? 'All';
                 bool matchesFilter(Customer customer, String filter) {

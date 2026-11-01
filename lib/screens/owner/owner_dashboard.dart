@@ -50,6 +50,11 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   static const _orange = Color(0xFFEA8A26);
   static const _blue = Color(0xFF347BEA);
 
+  int get _newSalesmanPaymentCount => _todaySalesmanPayments.values.fold(
+    0,
+    (total, entry) => total + entry.paidCustomers.length,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -84,7 +89,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         final end = start.add(const Duration(days: 1));
         final rows = await Supabase.instance.client
             .from('payments')
-            .select('user_id, customer_id, amount_received, customers(business_name)')
+            .select(
+              'user_id, customer_id, amount_received, customers(business_name)',
+            )
             .gte('transaction_date', start.toUtc().toIso8601String())
             .lt('transaction_date', end.toUtc().toIso8601String());
         final grouped = <String, _SalesmanTodayPayments>{};
@@ -344,20 +351,50 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    IconButton(
-                      tooltip: 'Refresh dashboard',
-                      onPressed: _refreshing ? null : _load,
-                      icon: _refreshing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.notifications_none_rounded,
-                              color: _navy,
-                              size: 21,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          tooltip: 'Refresh dashboard and view payments',
+                          onPressed: _refreshing ? null : _load,
+                          icon: _refreshing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.notifications_none_rounded,
+                                  color: _navy,
+                                  size: 21,
+                                ),
+                        ),
+                        if (_newSalesmanPaymentCount > 0)
+                          Positioned(
+                            right: 5,
+                            top: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _red,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$_newSalesmanPaymentCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -389,7 +426,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       bg: const Color(0xFFE5F7EF),
                     ),
                     _MetricCard(
-                      title: _period == 'Today' ? 'Pending Today' : 'Total Pending',
+                      title: _period == 'Today'
+                          ? 'Pending Today'
+                          : 'Total Pending',
                       value: _money(
                         _period == 'Today'
                             ? _pendingToday(todayRouteCustomers)
@@ -784,15 +823,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 _todaySalesmanPayments[activity.salesmanId] ??
                 _SalesmanTodayPayments();
             final pending = customers
-                .where((customer) => locationSet.contains(
-                      customer.location.trim().toLowerCase(),
-                    ))
+                .where(
+                  (customer) => locationSet.contains(
+                    customer.location.trim().toLowerCase(),
+                  ),
+                )
                 .fold<double>(
                   0,
-                  (total, customer) => total + math.max(
-                    0,
-                    TransactionService.getCustomerBalance(customer.id),
-                  ),
+                  (total, customer) =>
+                      total +
+                      math.max(
+                        0,
+                        TransactionService.getCustomerBalance(customer.id),
+                      ),
                 );
             final progress = planned == 0
                 ? 0.0
