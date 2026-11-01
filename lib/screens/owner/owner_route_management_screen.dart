@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -134,10 +135,22 @@ class _OwnerRouteManagementScreenState
           assignments[id] = rawLocations.map((e) => e.toString()).toList();
         }
         final rawCustomerIds = row['customer_ids'];
-        if (id.isNotEmpty && rawCustomerIds is List) {
-          customerAssignments[id] = rawCustomerIds
-              .map((e) => e.toString())
-              .toList();
+        List<String> parsedCustomerIds = const <String>[];
+        if (rawCustomerIds is List) {
+          parsedCustomerIds = rawCustomerIds.map((e) => e.toString()).toList();
+        } else if (rawCustomerIds is String &&
+            rawCustomerIds.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(rawCustomerIds);
+            if (decoded is List) {
+              parsedCustomerIds = decoded.map((e) => e.toString()).toList();
+            }
+          } catch (_) {
+            // Keep the location assignment fallback for malformed legacy data.
+          }
+        }
+        if (id.isNotEmpty && parsedCustomerIds.isNotEmpty) {
+          customerAssignments[id] = parsedCustomerIds;
         }
       }
       final salesmen = allProfiles
