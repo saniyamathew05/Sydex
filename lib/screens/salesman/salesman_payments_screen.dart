@@ -32,9 +32,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   String _dateFilter = 'today';
   String _methodFilter = 'all';
   String _salesmanFilter = 'all';
+  bool _showFilters = false;
   DateTime? _selectedDate;
   DateTimeRange? _selectedDateRange;
-  Set<String> _routeCustomerIds = <String>{};
+  Set<String> _assignedCustomerIds = <String>{};
 
   List<Map<String, dynamic>> get _paymentsForSummary => _payments
       .where(_matchesDate)
@@ -63,11 +64,11 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
   int get _selectedPaymentsCount => _paymentsForSummary.length;
 
-  int get _paidRouteCustomerCount {
+  int get _paidAssignedCustomerCount {
     return _paymentsForSummary
         .map((payment) => payment['customer_id']?.toString())
         .whereType<String>()
-        .where(_routeCustomerIds.contains)
+        .where(_assignedCustomerIds.contains)
         .toSet()
         .length;
   }
@@ -108,15 +109,23 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       if (user == null) throw Exception('You are not logged in.');
 
       try {
-        await Future.wait([
+        // Prefer the owner-assigned customer IDs. Older route assignments do
+        // not have these IDs yet, so retain the location-based assignment as
+        // a compatibility fallback instead of displaying 0 / 0.
+        final values = await Future.wait<dynamic>([
           CustomerService.loadCustomers(),
+          SalesmanVisitService.loadTodayCustomerIds(),
           SalesmanVisitService.loadTodayRoute(),
-        ]).then((values) {
-          final routeLocations = (values[1] as List<String>)
+        ]);
+        final customerIds = Set<String>.from(values[1] as Set<String>);
+        if (customerIds.isNotEmpty) {
+          _assignedCustomerIds = customerIds;
+        } else {
+          final routeLocations = (values[2] as List<String>)
               .map((location) => location.trim().toLowerCase())
               .where((location) => location.isNotEmpty)
               .toSet();
-          _routeCustomerIds = CustomerService.customers
+          _assignedCustomerIds = CustomerService.customers
               .where(
                 (customer) => routeLocations.contains(
                   customer.location.trim().toLowerCase(),
@@ -124,10 +133,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
               )
               .map((customer) => customer.id)
               .toSet();
-        });
+        }
       } catch (error) {
-        debugPrint('Could not load route customer count: $error');
-        _routeCustomerIds = <String>{};
+        debugPrint('Could not load assigned customer count: $error');
+        _assignedCustomerIds = <String>{};
       }
 
       // Salesmen share the payment history, including entries made by their
@@ -182,9 +191,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
               .order('transaction_date', ascending: false);
         }
       }
-      final payments = List<Map<String, dynamic>>.from(
-        response,
-      );
+      final payments = List<Map<String, dynamic>>.from(response);
 
       // Resolve only the receiver names needed for these visible payment rows.
       // The RPC exposes names, not the rest of another user's profile.
@@ -343,12 +350,17 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       case 'date':
         final range = _selectedDateRange;
         if (range != null) {
-          final start = DateTime(range.start.year, range.start.month, range.start.day);
+          final start = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
           final end = DateTime(range.end.year, range.end.month, range.end.day);
           return !day.isBefore(start) && !day.isAfter(end);
         }
         final selected = _selectedDate;
-        return selected == null || day == DateTime(selected.year, selected.month, selected.day);
+        return selected == null ||
+            day == DateTime(selected.year, selected.month, selected.day);
       default:
         return true;
     }
@@ -399,7 +411,9 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(now.year, now.month, now.day),
-      initialDateRange: _selectedDateRange ?? DateTimeRange(start: _selectedDate ?? now, end: _selectedDate ?? now),
+      initialDateRange:
+          _selectedDateRange ??
+          DateTimeRange(start: _selectedDate ?? now, end: _selectedDate ?? now),
       helpText: 'Filter team payments by date range',
     );
     if (picked == null || !mounted) return;
@@ -515,7 +529,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
             Tooltip(
               message:
-                  'Customers on today’s route with a payment matching the selected filters',
+                  'Assigned customers with a payment matching the selected filters',
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -529,7 +543,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                 ),
 
                 child: Text(
-                  '$_paidRouteCustomerCount / ${_routeCustomerIds.length} paid',
+                  '$_paidAssignedCustomerCount / ${_assignedCustomerIds.length} paid',
 
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
@@ -562,21 +576,11 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   }
 
   Widget _buildFilters() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Keep every control on its own line on compact layouts. This avoids
-        // RenderFlex overflow when the screen is split or shown in a narrow
-        // desktop/mobile window.
-        // Keep filters stacked unless there is ample room. This also covers
-        // desktop windows rendered at a scaled/tablet viewport width.
-        final wide = constraints.maxWidth >= 2200;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      children: [
+        Row(
           children: [
-            SizedBox(
-              width: wide ? 300 : constraints.maxWidth,
+            Expanded(
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _searchQuery = value),
@@ -597,88 +601,98 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                 ),
               ),
             ),
-            SizedBox(
-              width: wide ? 175 : constraints.maxWidth,
-              child: DropdownButtonFormField<String>(
-                value: _dateFilter,
-                decoration: const InputDecoration(labelText: 'Date'),
-                items: const [
-                  DropdownMenuItem(value: 'today', child: Text('Today')),
-                  DropdownMenuItem(value: 'all', child: Text('All dates')),
-                  DropdownMenuItem(value: 'week', child: Text('This week')),
-                  DropdownMenuItem(value: 'month', child: Text('This month')),
-                  DropdownMenuItem(value: 'date', child: Text('Choose date range…')),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  if (value == 'date') {
-                    _chooseDate();
-                  } else {
-                    setState(() {
-                      _dateFilter = value;
-                      _selectedDate = null;
-                      _selectedDateRange = null;
-                    });
-                  }
-                },
-              ),
-            ),
-            SizedBox(
-              width: wide ? 175 : constraints.maxWidth,
-              child: DropdownButtonFormField<String>(
-                value: _methodFilter,
-                decoration: const InputDecoration(labelText: 'Method'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All methods')),
-                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                  DropdownMenuItem(value: 'neft', child: Text('NEFT')),
-                  DropdownMenuItem(value: 'gpay', child: Text('GPay / Online')),
-                ],
-                onChanged: (value) =>
-                    setState(() => _methodFilter = value ?? 'all'),
-              ),
-            ),
-            SizedBox(
-              width: wide ? 210 : constraints.maxWidth,
-              child: DropdownButtonFormField<String>(
-                value: _salesmanFilter,
-                decoration: const InputDecoration(labelText: 'Salesman'),
-                items: [
-                  const DropdownMenuItem(
-                    value: 'all',
-                    child: Text('All salesmen'),
-                  ),
-                  ..._salesmanOptions.entries.map(
-                    (entry) => DropdownMenuItem(
-                      value: entry.key,
-                      child: Text(entry.value, overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                ],
-                onChanged: (value) =>
-                    setState(() => _salesmanFilter = value ?? 'all'),
-              ),
-            ),
+            const SizedBox(width: 8),
             OutlinedButton.icon(
-              onPressed: _resetFilters,
-              icon: const Icon(Icons.filter_alt_off_rounded),
-              label: const Text('Reset'),
+              onPressed: () => setState(() => _showFilters = !_showFilters),
+              icon: Icon(
+                _showFilters
+                    ? Icons.filter_alt_off_rounded
+                    : Icons.filter_alt_rounded,
+              ),
+              label: Text(_showFilters ? 'Hide' : 'Filters'),
             ),
-            if (_dateFilter == 'date' && _selectedDateRange != null)
-              Text(
+          ],
+        ),
+        if (_showFilters) ...[
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _dateFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Date'),
+            items: const [
+              DropdownMenuItem(value: 'today', child: Text('Today')),
+              DropdownMenuItem(value: 'all', child: Text('All dates')),
+              DropdownMenuItem(value: 'week', child: Text('This week')),
+              DropdownMenuItem(value: 'month', child: Text('This month')),
+              DropdownMenuItem(value: 'date', child: Text('Choose date range…')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              if (value == 'date') {
+                _chooseDate();
+              } else {
+                setState(() {
+                  _dateFilter = value;
+                  _selectedDate = null;
+                  _selectedDateRange = null;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _methodFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Method'),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All methods')),
+              DropdownMenuItem(value: 'cash', child: Text('Cash')),
+              DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+              DropdownMenuItem(value: 'neft', child: Text('NEFT')),
+              DropdownMenuItem(value: 'gpay', child: Text('GPay / Online')),
+            ],
+            onChanged: (value) =>
+                setState(() => _methodFilter = value ?? 'all'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _salesmanFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Salesman'),
+            items: [
+              const DropdownMenuItem(value: 'all', child: Text('All salesmen')),
+              ..._salesmanOptions.entries.map(
+                (entry) => DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+            onChanged: (value) =>
+                setState(() => _salesmanFilter = value ?? 'all'),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _resetFilters,
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('Reset filters'),
+            ),
+          ),
+          if (_dateFilter == 'date' && _selectedDateRange != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
                 'Dates: ${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month}/${_selectedDateRange!.start.year} – '
                 '${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}/${_selectedDateRange!.end.year}',
-                maxLines: 2,
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-          ],
-        );
-      },
+            ),
+        ],
+      ],
     );
   }
 

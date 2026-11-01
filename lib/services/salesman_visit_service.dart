@@ -62,15 +62,46 @@ class SalesmanVisitService {
 
   static Future<Set<String>> loadTodayCustomerIds() async {
     final userId = _requireUserId();
-    final row = await _client
-        .from('salesman_daily_route_selections')
-        .select('customer_ids')
-        .eq('salesman_id', userId)
-        .lte('route_date', _todayKey())
-        .order('route_date', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    final value = row?['customer_ids'];
+    try {
+      final row = await _client
+          .from('salesman_daily_route_selections')
+          .select('customer_ids, locations')
+          .eq('salesman_id', userId)
+          .lte('route_date', _todayKey())
+          .order('route_date', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      final assignedIds = _customerIdsFromValue(row?['customer_ids']);
+      if (assignedIds.isNotEmpty) return assignedIds;
+
+      // Assignments created before customer_ids was added keep an empty list
+      // in the daily row. The matching saved route still contains the
+      // owner-selected customer IDs, which is more precise than treating all
+      // customers in the route's locations as assigned.
+      final assignmentLocations = _normalizedLocations(row?['locations']);
+      if (assignmentLocations.isEmpty) return <String>{};
+      final templates = await _client
+          .from('salesman_route_templates')
+          .select('locations, customer_ids');
+      for (final template in List<Map<String, dynamic>>.from(templates)) {
+        final templateLocations = _normalizedLocations(template['locations']);
+        if (templateLocations.length != assignmentLocations.length ||
+            !templateLocations.containsAll(assignmentLocations)) {
+          continue;
+        }
+        final templateCustomerIds = _customerIdsFromValue(
+          template['customer_ids'],
+        );
+        if (templateCustomerIds.isNotEmpty) return templateCustomerIds;
+      }
+    } catch (_) {
+      // The customer_ids column is optional for older deployed databases.
+    }
+    return <String>{};
+  }
+
+  static Set<String> _customerIdsFromValue(dynamic value) {
     if (value is List) return value.map((item) => item.toString()).toSet();
     if (value is String && value.trim().isNotEmpty) {
       try {
@@ -81,6 +112,14 @@ class SalesmanVisitService {
       } catch (_) {}
     }
     return <String>{};
+  }
+
+  static Set<String> _normalizedLocations(dynamic value) {
+    if (value is! List) return <String>{};
+    return value
+        .map((location) => location.toString().trim().toLowerCase())
+        .where((location) => location.isNotEmpty)
+        .toSet();
   }
 
   static Future<String?> loadRouteNameForLocations(
