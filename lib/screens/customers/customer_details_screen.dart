@@ -109,7 +109,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 final type = entry['entry_type']?.toString() ?? 'entry';
                 return CheckboxListTile(
                   value: selected.contains(id),
-                  title: Text(type == 'purchase' ? 'New Sale' : 'Payment'),
+                  title: Text(
+                    type == 'purchase'
+                        ? 'New Sale'
+                        : type == 'refusal'
+                        ? 'Payment refused'
+                        : 'Payment',
+                  ),
                   subtitle: Text(_formatDate(entry['transaction_date'])),
                   onChanged: id.isEmpty
                       ? null
@@ -230,27 +236,35 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       final ledger = await TransactionService.getCustomerLedger(
         widget.customer.id,
       );
-      final refusals = await Supabase.instance.client
-          .from('salesman_customer_daily_status')
-          .select('id, status_date, note, created_at, entered_by')
-          .eq('customer_id', widget.customer.id)
-          .eq('status', 'rejected')
-          .order('status_date', ascending: false);
-      final refusalEntries = (refusals as List)
-          .map<Map<String, dynamic>>(
-            (row) => {
-              'id': 'refusal-${row['id']}',
-              'entry_type': 'refusal',
-              'transaction_date':
-                  row['created_at']?.toString() ??
-                  '${row['status_date']}T00:00:00',
-              'status_date': row['status_date'],
-              'notes': row['note']?.toString() ?? 'Customer refused payment',
-              'amount': 0,
-              'amount_received': 0,
-            },
-          )
-          .toList();
+      // A refusal is a visit-history event, not a ledger transaction. Keep
+      // loading the normal ledger even if an older database has not yet
+      // applied the daily-status visibility policy.
+      var refusalEntries = <Map<String, dynamic>>[];
+      try {
+        final refusals = await Supabase.instance.client
+            .from('salesman_customer_daily_status')
+            .select('id, status_date, note, created_at, entered_by')
+            .eq('customer_id', widget.customer.id)
+            .eq('status', 'rejected')
+            .order('status_date', ascending: false);
+        refusalEntries = (refusals as List)
+            .map<Map<String, dynamic>>(
+              (row) => {
+                'id': 'refusal-${row['id']}',
+                'entry_type': 'refusal',
+                // Prefer the recorded local calendar date so the refusal
+                // remains correct when the customer is opened on a later day.
+                'transaction_date': '${row['status_date']}T00:00:00',
+                'status_date': row['status_date'],
+                'notes': row['note']?.toString() ?? 'Customer refused payment',
+                'amount': 0,
+                'amount_received': 0,
+              },
+            )
+            .toList();
+      } catch (error) {
+        debugPrint('Could not load customer refusal history: $error');
+      }
 
       if (!mounted) return;
 
@@ -2760,7 +2774,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   // Ledger filters: All / New Purchase / Payment Received / Sales.
   Widget _buildLedgerFilterSelector() {
-    const filters = <String>['All', 'New Sale', 'Payment Received', 'Sales'];
+    const filters = <String>[
+      'All',
+      'New Sale',
+      'Payment Received',
+      'Payment Refused',
+      'Sales',
+    ];
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -2827,6 +2847,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
               type == 'bounced_check' ||
               entry['is_bounced'] == true;
         }).toList();
+      case 'Payment Refused':
+        return entries
+            .where((entry) => entry['entry_type']?.toString() == 'refusal')
+            .toList();
       case 'Sales':
         return entries.where((entry) {
           final type = entry['entry_type']?.toString().toLowerCase();
