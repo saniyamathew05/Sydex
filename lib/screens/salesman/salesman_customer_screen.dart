@@ -45,6 +45,10 @@ class _SalesmanCustomerDetailsScreenState
         return type == 'return' || type == 'sales_return';
       }).toList();
 
+  List<Map<String, dynamic>> get _refusalEntries => _ledgerEntries
+      .where((entry) => entry['entry_type']?.toString() == 'refusal')
+      .toList();
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +75,29 @@ class _SalesmanCustomerDetailsScreenState
       }
     } catch (error) {
       debugPrint('Could not load transaction author names: $error');
+    }
+    try {
+      final refusals = await Supabase.instance.client
+          .from('salesman_customer_daily_status')
+          .select('id, status_date, note')
+          .eq('customer_id', _customer.id)
+          .eq('status', 'rejected')
+          .order('status_date', ascending: false);
+      entries.addAll(
+        (refusals as List).map(
+          (row) => <String, dynamic>{
+            'id': 'refusal-${row['id']}',
+            'entry_type': 'refusal',
+            'transaction_date': '${row['status_date']}T00:00:00',
+            'status_date': row['status_date'],
+            'notes': row['note']?.toString() ?? 'Customer refused payment',
+            'amount': 0,
+            'amount_received': 0,
+          },
+        ),
+      );
+    } catch (error) {
+      debugPrint('Could not load refusal history: $error');
     }
     if (!mounted) return;
     setState(() => _ledgerEntries = entries);
@@ -770,16 +797,21 @@ class _SalesmanCustomerDetailsScreenState
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: ['All', 'Sales', 'Payment', 'Sales Return'].map((
-                    filter,
-                  ) {
-                    return ChoiceChip(
-                      label: Text(filter),
-                      selected: _historyFilter == filter,
-                      onSelected: (_) =>
-                          setState(() => _historyFilter = filter),
-                    );
-                  }).toList(),
+                  children:
+                      [
+                        'All',
+                        'Sales',
+                        'Payment',
+                        'Payment Refused',
+                        'Sales Return',
+                      ].map((filter) {
+                        return ChoiceChip(
+                          label: Text(filter),
+                          selected: _historyFilter == filter,
+                          onSelected: (_) =>
+                              setState(() => _historyFilter = filter),
+                        );
+                      }).toList(),
                 ),
 
                 if (_historyFilter == 'All' || _historyFilter == 'Sales') ...[
@@ -992,6 +1024,78 @@ class _SalesmanCustomerDetailsScreenState
                     ...payments.map(
                       (payment) => _PaymentCard(transaction: payment),
                     ),
+                ],
+
+                if (_historyFilter == 'All' ||
+                    _historyFilter == 'Payment Refused') ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Payment Refused',
+                        style: TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                      if (_refusalEntries.isNotEmpty)
+                        Text(
+                          '${_refusalEntries.length}',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_refusalEntries.isEmpty)
+                    const Text('No refused payments recorded.')
+                  else
+                    ..._refusalEntries.map((entry) {
+                      final date = DateTime.tryParse(
+                        entry['transaction_date']?.toString() ?? '',
+                      )?.toLocal();
+                      final dateLabel = date == null
+                          ? entry['status_date']?.toString() ?? ''
+                          : '${date.day.toString().padLeft(2, '0')}/'
+                                '${date.month.toString().padLeft(2, '0')}/'
+                                '${date.year}';
+                      final note = entry['notes']?.toString().trim() ?? '';
+                      return Card(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                            child: Icon(
+                              Icons.block_outlined,
+                              color: Theme.of(context).colorScheme.onError,
+                            ),
+                          ),
+                          title: Text(
+                            'Payment refused',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Refused on $dateLabel${note.isEmpty ? '' : '\n$note'}',
+                          ),
+                        ),
+                      );
+                    }),
                 ],
 
                 if (_historyFilter == 'All' ||
