@@ -3069,6 +3069,26 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       },
                     ),
 
+                  if (isReturn && _isOwner)
+                    PopupMenuButton<String>(
+                      tooltip: 'Sales return options',
+                      onSelected: (value) {
+                        if (value == 'hide') {
+                          _hideHistoryEntry(entry);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem<String>(
+                          value: 'hide',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.visibility_off_outlined),
+                            title: Text('Remove from customer history'),
+                          ),
+                        ),
+                      ],
+                    ),
+
                   if (_isOwner &&
                       type == 'payment' &&
                       entry['is_bounced'] != true)
