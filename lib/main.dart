@@ -40,13 +40,6 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
-  // Supabase persists sessions between launches. Clear only this device's
-  // session so the user must sign in again after closing and reopening app.
-  final auth = Supabase.instance.client.auth;
-  if (auth.currentSession != null) {
-    await auth.signOut(scope: SignOutScope.local);
-  }
-
   await ThemeController.loadTheme();
 
   runApp(const BusinessPaymentApp());
