@@ -1279,11 +1279,42 @@ class _OwnerRouteManagementScreenState
                     .map((location) => location.trim().toLowerCase())
                     .where((location) => location.isNotEmpty)
                     .toSet();
+                var assignedIds =
+                    _todayCustomerAssignments[salesmanId] ?? const <String>[];
+                // Older daily assignment rows may not contain customer_ids.
+                // Recover the exact saved order from the matching route
+                // template instead of expanding the assignment to a location.
+                if (assignedIds.isEmpty && normalizedLocations.isNotEmpty) {
+                  for (final route in _routes) {
+                    final templateLocations =
+                        (route['locations'] as List? ?? const [])
+                            .map((e) => e.toString().trim().toLowerCase())
+                            .where((e) => e.isNotEmpty)
+                            .toSet();
+                    if (templateLocations.length !=
+                            normalizedLocations.length ||
+                        !templateLocations.containsAll(normalizedLocations)) {
+                      continue;
+                    }
+                    final rawIds = route['customer_ids'];
+                    if (rawIds is List) {
+                      assignedIds = rawIds.map((e) => e.toString()).toList();
+                    } else if (rawIds is String && rawIds.trim().isNotEmpty) {
+                      try {
+                        final decoded = jsonDecode(rawIds);
+                        if (decoded is List) {
+                          assignedIds = decoded
+                              .map((e) => e.toString())
+                              .toList();
+                        }
+                      } catch (_) {}
+                    }
+                    if (assignedIds.isNotEmpty) break;
+                  }
+                }
                 final routeCustomers = CustomerService.customers.where((
                   customer,
                 ) {
-                  final assignedIds =
-                      _todayCustomerAssignments[salesmanId] ?? const [];
                   if (assignedIds.isNotEmpty) {
                     return assignedIds.contains(customer.id);
                   }
@@ -1291,8 +1322,6 @@ class _OwnerRouteManagementScreenState
                     customer.location.trim().toLowerCase(),
                   );
                 }).toList();
-                final assignedIds =
-                    _todayCustomerAssignments[salesmanId] ?? const <String>[];
                 if (assignedIds.isNotEmpty) {
                   final order = {
                     for (var i = 0; i < assignedIds.length; i++)
