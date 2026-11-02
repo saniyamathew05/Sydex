@@ -27,9 +27,11 @@ class TransactionService {
       LedgerService.customerBalances;
 
   static Future<void> loadTransactions() async {
-    // Load active customers first so payments belonging to deactivated customers
-    // are never shown as orphaned 'Customer' entries in the payment ledger.
-    await CustomerService.loadCustomers();
+    // Reuse the shared customer cache when screens have already loaded it.
+    // This avoids a second full customer query during every ledger refresh.
+    if (CustomerService.customers.isEmpty) {
+      await CustomerService.loadCustomers();
+    }
     isLoading = true;
 
     errorMessage = null;
