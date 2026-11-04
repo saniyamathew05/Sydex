@@ -2465,7 +2465,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           Expanded(flex: 18, child: Text('METHOD')),
           Expanded(flex: 16, child: Text('NOTES')),
           Expanded(flex: 14, child: Text('AMOUNT', textAlign: TextAlign.right)),
-          SizedBox(width: 72, child: Text('ACTION')),
+          SizedBox(width: 80, child: Text('ACTION')),
         ],
       ),
     );
@@ -2531,18 +2531,30 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           SizedBox(
-            width: 72,
+            width: 80,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   tooltip: 'Edit payment',
                   onPressed: () => _editPayment(payment),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.edit_outlined, size: 18),
                 ),
                 IconButton(
                   tooltip: 'Delete payment',
                   onPressed: () => _deletePayment(payment),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  visualDensity: VisualDensity.compact,
                   icon: Icon(
                     Icons.delete_outline_rounded,
                     size: 18,
