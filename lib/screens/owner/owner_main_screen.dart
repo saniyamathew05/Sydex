@@ -1985,7 +1985,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       final rows = await Supabase.instance.client
           .from('salesman_customer_daily_status')
           .select(
-            'id, customer_id, status_date, note, entered_by, customers(business_name, location)',
+            'id, customer_id, status_date, created_at, note, entered_by, customers(business_name, location)',
           )
           .eq('status', 'rejected')
           .order('status_date', ascending: false);
@@ -2002,7 +2002,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     if (_methodFilter != 'all' && _methodFilter != 'refused') return const [];
     final query = _searchQuery;
     return _refusedPayments.where((row) {
-      final date = DateTime.tryParse('${row['status_date']}T00:00:00');
+      final date = DateTime.tryParse(
+        row['created_at']?.toString() ?? '${row['status_date']}T00:00:00',
+      );
       if (date == null) return false;
       final day = DateTime(date.year, date.month, date.day);
       final now = DateTime.now();
@@ -2615,7 +2617,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   ),
                   ...refusedPayments.map((row) {
                     final parsed =
-                        DateTime.tryParse('${row['status_date']}T00:00:00') ??
+                        DateTime.tryParse(
+                          row['created_at']?.toString() ??
+                              '${row['status_date']}T00:00:00',
+                        ) ??
                         DateTime.fromMillisecondsSinceEpoch(0);
                     return (at: parsed, payment: null, refused: row);
                   }),

@@ -254,7 +254,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 'entry_type': 'refusal',
                 // Prefer the recorded local calendar date so the refusal
                 // remains correct when the customer is opened on a later day.
-                'transaction_date': '${row['status_date']}T00:00:00',
+                'transaction_date':
+                    row['created_at']?.toString() ??
+                    '${row['status_date']}T00:00:00',
                 'status_date': row['status_date'],
                 'notes': row['note']?.toString() ?? 'Customer refused payment',
                 'amount': 0,

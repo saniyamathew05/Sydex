@@ -79,7 +79,7 @@ class _SalesmanCustomerDetailsScreenState
     try {
       final refusals = await Supabase.instance.client
           .from('salesman_customer_daily_status')
-          .select('id, status_date, note')
+          .select('id, status_date, created_at, note')
           .eq('customer_id', _customer.id)
           .eq('status', 'rejected')
           .order('status_date', ascending: false);
@@ -88,7 +88,9 @@ class _SalesmanCustomerDetailsScreenState
           (row) => <String, dynamic>{
             'id': 'refusal-${row['id']}',
             'entry_type': 'refusal',
-            'transaction_date': '${row['status_date']}T00:00:00',
+            'transaction_date':
+                row['created_at']?.toString() ??
+                '${row['status_date']}T00:00:00',
             'status_date': row['status_date'],
             'notes': row['note']?.toString() ?? 'Customer refused payment',
             'amount': 0,
