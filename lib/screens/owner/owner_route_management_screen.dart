@@ -57,6 +57,21 @@ class _OwnerRouteManagementScreenState
     return null;
   }
 
+  List<String> _locationsForSelectedCustomers() {
+    final byId = {
+      for (final customer in CustomerService.customers) customer.id: customer,
+    };
+    final locations = <String>[];
+    final seen = <String>{};
+    for (final id in _selectedCustomerIds) {
+      final location = byId[id]?.location.trim() ?? '';
+      if (location.isNotEmpty && seen.add(location.toLowerCase())) {
+        locations.add(location);
+      }
+    }
+    return locations;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -305,13 +320,7 @@ class _OwnerRouteManagementScreenState
         _message('Select at least one customer first.');
         return;
       }
-      final sourceLocations = CustomerService.customers
-          .where((customer) => _selectedCustomerIds.contains(customer.id))
-          .map((customer) => customer.location.trim())
-          .where((location) => location.isNotEmpty)
-          .toSet();
-      final locations = sourceLocations.toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final locations = _locationsForSelectedCustomers();
       await _client
           .from('salesman_route_templates')
           .update({
@@ -502,18 +511,13 @@ class _OwnerRouteManagementScreenState
       _message('Select at least one customer first.');
       return;
     }
-    final assignmentLocations = CustomerService.customers
-        .where((customer) => _selectedCustomerIds.contains(customer.id))
-        .map((customer) => customer.location.trim())
-        .where((location) => location.isNotEmpty)
-        .toSet();
+    final assignmentLocations = _locationsForSelectedCustomers().toSet();
     setState(() => _saving = true);
     try {
       final today = DateTime.now();
       final dateKey =
           '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      final locations = assignmentLocations.toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final locations = _locationsForSelectedCustomers();
       // The latest dated assignment remains active until the owner removes it.
       // Keep the saved named route in sync so salesmen can display its name.
       await _client
@@ -989,13 +993,13 @@ class _OwnerRouteManagementScreenState
                         const SizedBox(height: 8),
                         ..._salesmen.map((salesman) {
                           final salesmanId = salesman['id'].toString();
-                          final currentCustomers =
-                              _todayCustomerAssignments[salesmanId];
-                          final subtitle = currentCustomers == null
+                          final currentLocations =
+                              _todayAssignments[salesmanId];
+                          final subtitle = currentLocations == null
                               ? 'No active route assignment'
-                              : currentCustomers.isEmpty
+                              : currentLocations.isEmpty
                               ? 'No active route assignment'
-                              : 'Currently assigned: ${currentCustomers.length} selected customers';
+                              : 'Location order: ${currentLocations.join(' → ')}';
                           return CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             value: _selectedSalesmanIds.contains(salesmanId),
