@@ -316,7 +316,10 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
             TargetPlatform.linux => true,
             _ => false,
           };
-          final isDesktop = isNativeDesktop || constraints.maxWidth >= 1100;
+          // Use the same width breakpoints on desktop and mobile so a narrow
+          // desktop window does not force the wide sidebar layout.
+          final isDesktop =
+              constraints.maxWidth >= (isNativeDesktop ? 900 : 1100);
           if (isDesktop) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -414,8 +417,10 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final sidebarWidth = (screenWidth * 0.14).clamp(160.0, 220.0);
     return Container(
-      width: 176,
+      width: sidebarWidth,
       color: _background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
