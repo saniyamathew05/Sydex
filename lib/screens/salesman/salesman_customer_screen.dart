@@ -210,6 +210,95 @@ class _SalesmanCustomerDetailsScreenState
     }
   }
 
+  Widget _buildCombinedHistory() {
+    final entries = List<Map<String, dynamic>>.from(_ledgerEntries)
+      ..sort((a, b) {
+        final aDate = DateTime.tryParse(
+          a['transaction_date']?.toString() ?? '',
+        );
+        final bDate = DateTime.tryParse(
+          b['transaction_date']?.toString() ?? '',
+        );
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        const Text(
+          'All History',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (entries.isEmpty)
+          const Text('No history recorded yet.')
+        else
+          ...entries.map(_buildCombinedHistoryEntry),
+      ],
+    );
+  }
+
+  Widget _buildCombinedHistoryEntry(Map<String, dynamic> entry) {
+    final type = entry['entry_type']?.toString().toLowerCase() ?? '';
+    final date = DateTime.tryParse(
+      entry['transaction_date']?.toString() ?? '',
+    )?.toLocal();
+    final dateLabel = date == null
+        ? ''
+        : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+    final isRefusal = type == 'refusal';
+    final isReturn = type == 'return' || type == 'sales_return';
+    final isSale = type == 'purchase';
+    final title = isRefusal
+        ? 'Payment refused'
+        : isReturn
+        ? 'Sales return'
+        : isSale
+        ? 'Sale'
+        : 'Payment received';
+    final icon = isRefusal
+        ? Icons.block_outlined
+        : isReturn
+        ? Icons.assignment_return_outlined
+        : isSale
+        ? Icons.point_of_sale_outlined
+        : Icons.payments_outlined;
+    final color = isRefusal
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.primary;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      color: isRefusal ? Theme.of(context).colorScheme.errorContainer : null,
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isRefusal ? color : null,
+          ),
+        ),
+        subtitle: Text(
+          '${dateLabel.isEmpty ? 'Date unavailable' : dateLabel}${isRefusal ? '\n${entry['notes'] ?? 'Customer refused payment'}' : ''}',
+        ),
+        trailing: Text(
+          isRefusal
+              ? '—'
+              : '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(amount)}',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isRefusal ? color : (isSale ? Colors.red : Colors.green),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showPhoneMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -814,7 +903,9 @@ class _SalesmanCustomerDetailsScreenState
                       }).toList(),
                 ),
 
-                if (_historyFilter == 'All' || _historyFilter == 'Sales') ...[
+                if (_historyFilter == 'All') ...[_buildCombinedHistory()],
+
+                if (_historyFilter == 'Sales') ...[
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -941,7 +1032,7 @@ class _SalesmanCustomerDetailsScreenState
                 // PAYMENT HISTORY
 
                 // ------------------------------------------------
-                if (_historyFilter == 'All' || _historyFilter == 'Payment') ...[
+                if (_historyFilter == 'Payment') ...[
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1026,8 +1117,7 @@ class _SalesmanCustomerDetailsScreenState
                     ),
                 ],
 
-                if (_historyFilter == 'All' ||
-                    _historyFilter == 'Payment Refused') ...[
+                if (_historyFilter == 'Payment Refused') ...[
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1098,8 +1188,7 @@ class _SalesmanCustomerDetailsScreenState
                     }),
                 ],
 
-                if (_historyFilter == 'All' ||
-                    _historyFilter == 'Sales Return') ...[
+                if (_historyFilter == 'Sales Return') ...[
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
