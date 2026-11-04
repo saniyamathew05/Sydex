@@ -45,6 +45,9 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
   double get _selectedPaymentsTotal =>
       _paymentsForSummary.fold<double>(0, (total, payment) {
+        if (payment['entry_type']?.toString().toLowerCase() == 'refusal') {
+          return total;
+        }
         final received =
             (payment['amount_received'] as num?)?.toDouble() ??
             ((payment['amount'] as num?)?.toDouble() ?? 0) -
@@ -192,6 +195,47 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         }
       }
       final payments = List<Map<String, dynamic>>.from(response);
+
+      // Include refused visits as red, zero-amount payment-history events.
+      if (_assignedCustomerIds.isNotEmpty) {
+        try {
+          final refusals = await _supabase
+              .from('salesman_customer_daily_status')
+              .select('id, customer_id, status_date, note, entered_by')
+              .eq('status', 'rejected')
+              .inFilter('customer_id', _assignedCustomerIds.toList());
+          final customerById = {
+            for (final customer in CustomerService.customers)
+              customer.id: customer,
+          };
+          payments.addAll(
+            (refusals as List).map((row) {
+              final customer = customerById[row['customer_id']?.toString()];
+              return <String, dynamic>{
+                'id': 'refusal-${row['id']}',
+                'entry_type': 'refusal',
+                'customer_id': row['customer_id'],
+                'transaction_date': '${row['status_date']}T00:00:00',
+                'created_at': row['status_date'],
+                'amount': 0,
+                'amount_received': 0,
+                'payment_method': 'refused',
+                'payment_method_note': row['note']?.toString() ?? '',
+                'notes': row['note']?.toString() ?? 'Customer refused payment',
+                'user_id': row['entered_by'],
+                'customers': customer == null
+                    ? null
+                    : {
+                        'business_name': customer.businessName,
+                        'location': customer.location,
+                      },
+              };
+            }),
+          );
+        } catch (error) {
+          debugPrint('Could not load refused payment history: $error');
+        }
+      }
 
       // Resolve only the receiver names needed for these visible payment rows.
       // The RPC exposes names, not the rest of another user's profile.
@@ -368,6 +412,11 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
   bool _matchesMethod(Map<String, dynamic> payment) {
     if (_methodFilter == 'all') return true;
+    if (_methodFilter == 'refused') {
+      return payment['entry_type']?.toString().toLowerCase() == 'refusal';
+    }
+    if (payment['entry_type']?.toString().toLowerCase() == 'refusal')
+      return false;
     final method = payment['payment_method']
         ?.toString()
         .trim()
@@ -624,7 +673,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
               DropdownMenuItem(value: 'all', child: Text('All dates')),
               DropdownMenuItem(value: 'week', child: Text('This week')),
               DropdownMenuItem(value: 'month', child: Text('This month')),
-              DropdownMenuItem(value: 'date', child: Text('Choose date range…')),
+              DropdownMenuItem(
+                value: 'date',
+                child: Text('Choose date range…'),
+              ),
             ],
             onChanged: (value) {
               if (value == null) return;
@@ -650,6 +702,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
               DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
               DropdownMenuItem(value: 'neft', child: Text('NEFT')),
               DropdownMenuItem(value: 'gpay', child: Text('GPay / Online')),
+              DropdownMenuItem(value: 'refused', child: Text('Refused')),
             ],
             onChanged: (value) =>
                 setState(() => _methodFilter = value ?? 'all'),
@@ -848,6 +901,38 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   }
 
   Widget _buildPaymentCard(Map<String, dynamic> payment) {
+    if (payment['entry_type']?.toString().toLowerCase() == 'refusal') {
+      final customerName = _customerName(payment);
+      final date = payment['transaction_date'] as String? ?? '';
+      final note = payment['notes']?.toString() ?? 'Customer refused payment';
+      final error = Theme.of(context).colorScheme.error;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 11),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: error),
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: error,
+            child: Icon(
+              Icons.block_outlined,
+              color: Theme.of(context).colorScheme.onError,
+            ),
+          ),
+          title: Text(
+            customerName,
+            style: TextStyle(fontWeight: FontWeight.w800, color: error),
+          ),
+          subtitle: Text('Payment refused • ${_formatDate(date)}\n$note'),
+          trailing: Text(
+            'Refused',
+            style: TextStyle(fontWeight: FontWeight.w800, color: error),
+          ),
+        ),
+      );
+    }
     final customer = payment['customers'];
 
     final customerName = _customerName(payment);

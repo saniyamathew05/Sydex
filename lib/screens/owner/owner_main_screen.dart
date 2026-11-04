@@ -1962,6 +1962,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   DateTime? _selectedDate;
   DateTimeRange? _selectedDateRange;
   final Set<String> _hiddenPaymentIds = <String>{};
+  List<Map<String, dynamic>> _refusedPayments = const [];
 
   static const _hiddenPaymentsKey = 'owner_hidden_payment_ids';
 
@@ -1971,6 +1972,74 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     _searchController.addListener(_onSearchChanged);
     CustomerService.dataVersion.addListener(_onCustomersChanged);
     _loadHiddenPayments();
+    _loadRefusedPayments();
+  }
+
+  Future<void> _loadRefusedPayments() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('salesman_customer_daily_status')
+          .select(
+            'id, customer_id, status_date, note, entered_by, customers(business_name, location)',
+          )
+          .eq('status', 'rejected')
+          .order('status_date', ascending: false);
+      if (mounted)
+        setState(
+          () => _refusedPayments = List<Map<String, dynamic>>.from(rows),
+        );
+    } catch (error) {
+      debugPrint('Could not load refused payment history: $error');
+    }
+  }
+
+  List<Map<String, dynamic>> _filteredRefusedPayments() {
+    if (_methodFilter != 'all' && _methodFilter != 'refused') return const [];
+    final query = _searchQuery;
+    return _refusedPayments.where((row) {
+      final date = DateTime.tryParse('${row['status_date']}T00:00:00');
+      if (date == null) return false;
+      final day = DateTime(date.year, date.month, date.day);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (_dateFilter == 'today' && day != today) return false;
+      final customer = row['customers'];
+      final name = customer is Map
+          ? customer['business_name']?.toString() ?? ''
+          : '';
+      final note = row['note']?.toString() ?? '';
+      return query.isEmpty ||
+          name.toLowerCase().contains(query) ||
+          note.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  Widget _buildRefusedPaymentCard(
+    Map<String, dynamic> row,
+    ColorScheme colors,
+  ) {
+    final customer = row['customers'];
+    final name = customer is Map
+        ? customer['business_name']?.toString() ?? 'Customer'
+        : 'Customer';
+    final date = row['status_date']?.toString() ?? '';
+    return Card(
+      color: colors.errorContainer,
+      child: ListTile(
+        leading: Icon(Icons.block_outlined, color: colors.error),
+        title: Text(
+          name,
+          style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          'Payment method: Refused • $date\n${row['note'] ?? 'Customer refused payment'}',
+        ),
+        trailing: Text(
+          'Refused',
+          style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadHiddenPayments() async {
@@ -2048,12 +2117,21 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       case 'date':
         final range = _selectedDateRange;
         if (range != null) {
-          final start = DateTime(range.start.year, range.start.month, range.start.day);
+          final start = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
           final end = DateTime(range.end.year, range.end.month, range.end.day);
           return !day.isBefore(start) && !day.isAfter(end);
         }
         if (_selectedDate == null) return true;
-        return day == DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+        return day ==
+            DateTime(
+              _selectedDate!.year,
+              _selectedDate!.month,
+              _selectedDate!.day,
+            );
       default:
         return true;
     }
@@ -2095,7 +2173,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(now.year, now.month, now.day),
-      initialDateRange: _selectedDateRange ?? DateTimeRange(start: _selectedDate ?? now, end: _selectedDate ?? now),
+      initialDateRange:
+          _selectedDateRange ??
+          DateTimeRange(start: _selectedDate ?? now, end: _selectedDate ?? now),
       helpText: 'Filter ledger by date range',
     );
     if (picked == null || !mounted) return;
@@ -2365,6 +2445,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         valueListenable: TransactionService.dataVersion,
         builder: (context, version, child) {
           final payments = _filteredPayments();
+          final refusedPayments = _filteredRefusedPayments();
           final total = payments.fold<double>(
             0,
             (sum, payment) =>
@@ -2501,6 +2582,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             value: 'online',
                             child: Text('Online'),
                           ),
+                          DropdownMenuItem(
+                            value: 'refused',
+                            child: Text('Refused'),
+                          ),
                         ],
                         onChanged: (value) =>
                             setState(() => _methodFilter = value ?? 'all'),
@@ -2565,13 +2650,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   },
                 ),
                 const SizedBox(height: 18),
+                if (refusedPayments.isNotEmpty)
+                  ...refusedPayments.map(
+                    (row) => _buildRefusedPaymentCard(row, colors),
+                  ),
                 if (TransactionService.isLoading &&
                     TransactionService.transactions.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 90),
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else if (payments.isEmpty)
+                else if (payments.isEmpty && refusedPayments.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(36),
                     decoration: BoxDecoration(
