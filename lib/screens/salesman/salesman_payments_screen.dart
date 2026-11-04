@@ -186,7 +186,9 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         try {
           final refusals = await _supabase
               .from('salesman_customer_daily_status')
-              .select('id, customer_id, status_date, note, entered_by')
+              .select(
+                'id, customer_id, status_date, created_at, note, entered_by',
+              )
               .eq('status', 'rejected')
               .inFilter('customer_id', _assignedCustomerIds.toList());
           final customerById = {
@@ -200,8 +202,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                 'id': 'refusal-${row['id']}',
                 'entry_type': 'refusal',
                 'customer_id': row['customer_id'],
-                'transaction_date': '${row['status_date']}T00:00:00',
-                'created_at': row['status_date'],
+                'transaction_date':
+                    row['created_at']?.toString() ??
+                    '${row['status_date']}T00:00:00',
+                'created_at': row['created_at'] ?? row['status_date'],
                 'amount': 0,
                 'amount_received': 0,
                 'payment_method': 'refused',
@@ -421,7 +425,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
   List<Map<String, dynamic>> get _filteredPayments {
     final query = _searchQuery.trim().toLowerCase();
-    return _payments.where((payment) {
+    final filtered = _payments.where((payment) {
       if (!_matchesDate(payment)) return false;
       if (!_matchesMethod(payment)) return false;
       if (!_matchesSalesman(payment)) return false;
@@ -437,6 +441,16 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       ];
       return values.any((value) => value.toLowerCase().contains(query));
     }).toList();
+    filtered.sort((a, b) {
+      final aDate =
+          DateTime.tryParse(a['transaction_date']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate =
+          DateTime.tryParse(b['transaction_date']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return filtered;
   }
 
   Future<void> _chooseDate() async {
