@@ -2007,7 +2007,38 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       final day = DateTime(date.year, date.month, date.day);
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      if (_dateFilter == 'today' && day != today) return false;
+      switch (_dateFilter) {
+        case 'today':
+          if (day != today) return false;
+        case 'week':
+          final start = today.subtract(Duration(days: today.weekday - 1));
+          if (day.isBefore(start) || day.isAfter(today)) return false;
+        case 'month':
+          if (day.year != today.year || day.month != today.month) return false;
+        case 'date':
+          final range = _selectedDateRange;
+          if (range != null) {
+            final start = DateTime(
+              range.start.year,
+              range.start.month,
+              range.start.day,
+            );
+            final end = DateTime(
+              range.end.year,
+              range.end.month,
+              range.end.day,
+            );
+            if (day.isBefore(start) || day.isAfter(end)) return false;
+          } else if (_selectedDate != null &&
+              day !=
+                  DateTime(
+                    _selectedDate!.year,
+                    _selectedDate!.month,
+                    _selectedDate!.day,
+                  )) {
+            return false;
+          }
+      }
       final customer = row['customers'];
       final name = customer is Map
           ? customer['business_name']?.toString() ?? ''
@@ -2555,6 +2586,29 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         builder: (context, version, child) {
           final payments = _filteredPayments();
           final refusedPayments = _filteredRefusedPayments();
+          final timeline =
+              <
+                  ({
+                    DateTime at,
+                    PaymentTransaction? payment,
+                    Map<String, dynamic>? refused,
+                  })
+                >[
+                  ...payments.map(
+                    (payment) => (
+                      at: payment.transactionDate,
+                      payment: payment,
+                      refused: null,
+                    ),
+                  ),
+                  ...refusedPayments.map((row) {
+                    final parsed =
+                        DateTime.tryParse('${row['status_date']}T00:00:00') ??
+                        DateTime.fromMillisecondsSinceEpoch(0);
+                    return (at: parsed, payment: null, refused: row);
+                  }),
+                ]
+                ..sort((a, b) => b.at.compareTo(a.at));
           final total = payments.fold<double>(
             0,
             (sum, payment) =>
@@ -2730,7 +2784,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     final statChildren = [
                       _LedgerSummaryItem(
                         label: 'Payments shown',
-                        value: '${payments.length}',
+                        value: '${timeline.length}',
                         icon: Icons.receipt_long_rounded,
                         colors: colors,
                       ),
@@ -2759,17 +2813,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   },
                 ),
                 const SizedBox(height: 18),
-                if (refusedPayments.isNotEmpty)
-                  ...refusedPayments.map(
-                    (row) => _buildRefusedPaymentCard(row, colors),
-                  ),
                 if (TransactionService.isLoading &&
                     TransactionService.transactions.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 90),
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else if (payments.isEmpty && refusedPayments.isEmpty)
+                else if (timeline.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(36),
                     decoration: BoxDecoration(
@@ -2814,24 +2864,35 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     child: Column(
                       children: [
                         _desktopLedgerHeader(colors),
-                        ...payments.map(
-                          (payment) => _desktopLedgerRow(payment, colors),
+                        ...timeline.map(
+                          (entry) => entry.payment != null
+                              ? _desktopLedgerRow(entry.payment!, colors)
+                              : _buildRefusedPaymentCard(
+                                  entry.refused!,
+                                  colors,
+                                ),
                         ),
                       ],
                     ),
                   )
                 else
-                  ...payments.map(
-                    (payment) => _PaymentTile(
-                      payment: payment,
-                      date: _formatDate(payment.transactionDate.toLocal()),
-                      displayedReceived: _amountForCurrentMethod(payment),
-                      selectedMethod: _methodFilter,
-                      colors: colors,
-                      onEdit: () => _editPayment(payment),
-                      onHide: () => _hidePayment(payment),
-                      onDelete: () => _deletePayment(payment),
-                    ),
+                  ...timeline.map(
+                    (entry) => entry.payment != null
+                        ? _PaymentTile(
+                            payment: entry.payment!,
+                            date: _formatDate(
+                              entry.payment!.transactionDate.toLocal(),
+                            ),
+                            displayedReceived: _amountForCurrentMethod(
+                              entry.payment!,
+                            ),
+                            selectedMethod: _methodFilter,
+                            colors: colors,
+                            onEdit: () => _editPayment(entry.payment!),
+                            onHide: () => _hidePayment(entry.payment!),
+                            onDelete: () => _deletePayment(entry.payment!),
+                          )
+                        : _buildRefusedPaymentCard(entry.refused!, colors),
                   ),
               ],
             ),
