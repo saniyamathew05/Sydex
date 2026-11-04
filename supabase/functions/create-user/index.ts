@@ -23,6 +23,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    const contentLength = Number(req.headers.get("content-length") ?? "0");
+    if (contentLength > 64_000) {
+      return jsonResponse({ error: "Request is too large." }, 413);
+    }
+
     const supabaseUrl =
       Deno.env.get("SUPABASE_URL");
 
@@ -125,7 +130,7 @@ Deno.serve(async (req) => {
 
     if (
       !requesterProfile ||
-      requesterProfile.role !== "owner"
+      String(requesterProfile.role ?? "").toLowerCase() !== "owner"
     ) {
       return jsonResponse(
         {
@@ -203,11 +208,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (password.length < 6) {
+      if (password.length < 12) {
         return jsonResponse(
           {
             error:
-              "Password must contain at least 6 characters.",
+              "Password must contain at least 12 characters.",
           },
           400,
         );
@@ -388,11 +393,11 @@ Deno.serve(async (req) => {
        * Update Auth password when provided.
        */
       if (password.isNotEmpty) {
-        if (password.length < 6) {
+        if (password.length < 12) {
           return jsonResponse(
             {
               error:
-                "Password must contain at least 6 characters.",
+                "Password must contain at least 12 characters.",
             },
             400,
           );
