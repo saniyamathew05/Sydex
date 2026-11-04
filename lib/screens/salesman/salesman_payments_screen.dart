@@ -121,22 +121,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
           SalesmanVisitService.loadTodayRoute(),
         ]);
         final customerIds = Set<String>.from(values[1] as Set<String>);
-        if (customerIds.isNotEmpty) {
-          _assignedCustomerIds = customerIds;
-        } else {
-          final routeLocations = (values[2] as List<String>)
-              .map((location) => location.trim().toLowerCase())
-              .where((location) => location.isNotEmpty)
-              .toSet();
-          _assignedCustomerIds = CustomerService.customers
-              .where(
-                (customer) => routeLocations.contains(
-                  customer.location.trim().toLowerCase(),
-                ),
-              )
-              .map((customer) => customer.id)
-              .toSet();
-        }
+        _assignedCustomerIds = customerIds;
       } catch (error) {
         debugPrint('Could not load assigned customer count: $error');
         _assignedCustomerIds = <String>{};

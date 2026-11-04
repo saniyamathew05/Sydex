@@ -75,26 +75,7 @@ class SalesmanVisitService {
       final assignedIds = _customerIdsFromValue(row?['customer_ids']);
       if (assignedIds.isNotEmpty) return assignedIds;
 
-      // Assignments created before customer_ids was added keep an empty list
-      // in the daily row. The matching saved route still contains the
-      // owner-selected customer IDs, which is more precise than treating all
-      // customers in the route's locations as assigned.
-      final assignmentLocations = _normalizedLocations(row?['locations']);
-      if (assignmentLocations.isEmpty) return <String>{};
-      final templates = await _client
-          .from('salesman_route_templates')
-          .select('locations, customer_ids');
-      for (final template in List<Map<String, dynamic>>.from(templates)) {
-        final templateLocations = _normalizedLocations(template['locations']);
-        if (templateLocations.length != assignmentLocations.length ||
-            !templateLocations.containsAll(assignmentLocations)) {
-          continue;
-        }
-        final templateCustomerIds = _customerIdsFromValue(
-          template['customer_ids'],
-        );
-        if (templateCustomerIds.isNotEmpty) return templateCustomerIds;
-      }
+      // Customer IDs are the authoritative assignment. Empty means no customers assigned.
     } catch (_) {
       // The customer_ids column is optional for older deployed databases.
     }

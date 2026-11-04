@@ -231,19 +231,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       );
       return customers;
     }
-    final assignedLocations = selectedRouteLocations
-        .map((location) => location.trim().toLowerCase())
-        .where((location) => location.isNotEmpty)
-        .toSet();
-    return CustomerService.customers.where((customer) {
-      return assignedLocations.contains(
-            customer.location.trim().toLowerCase(),
-          ) &&
-          ((TransactionService.customerBalances[customer.id] ??
-                      customer.openingBalance) >
-                  0 ||
-              todaysCustomerStatuses.containsKey(customer.id));
-    }).toList();
+    return <Customer>[];
   }
 
   List<Customer> get filteredCustomers {

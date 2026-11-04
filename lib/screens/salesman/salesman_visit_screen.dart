@@ -42,7 +42,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
   }
 
   List<Customer> get _routeCustomers {
-    if (_routeLocations.isEmpty) return <Customer>[];
+    if (_routeCustomerIds.isEmpty) return <Customer>[];
     final customers = _customers
         .where(
           (customer) =>
@@ -50,12 +50,9 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                           customer.openingBalance) >
                       0 ||
                   _statuses.containsKey(customer.id)) &&
-              (_routeCustomerIds.isNotEmpty
-                  ? _routeCustomerIds.contains(customer.id)
-                  : _routeLocations.contains(customer.location.trim())),
+              _routeCustomerIds.contains(customer.id),
         )
-        .toList()
-      ;
+        .toList();
     if (_routeCustomerIds.isNotEmpty) {
       final order = {
         for (var i = 0; i < _routeCustomerIds.length; i++)
@@ -63,12 +60,6 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
       };
       customers.sort(
         (a, b) => (order[a.id] ?? 999999).compareTo(order[b.id] ?? 999999),
-      );
-    } else {
-      customers.sort(
-        (a, b) => a.businessName.toLowerCase().compareTo(
-          b.businessName.toLowerCase(),
-        ),
       );
     }
     return customers;
@@ -219,35 +210,16 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                           const SizedBox(height: 6),
                           Text(
                             _routeName == null
-                                ? 'Choose the locations you plan to visit today. Only customers in these locations appear below.'
-                                : 'Your assigned route for today. Only customers in these locations appear below.',
+                                ? 'Choose the customers you plan to visit today.'
+                                : 'Your assigned customers for today are shown below.',
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 14),
-                          if (_availableLocations.isEmpty)
-                            const Text(
-                              'No customer locations are available yet.',
-                            )
+                          if (_routeCustomerIds.isEmpty)
+                            const Text('No customers are assigned for today.')
                           else
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _availableLocations.map((location) {
-                                final selected = _draftLocations.contains(
-                                  location,
-                                );
-                                return FilterChip(
-                                  label: Text(location),
-                                  selected: selected,
-                                  onSelected: (value) => setState(() {
-                                    if (value) {
-                                      _draftLocations.add(location);
-                                    } else {
-                                      _draftLocations.remove(location);
-                                    }
-                                  }),
-                                );
-                              }).toList(),
+                            Text(
+                              '${_routeCustomerIds.length} assigned customers will be shown below.',
                             ),
                           const SizedBox(height: 14),
                           SizedBox(
