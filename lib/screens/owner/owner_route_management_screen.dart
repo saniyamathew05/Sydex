@@ -359,7 +359,10 @@ class _OwnerRouteManagementScreenState
               b.businessName.toLowerCase(),
             ),
           );
-    final selected = Set<String>.from(_selectedCustomerIds);
+    // Each time the picker opens, start a fresh selection. This prevents an
+    // old location-based assignment from silently carrying dozens of IDs into
+    // the new customer-only route.
+    final selected = <String>{};
     var searchQuery = '';
     await showDialog<void>(
       context: context,
@@ -986,13 +989,13 @@ class _OwnerRouteManagementScreenState
                         const SizedBox(height: 8),
                         ..._salesmen.map((salesman) {
                           final salesmanId = salesman['id'].toString();
-                          final currentLocations =
-                              _todayAssignments[salesmanId];
-                          final subtitle = currentLocations == null
+                          final currentCustomers =
+                              _todayCustomerAssignments[salesmanId];
+                          final subtitle = currentCustomers == null
                               ? 'No active route assignment'
-                              : currentLocations.isEmpty
+                              : currentCustomers.isEmpty
                               ? 'No active route assignment'
-                              : 'Currently assigned: ${currentLocations.join(' → ')}';
+                              : 'Currently assigned: ${currentCustomers.length} selected customers';
                           return CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             value: _selectedSalesmanIds.contains(salesmanId),
