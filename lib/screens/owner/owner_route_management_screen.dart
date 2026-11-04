@@ -118,7 +118,7 @@ class _OwnerRouteManagementScreenState
         _client
             .from('salesman_daily_route_selections')
             .select('salesman_id, locations, customer_ids, route_date')
-            .lte('route_date', todayKey)
+            .eq('route_date', todayKey)
             .order('route_date', ascending: false),
         SalesmanVisitService.loadTodayStatusesForOwner(),
       ]);
@@ -540,7 +540,10 @@ class _OwnerRouteManagementScreenState
           .toList();
       await _client
           .from('salesman_daily_route_selections')
-          .upsert(assignments, onConflict: 'salesman_id,route_date');
+          .delete()
+          .eq('route_date', dateKey)
+          .inFilter('salesman_id', salesmanIds);
+      await _client.from('salesman_daily_route_selections').insert(assignments);
       if (!mounted) return;
       setState(() {
         final routeIndex = _routes.indexWhere(
