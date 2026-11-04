@@ -555,6 +555,9 @@ class _OwnerRouteManagementScreenState
         }
         for (final salesmanId in salesmanIds) {
           _todayAssignments[salesmanId] = locations;
+          _todayCustomerAssignments[salesmanId] = List<String>.from(
+            _selectedCustomerIds,
+          );
         }
       });
       _message(
@@ -607,13 +610,17 @@ class _OwnerRouteManagementScreenState
         'salesman_id': salesmanId,
         'route_date': dateKey,
         'locations': <String>[],
+        'customer_ids': <String>[],
       }, onConflict: 'salesman_id,route_date');
       await _client
           .from('salesman_customer_daily_status')
           .delete()
           .eq('entered_by', salesmanId);
       if (!mounted) return;
-      setState(() => _todayAssignments[salesmanId] = <String>[]);
+      setState(() {
+        _todayAssignments[salesmanId] = <String>[];
+        _todayCustomerAssignments[salesmanId] = <String>[];
+      });
       _message('Route assignment removed for $salesmanName.');
     } catch (error) {
       debugPrint('Remove daily route failed: $error');
