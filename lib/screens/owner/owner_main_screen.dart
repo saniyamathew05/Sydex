@@ -2417,6 +2417,110 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   @override
+  Widget _desktopLedgerHeader(ColorScheme colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      color: colors.surfaceContainerHigh,
+      child: Row(
+        children: const [
+          Expanded(flex: 12, child: Text('DATE')),
+          Expanded(flex: 22, child: Text('CUSTOMER')),
+          Expanded(flex: 18, child: Text('ENTERED BY')),
+          Expanded(flex: 18, child: Text('METHOD')),
+          Expanded(flex: 16, child: Text('NOTES')),
+          Expanded(flex: 14, child: Text('AMOUNT', textAlign: TextAlign.right)),
+          SizedBox(width: 72, child: Text('ACTION')),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopLedgerRow(PaymentTransaction payment, ColorScheme colors) {
+    final method =
+        PaymentMethodBreakdown.display(payment.paymentMethodNote) ??
+        (payment.paymentMethod.trim().isEmpty ? '—' : payment.paymentMethod);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 12,
+            child: Text(
+              _formatDate(payment.transactionDate.toLocal()),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            flex: 22,
+            child: Text(
+              payment.customerName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          Expanded(
+            flex: 18,
+            child: Text(
+              payment.receivedBy,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            flex: 18,
+            child: Text(method, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+          Expanded(
+            flex: 16,
+            child: Text(
+              payment.notes.trim().isEmpty ? '—' : payment.notes,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: colors.onSurfaceVariant),
+            ),
+          ),
+          Expanded(
+            flex: 14,
+            child: Text(
+              _money(_amountForCurrentMethod(payment)),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: colors.primary,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 72,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Edit payment',
+                  onPressed: () => _editPayment(payment),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                ),
+                IconButton(
+                  tooltip: 'Delete payment',
+                  onPressed: () => _deletePayment(payment),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: colors.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
@@ -2702,130 +2806,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                       borderRadius: BorderRadius.circular(18),
                       side: BorderSide(color: colors.outlineVariant),
                     ),
-                    child: Scrollbar(
-                      controller: _ledgerHorizontalController,
-                      thumbVisibility: true,
-                      trackVisibility: true,
-                      thickness: 8,
-                      radius: const Radius.circular(8),
-                      child: SingleChildScrollView(
-                        controller: _ledgerHorizontalController,
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          headingRowColor: WidgetStatePropertyAll(
-                            colors.surfaceContainerHigh,
-                          ),
-                          dataRowMinHeight: 62,
-                          dataRowMaxHeight: 76,
-                          columnSpacing: 24,
-                          columns: const [
-                            DataColumn(label: Text('DATE')),
-                            DataColumn(label: Text('CUSTOMER')),
-                            DataColumn(label: Text('ENTERED BY')),
-                            DataColumn(label: Text('PAYMENT METHOD')),
-                            DataColumn(label: Text('NOTES')),
-                            DataColumn(
-                              label: Text('AMOUNT', textAlign: TextAlign.end),
-                            ),
-                            DataColumn(label: Text('ACTION')),
-                          ],
-                          rows: payments.map((payment) {
-                            final method = payment.paymentMethod.trim().isEmpty
-                                ? '—'
-                                : payment.paymentMethod;
-                            final notes = payment.notes.trim();
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    _formatDate(
-                                      payment.transactionDate.toLocal(),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 220,
-                                    ),
-                                    child: Text(
-                                      payment.customerName,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    payment.receivedBy,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    PaymentMethodBreakdown.display(
-                                          payment.paymentMethodNote,
-                                        ) ??
-                                        method,
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 240,
-                                    ),
-                                    child: Text(
-                                      notes.isEmpty ? '—' : notes,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      _money(_amountForCurrentMethod(payment)),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: colors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Edit payment',
-                                        onPressed: () => _editPayment(payment),
-                                        icon: const Icon(Icons.edit_outlined),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Delete payment',
-                                        onPressed: () =>
-                                            _deletePayment(payment),
-                                        icon: Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: colors.error,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
+                    child: Column(
+                      children: [
+                        _desktopLedgerHeader(colors),
+                        ...payments.map(
+                          (payment) => _desktopLedgerRow(payment, colors),
                         ),
-                      ),
+                      ],
                     ),
                   )
                 else
