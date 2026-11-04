@@ -468,7 +468,7 @@ class _OwnerRouteManagementScreenState
                 onPressed: eligible.isEmpty
                     ? null
                     : () => setDialogState(() => selected.clear()),
-                child: const Text('Use all customers'),
+                child: const Text('Clear selected'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
