@@ -48,17 +48,7 @@ class _OwnerRouteManagementScreenState
   String _salesmanFilterId = '';
   String? _selectedRouteId;
   final Set<String> _selectedSalesmanIds = {};
-  Set<String> _selectedLocations = {};
   Set<String> _selectedCustomerIds = {};
-  bool _customerWiseSelection = true;
-
-  List<String> get _availableLocations =>
-      CustomerService.customers
-          .map((Customer c) => c.location.trim())
-          .where((String value) => value.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
   Map<String, dynamic>? get _selectedRoute {
     for (final route in _routes) {
@@ -181,13 +171,6 @@ class _OwnerRouteManagementScreenState
         _selectedSalesmanIds.removeWhere(
           (id) => !availableSalesmanIds.contains(id),
         );
-        _selectedLocations = _selectedRoute == null
-            ? <String>{}
-            : Set<String>.from(
-                (_selectedRoute!['locations'] as List? ?? const []).map(
-                  (e) => e.toString(),
-                ),
-              );
         _selectedCustomerIds = _selectedRoute == null
             ? <String>{}
             : Set<String>.from(
@@ -195,7 +178,6 @@ class _OwnerRouteManagementScreenState
                   (e) => e.toString(),
                 ),
               );
-        _customerWiseSelection = _selectedCustomerIds.isNotEmpty;
         _loading = false;
       });
     } catch (error) {
@@ -231,9 +213,7 @@ class _OwnerRouteManagementScreenState
           ),
         );
         _selectedRouteId = row['id'].toString();
-        _selectedLocations = <String>{};
         _selectedCustomerIds = <String>{};
-        _customerWiseSelection = false;
         _routeNameController.clear();
       });
       _message('Route created. Select its locations below.');
@@ -758,13 +738,6 @@ class _OwnerRouteManagementScreenState
         _selectedRouteId = _routes.isEmpty
             ? null
             : _routes.first['id'].toString();
-        _selectedLocations = _selectedRoute == null
-            ? <String>{}
-            : Set<String>.from(
-                (_selectedRoute!['locations'] as List? ?? const []).map(
-                  (e) => e.toString(),
-                ),
-              );
       });
       _message('Route deleted.');
     } catch (error) {
@@ -920,14 +893,6 @@ class _OwnerRouteManagementScreenState
                               setState(() {
                                 _selectedRouteId = id;
                                 _selectedSalesmanIds.clear();
-                                _selectedLocations = _selectedRoute == null
-                                    ? <String>{}
-                                    : Set<String>.from(
-                                        (_selectedRoute!['locations']
-                                                    as List? ??
-                                                const [])
-                                            .map((value) => value.toString()),
-                                      );
                                 _selectedCustomerIds = _selectedRoute == null
                                     ? <String>{}
                                     : Set<String>.from(
@@ -936,8 +901,6 @@ class _OwnerRouteManagementScreenState
                                                 const [])
                                             .map((value) => value.toString()),
                                       );
-                                _customerWiseSelection =
-                                    _selectedCustomerIds.isNotEmpty;
                               });
                             },
                           ),
@@ -1017,7 +980,7 @@ class _OwnerRouteManagementScreenState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Select one or more salesmen. The route stays assigned until you remove it from Salesmen & Assigned Routes. Assignments use the customer or location selection above.',
+                          'Select one or more salesmen. The route stays assigned until you remove it from Salesmen & Assigned Routes. Assignments use the selected customers above.',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 8),
