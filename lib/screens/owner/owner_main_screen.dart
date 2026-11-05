@@ -9,6 +9,7 @@ import '../purchases/add_purchase_screen.dart';
 import '../payments/payment_screen.dart';
 
 import '../customers/customers_screen.dart';
+import '../customers/add_customer_screen.dart';
 
 import '../../models/customer.dart';
 
@@ -91,6 +92,13 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     setState(() {
       _selectedIndex = 1;
     });
+  }
+
+  void _openAddCustomer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddCustomerScreen()),
+    );
   }
 
   void _openPayments() {
@@ -183,7 +191,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     final baseTheme = Theme.of(context);
 
     final colors = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF4F2BCB),
+      seedColor: const Color(0xFF0B5D3B),
 
       brightness: baseTheme.brightness,
     );
@@ -216,7 +224,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
 
         backgroundColor: colors.surface,
 
-        indicatorColor: colors.primary.withValues(alpha: 0.12),
+        indicatorColor: const Color(0xFFDDF3E5),
 
         elevation: 8,
 
@@ -298,6 +306,9 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
         onOpenPayments: _openPayments,
         onOpenCustomers: _openCustomers,
         onOpenVisitAudit: _openVisitAudit,
+        onOpenRoute: _openPlaces,
+        onAddCustomer: _openAddCustomer,
+        onRecordPurchase: _openAddPurchase,
       ),
       const CustomersScreen(),
       const PaymentsScreen(),
@@ -412,8 +423,8 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
     required this.onRouteMap,
   });
 
-  static const _background = Color(0xFF17163F);
-  static const _purple = Color(0xFF6746F5);
+  static const _background = Color(0xFF063D28);
+  static const _green = Color(0xFF2D713F);
 
   @override
   Widget build(BuildContext context) {
@@ -434,7 +445,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: _purple,
+                    color: _green,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -459,7 +470,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                       Text(
                         'Business Ledger',
                         style: TextStyle(
-                          color: Color(0xFFB8B8D8),
+                          color: Color(0xFFB9D6C0),
                           fontSize: 10,
                         ),
                       ),
@@ -470,22 +481,27 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 34),
-          _item(Icons.dashboard_rounded, 'Dashboard', 0),
+          _item(Icons.home_rounded, 'Home', 0),
           _item(Icons.people_alt_outlined, 'Customers', 1),
           _item(Icons.payments_outlined, 'Payments', 2),
           _item(
             Icons.shopping_cart_outlined,
             'Sales',
-            4,
+            -1,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AddPurchaseScreen()),
             ),
           ),
-          _item(Icons.location_on_outlined, 'Places', 5, onTap: onPlaces),
-          _item(Icons.person_outline_rounded, 'Salesman', 6, onTap: onSalesmen),
+          _item(Icons.location_on_outlined, 'Places', -1, onTap: onPlaces),
+          _item(
+            Icons.person_outline_rounded,
+            'Salesman',
+            -1,
+            onTap: onSalesmen,
+          ),
           _item(Icons.bar_chart_rounded, 'Reports', 3),
-          _item(Icons.map_outlined, 'Map View', 8, onTap: onRouteMap),
-          _item(Icons.settings_outlined, 'Settings', 7, onTap: onSettings),
+          _item(Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
+          _item(Icons.settings_outlined, 'Settings', -1, onTap: onSettings),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
@@ -493,7 +509,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: _purple,
+                  backgroundColor: _green,
                   child: Text(
                     userName.isEmpty ? 'O' : userName[0].toUpperCase(),
                     style: const TextStyle(
@@ -521,7 +537,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                       const Text(
                         'Owner',
                         style: TextStyle(
-                          color: Color(0xFFB8B8D8),
+                          color: Color(0xFFB9D6C0),
                           fontSize: 10,
                         ),
                       ),
@@ -541,7 +557,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       child: Material(
-        color: active ? _purple : Colors.transparent,
+        color: active ? _green : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -553,7 +569,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                 Icon(
                   icon,
                   size: 17,
-                  color: active ? Colors.white : const Color(0xFFD5D5EA),
+                  color: active ? Colors.white : const Color(0xFFD9E9DD),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -562,7 +578,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? Colors.white : const Color(0xFFD5D5EA),
+                      color: active ? Colors.white : const Color(0xFFD9E9DD),
                     ),
                   ),
                 ),

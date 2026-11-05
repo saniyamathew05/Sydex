@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       error: requesterError,
     } = await admin
       .from("profiles")
-      .select("role")
+      .select("role, company_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -139,6 +139,10 @@ Deno.serve(async (req) => {
         },
         403,
       );
+    }
+
+    if (!requesterProfile.company_id) {
+      return jsonResponse({ error: "Your account is not linked to a company." }, 409);
     }
 
     const body = await req.json();
@@ -252,6 +256,7 @@ Deno.serve(async (req) => {
           id: createdUser.user.id,
           name,
           role,
+          company_id: requesterProfile.company_id,
         });
 
       if (profileError) {
@@ -260,6 +265,20 @@ Deno.serve(async (req) => {
         );
 
         throw profileError;
+      }
+
+      const { error: membershipError } = await admin
+        .from("company_members")
+        .insert({
+          company_id: requesterProfile.company_id,
+          user_id: createdUser.user.id,
+          role,
+        });
+
+      if (membershipError) {
+        await admin.from("profiles").delete().eq("id", createdUser.user.id);
+        await admin.auth.admin.deleteUser(createdUser.user.id);
+        throw membershipError;
       }
 
       return jsonResponse(
@@ -361,7 +380,7 @@ Deno.serve(async (req) => {
        */
       if (
         userId === user.id &&
-        password.isNotEmpty
+        password.length > 0
       ) {
         return jsonResponse(
           {
@@ -370,6 +389,16 @@ Deno.serve(async (req) => {
           },
           400,
         );
+      }
+
+      const { data: targetProfile, error: targetProfileError } = await admin
+        .from("profiles")
+        .select("id, company_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile || targetProfile.company_id !== requesterProfile.company_id) {
+        return jsonResponse({ error: "That user belongs to another company." }, 403);
       }
 
       /*
@@ -389,10 +418,17 @@ Deno.serve(async (req) => {
         throw updateProfileError;
       }
 
+      const { error: updateMembershipError } = await admin
+        .from("company_members")
+        .update({ role })
+        .eq("company_id", requesterProfile.company_id)
+        .eq("user_id", userId);
+      if (updateMembershipError) throw updateMembershipError;
+
       /*
        * Update Auth password when provided.
        */
-      if (password.isNotEmpty) {
+      if (password.length > 0) {
         if (password.length < 12) {
           return jsonResponse(
             {
@@ -465,7 +501,7 @@ Deno.serve(async (req) => {
       } = await admin
         .from("profiles")
         .select(
-          "id, name, role",
+          "id, name, role, company_id",
         )
         .eq("id", userId)
         .maybeSingle();
@@ -482,6 +518,10 @@ Deno.serve(async (req) => {
           },
           404,
         );
+      }
+
+      if (targetProfile.company_id !== requesterProfile.company_id) {
+        return jsonResponse({ error: "That user belongs to another company." }, 403);
       }
 
       const {

@@ -1818,7 +1818,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   children: [
                     _detailRow(
                       currentBalance < 0
-                          ? 'Owed to customer'
+                          ? 'Advance'
                           : 'Current Amount Due',
                       _money(currentBalance.abs()),
                     ),
@@ -2282,7 +2282,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                                 children: [
                                   Text(
                                     currentBalance < 0
-                                        ? 'Owed to customer'
+                                        ? 'Advance'
                                         : 'Total Due',
                                     style: TextStyle(
                                       fontSize: 10,
@@ -2637,7 +2637,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           _detailRow('Opening balance', _money(customer.openingBalance)),
           const Divider(height: 22),
           _detailRow(
-            currentBalance < 0 ? 'Owed to customer' : 'Current balance',
+            currentBalance < 0 ? 'Advance' : 'Current balance',
             _money(currentBalance.abs()),
           ),
           const SizedBox(height: 12),
@@ -2709,7 +2709,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     ),
     child: Column(
       children: [
-        Icon(Icons.photo_library_outlined, size: 38, color: Color(0xFF9A96B6)),
+        Icon(Icons.photo_library_outlined, size: 38, color: Color(0xFF8A9B8F)),
         SizedBox(height: 8),
         Text(
           'No customer signatures or photos yet',
@@ -2815,7 +2815,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 ),
                 side: BorderSide(
                   color: selected
-                      ? const Color(0xFFB9A9FF)
+                      ? const Color(0xFF8DCB9F)
                       : Theme.of(context).colorScheme.outlineVariant,
                 ),
                 shape: RoundedRectangleBorder(

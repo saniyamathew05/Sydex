@@ -46,4 +46,25 @@ class AuthService {
   static Future<void> signOut() async {
     await _supabase.auth.signOut();
   }
+
+  static Future<AuthResponse> registerCompany({
+    required String companyName,
+    required String ownerName,
+    required String email,
+    required String password,
+  }) async {
+    final response = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+      data: {'name': ownerName, 'role': 'owner'},
+    );
+    if (response.user == null || response.session == null) return response;
+    await _supabase.rpc('register_company', params: {'p_name': companyName});
+    await _supabase.from('profiles').upsert({
+      'id': response.user!.id,
+      'name': ownerName,
+      'role': 'owner',
+    });
+    return response;
+  }
 }

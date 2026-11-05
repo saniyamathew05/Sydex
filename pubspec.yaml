@@ -20,9 +20,9 @@ dependencies:
   file_selector: ^1.1.0
   image: ^4.10.1
   geolocator: ^14.1.1
-  window_manager: ^0.5.2
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  qr: ^3.0.2
 
 dev_dependencies:
   flutter_test:

@@ -53,16 +53,16 @@ class PaymentReceiptService {
   }) async {
     const width = 840;
     const height = 1260;
-    const purple = Color(0xFF4F2BCB);
-    const ink = Color(0xFF20213A);
-    const muted = Color(0xFF71738A);
+    const green = Color(0xFF0B5D3B);
+    const ink = Color(0xFF14211A);
+    const muted = Color(0xFF657066);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(
       recorder,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
     );
 
-    canvas.drawColor(const Color(0xFFF4F3FA), BlendMode.src);
+    canvas.drawColor(const Color(0xFFF7F3EC), BlendMode.src);
     final card = RRect.fromRectAndRadius(
       const Rect.fromLTWH(36, 36, 768, 1188),
       const Radius.circular(28),
@@ -77,7 +77,7 @@ class PaymentReceiptService {
         topLeft: Radius.circular(28),
         topRight: Radius.circular(28),
       ),
-      Paint()..color = purple,
+      Paint()..color = green,
     );
 
     _drawText(
@@ -107,7 +107,7 @@ class PaymentReceiptService {
       76,
       195,
       680,
-      color: const Color(0xFFDCD4FF),
+      color: const Color(0xFFDDF3E5),
       size: 20,
       weight: FontWeight.w700,
     );
@@ -186,7 +186,7 @@ class PaymentReceiptService {
         Rect.fromLTWH(64, y, 712, 100),
         const Radius.circular(18),
       ),
-      Paint()..color = const Color(0xFFF0EDFF),
+      Paint()..color = const Color(0xFFEAF3EC),
     );
     _drawText(
       canvas,
@@ -194,7 +194,7 @@ class PaymentReceiptService {
       88,
       y + 18,
       360,
-      color: purple,
+      color: green,
       size: 16,
       weight: FontWeight.w700,
     );
@@ -204,7 +204,7 @@ class PaymentReceiptService {
       440,
       y + 14,
       300,
-      color: purple,
+      color: green,
       size: 33,
       weight: FontWeight.w800,
       alignRight: true,
@@ -371,7 +371,7 @@ class PaymentReceiptService {
       Offset(76, y),
       Offset(764, y),
       Paint()
-        ..color = const Color(0xFFE7E6EF)
+        ..color = const Color(0xFFE4DED4)
         ..strokeWidth = 2,
     );
   }

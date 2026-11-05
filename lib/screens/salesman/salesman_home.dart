@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:qr/qr.dart';
 
 import '../../models/customer.dart';
 
@@ -42,7 +43,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   bool isLoading = true;
 
   List<String> selectedRouteLocations = <String>[];
-  Set<String> selectedRouteCustomerIds = <String>{};
+  List<String> selectedRouteCustomerIds = <String>[];
 
   String? selectedRouteName;
 
@@ -174,11 +175,12 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     try {
       selectedRouteLocations = await SalesmanVisitService.loadTodayRoute();
       selectedRouteCustomerIds =
-          await SalesmanVisitService.loadTodayCustomerIds();
+          await SalesmanVisitService.loadTodayCustomerIdsInOrder();
       try {
         selectedRouteName =
-            await SalesmanVisitService.loadRouteNameForLocations(
-              selectedRouteLocations,
+            await SalesmanVisitService.loadRouteNameForCustomerIds(
+              selectedRouteCustomerIds,
+              assignedLocations: selectedRouteLocations,
             );
       } catch (error) {
         selectedRouteName = null;
@@ -199,7 +201,12 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       final date = transaction.transactionDate.toLocal();
       final transactionDay = DateTime(date.year, date.month, date.day);
       if (transactionDay == today) {
-        todaysCustomerStatuses[transaction.customerId] = 'paid';
+        // Keep explicit daily outcomes (especially a refusal) authoritative;
+        // payment history only supplies a fallback where no status exists.
+        todaysCustomerStatuses.putIfAbsent(
+          transaction.customerId,
+          () => 'paid',
+        );
       }
     }
 
@@ -211,27 +218,22 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   List<Customer> get routeCustomers {
-    if (selectedRouteCustomerIds.isNotEmpty) {
-      final customers = CustomerService.customers
-          .where(
-            (customer) =>
-                selectedRouteCustomerIds.contains(customer.id) &&
-                ((TransactionService.customerBalances[customer.id] ??
-                            customer.openingBalance) >
-                        0 ||
-                    todaysCustomerStatuses.containsKey(customer.id)),
-          )
-          .toList();
-      final order = {
-        for (var i = 0; i < selectedRouteCustomerIds.length; i++)
-          selectedRouteCustomerIds.elementAt(i): i,
-      };
-      customers.sort(
-        (a, b) => (order[a.id] ?? 999999).compareTo(order[b.id] ?? 999999),
-      );
-      return customers;
-    }
-    return <Customer>[];
+    if (selectedRouteCustomerIds.isEmpty) return <Customer>[];
+
+    final customersById = {
+      for (final customer in CustomerService.customers) customer.id: customer,
+    };
+    return selectedRouteCustomerIds
+        .map((id) => customersById[id])
+        .whereType<Customer>()
+        .where(
+          (customer) =>
+              (TransactionService.customerBalances[customer.id] ??
+                      customer.openingBalance) >
+                  0 ||
+              todaysCustomerStatuses.containsKey(customer.id),
+        )
+        .toList(growable: false);
   }
 
   List<Customer> get filteredCustomers {
@@ -271,15 +273,25 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     return 'Pending';
   }
 
+  double _pendingCollection(List<Customer> customers) {
+    return customers.fold<double>(0, (total, customer) {
+      final balance = TransactionService.getCustomerBalance(customer.id);
+      return total + (balance > 0 ? balance : 0);
+    });
+  }
+
   Future<void> _chooseTodayRoute() async {
     // Routes are assigned by the owner in Places & Routes. Salesmen must not
     // be able to broaden their own route beyond the owner's daily assignment.
     try {
       final assigned = await SalesmanVisitService.loadTodayRoute();
+      final assignedCustomerIds =
+          await SalesmanVisitService.loadTodayCustomerIdsInOrder();
       String? routeName;
       try {
-        routeName = await SalesmanVisitService.loadRouteNameForLocations(
-          assigned,
+        routeName = await SalesmanVisitService.loadRouteNameForCustomerIds(
+          assignedCustomerIds,
+          assignedLocations: assigned,
         );
       } catch (error) {
         debugPrint('Could not load route name: $error');
@@ -287,6 +299,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       if (!mounted) return;
       setState(() {
         selectedRouteLocations = assigned;
+        selectedRouteCustomerIds = assignedCustomerIds;
         selectedRouteName = routeName;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -319,10 +332,13 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         return;
       }
 
+      final assignedCustomerIds =
+          await SalesmanVisitService.loadTodayCustomerIdsInOrder();
       String? routeName;
       try {
-        routeName = await SalesmanVisitService.loadRouteNameForLocations(
-          assigned,
+        routeName = await SalesmanVisitService.loadRouteNameForCustomerIds(
+          assignedCustomerIds,
+          assignedLocations: assigned,
         );
       } catch (error) {
         debugPrint('Could not load route name: $error');
@@ -330,6 +346,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       if (!mounted) return;
       setState(() {
         selectedRouteLocations = assigned;
+        selectedRouteCustomerIds = assignedCustomerIds;
         selectedRouteName = routeName;
         selectedIndex = 1;
       });
@@ -338,57 +355,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not load assigned route: $error')),
       );
-    }
-  }
-
-  Future<void> _recordRejectedVisit(Customer customer) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Record no payment'),
-
-        content: Text(
-          'Confirm that ${customer.businessName} did not pay today. This will prevent other salesmen from asking again today, and the owner can review the visit location.',
-        ),
-
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Confirm refusal'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      await SalesmanVisitService.recordStatus(
-        customerId: customer.id,
-        status: 'rejected',
-      );
-
-      await _loadData();
-
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No payment recorded. Other salesmen will see this customer as Refused today.',
-            ),
-          ),
-        );
-    } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record visit: $error')),
-        );
     }
   }
 
@@ -459,6 +425,89 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     );
   }
 
+  Future<void> _showPaymentQr() async {
+    List<String> upiIds = <String>[];
+    try {
+      final row = await supabase
+          .from('payment_settings')
+          .select('upi_id')
+          .eq('id', 1)
+          .maybeSingle();
+      upiIds = (row?['upi_id']?.toString() ?? '')
+          .split(RegExp(r'[\n,;]+'))
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .toList();
+    } catch (_) {}
+    if (!mounted) return;
+    if (upiIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The owner has not configured the business UPI ID yet.',
+          ),
+        ),
+      );
+      return;
+    }
+    var upi = upiIds.first;
+    if (upiIds.length > 1) {
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: const Text('Choose payment account'),
+          children: upiIds
+              .map(
+                (id) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(dialogContext, id),
+                  child: Text(id),
+                ),
+              )
+              .toList(),
+        ),
+      );
+      if (selected == null) return;
+      upi = selected;
+    }
+    final payload =
+        'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Receive payment by QR'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Show this QR code to the customer.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              color: Colors.white,
+              child: SizedBox(
+                width: 220,
+                height: 220,
+                child: CustomPaint(painter: _PaymentQrPainter(payload)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(upi, style: const TextStyle(fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -506,6 +555,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final route = routeCustomers;
     final visited = route
+        .where((c) => todaysCustomerStatuses.containsKey(c.id))
+        .length;
+    final paid = route
         .where((c) => todaysCustomerStatuses[c.id] == 'paid')
         .length;
     final noPayment = route
@@ -514,11 +566,13 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     final pending = route
         .where((c) => !todaysCustomerStatuses.containsKey(c.id))
         .length;
-    final remaining = pending;
+    final collectedToday = TransactionService.getCollectedToday();
+    final pendingCollection = _pendingCollection(route);
     final routeLabel = selectedRouteLocations.isEmpty
         ? 'No route assigned'
         : selectedRouteName ?? 'Route name unavailable';
-    const purple = Color(0xFF5B3FE4);
+    const green = Color(0xFF0B5D3B);
+    const emerald = Color(0xFF0B5D3B);
     final ink = Theme.of(context).colorScheme.onSurface;
 
     return RefreshIndicator(
@@ -563,99 +617,92 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             ],
           ),
           const SizedBox(height: 18),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.outlineVariant),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF063D28), Color(0xFF0B6A43)],
+              ),
+              borderRadius: BorderRadius.circular(22),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: purple.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.route_rounded,
-                    color: purple,
-                    size: 21,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Today's Route",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         routeLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      if (selectedRouteLocations.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          selectedRouteLocations.join(', '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 2),
-                      Text(
-                        '${route.length} customers',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.white.withValues(alpha: .8),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${selectedRouteLocations.length} locations · ${route.length} customers',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .82),
+                    fontSize: 12,
                   ),
                 ),
-                TextButton(
-                  onPressed: _chooseTodayRoute,
-                  style: TextButton.styleFrom(
-                    foregroundColor: purple,
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
-                  ),
-                  child: const Text(
-                    'Change',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                const SizedBox(height: 14),
+                Text(
+                  '$visited / ${route.length} visited',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: LinearProgressIndicator(
+                    value: route.isEmpty ? 0 : visited / route.length,
+                    minHeight: 8,
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF65E66B),
+                    ),
+                  ),
+                ),
+                if (selectedRouteLocations.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    selectedRouteLocations.join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .72),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _SalesmanStatusCard(
-                  icon: Icons.check_circle_rounded,
-                  label: 'Visited',
-                  value: '$visited',
-                  color: const Color(0xFF159B68),
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'Collected today',
+                  value: CurrencyFormatter.rupees(collectedToday),
+                  color: emerald,
                   background: isDark
                       ? const Color(0xFF173A35)
                       : const Color(0xFFEAF8F2),
@@ -664,9 +711,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               const SizedBox(width: 8),
               Expanded(
                 child: _SalesmanStatusCard(
-                  icon: Icons.schedule_rounded,
-                  label: 'Pending',
-                  value: '$pending',
+                  icon: Icons.check_circle_rounded,
+                  label: 'Visits completed',
+                  value: '$visited',
                   color: const Color(0xFFE5A12B),
                   background: isDark
                       ? const Color(0xFF3B3020)
@@ -680,10 +727,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             children: [
               Expanded(
                 child: _SalesmanStatusCard(
-                  icon: Icons.cancel_rounded,
-                  label: 'No Payment',
-                  value: '$noPayment',
-                  color: const Color(0xFFE55362),
+                  icon: Icons.groups_rounded,
+                  label: 'Pending visits',
+                  value: '$pending',
+                  color: const Color(0xFFE5A12B),
                   background: isDark
                       ? const Color(0xFF40252D)
                       : const Color(0xFFFFEFF0),
@@ -692,24 +739,30 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               const SizedBox(width: 8),
               Expanded(
                 child: _SalesmanStatusCard(
-                  icon: Icons.pending_actions_rounded,
-                  label: 'Remaining',
-                  value: '$remaining',
-                  color: purple,
+                  icon: Icons.stacked_bar_chart_rounded,
+                  label: 'Pending collection',
+                  value: CurrencyFormatter.rupees(pendingCollection),
+                  color: const Color(0xFFC83B32),
                   background: isDark
-                      ? const Color(0xFF30285A)
-                      : const Color(0xFFF0EDFF),
+                      ? const Color(0xFF183D2D)
+                      : const Color(0xFFEAF3EC),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          if (noPayment > 0)
+            Text(
+              '$noPayment refused today · $paid payments recorded',
+              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 44,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: purple,
+                backgroundColor: green,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -739,7 +792,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                 onPressed: _openPayments,
                 child: const Text(
                   'View all',
-                  style: TextStyle(color: purple, fontSize: 12),
+                  style: TextStyle(color: green, fontSize: 12),
                 ),
               ),
             ],
@@ -774,7 +827,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Widget _buildCustomersTab() {
-    const purple = Color(0xFF5B3FE4);
+    const green = Color(0xFF0B5D3B);
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = colors.onSurface;
@@ -848,7 +901,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(13),
-                  borderSide: const BorderSide(color: purple, width: 1.2),
+                  borderSide: const BorderSide(color: green, width: 1.2),
                 ),
               ),
             ),
@@ -874,12 +927,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                           horizontal: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? purple
-                              : colors.surfaceContainerHigh,
+                          color: selected ? green : colors.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: selected ? purple : colors.outlineVariant,
+                            color: selected ? green : colors.outlineVariant,
                           ),
                         ),
                         child: Center(
@@ -960,15 +1011,15 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                             .join();
                         final avatarColors = isDark
                             ? const [
-                                Color(0xFF41318D),
-                                Color(0xFF253D68),
-                                Color(0xFF48346E),
+                                Color(0xFF155A3A),
+                                Color(0xFF1E6544),
+                                Color(0xFF25513B),
                                 Color(0xFF214B45),
                               ]
                             : const [
-                                Color(0xFFE0D9FF),
-                                Color(0xFFDCE9FF),
-                                Color(0xFFE9DFFF),
+                                Color(0xFFDDF3E5),
+                                Color(0xFFC9E5D1),
+                                Color(0xFFEAF3EC),
                                 Color(0xFFD9F0EB),
                               ];
                         return InkWell(
@@ -995,8 +1046,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                                     initials.isEmpty ? '?' : initials,
                                     style: TextStyle(
                                       color: isDark
-                                          ? const Color(0xFFEAE5FF)
-                                          : const Color(0xFF5142A5),
+                                          ? const Color(0xFFDDF3E5)
+                                          : const Color(0xFF0B5D3B),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -1121,7 +1172,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Widget _buildMapTab() {
-    const purple = Color(0xFF5B3FE4);
+    const green = Color(0xFF0B5D3B);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
     final unvisitedCustomers = customers
@@ -1199,7 +1250,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                         height: 34,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: handled ? const Color(0xFF1985F7) : purple,
+                          color: handled ? const Color(0xFF1985F7) : green,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                           boxShadow: const [
@@ -1745,6 +1796,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color(0xFF063D28),
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: selectedIndex == 0
             ? Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1753,7 +1808,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF5B3FE4),
+                      color: const Color(0xFF0B5D3B),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -1813,44 +1868,71 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           ? const Center(child: CircularProgressIndicator())
           : IndexedStack(index: selectedIndex, children: pages),
 
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
+      bottomNavigationBar: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          NavigationBar(
+            indicatorColor: const Color(0xFFDDF3E5),
+            selectedIndex: selectedIndex >= 2
+                ? selectedIndex + 1
+                : selectedIndex,
 
-        onDestinationSelected: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
+            onDestinationSelected: (index) {
+              if (index == 2) {
+                _showPaymentQr();
+                return;
+              }
+              setState(() => selectedIndex = index > 2 ? index - 1 : index);
+            },
 
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
 
-            selectedIcon: Icon(Icons.home_rounded),
+                selectedIcon: Icon(Icons.home_rounded),
 
-            label: 'Home',
+                label: 'Home',
+              ),
+
+              NavigationDestination(
+                icon: Icon(Icons.people_outline_rounded),
+
+                selectedIcon: Icon(Icons.people_rounded),
+
+                label: 'Customers',
+              ),
+
+              NavigationDestination(
+                icon: SizedBox.shrink(),
+                selectedIcon: SizedBox.shrink(),
+                label: '',
+              ),
+
+              NavigationDestination(
+                icon: Icon(Icons.payments_outlined),
+
+                selectedIcon: Icon(Icons.payments_rounded),
+
+                label: 'Payments',
+              ),
+
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
           ),
-
-          NavigationDestination(
-            icon: Icon(Icons.people_outline_rounded),
-
-            selectedIcon: Icon(Icons.people_rounded),
-
-            label: 'Customers',
-          ),
-
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-
-            selectedIcon: Icon(Icons.payments_rounded),
-
-            label: 'Payments',
-          ),
-
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
+          Positioned(
+            top: -18,
+            child: FloatingActionButton(
+              heroTag: 'salesman-qr',
+              backgroundColor: const Color(0xFF0B5D3B),
+              foregroundColor: Colors.white,
+              onPressed: _showPaymentQr,
+              child: const Icon(Icons.qr_code_2_rounded, size: 28),
+            ),
           ),
         ],
       ),
@@ -1925,6 +2007,35 @@ class _SalesmanStatusCard extends StatelessWidget {
   }
 }
 
+class _PaymentQrPainter extends CustomPainter {
+  final String data;
+  _PaymentQrPainter(this.data);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final qr = QrImage(
+      QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.M),
+    );
+    final modules = qr.moduleCount;
+    final cell = size.shortestSide / modules;
+    final paint = Paint()..color = const Color(0xFF14211A);
+    for (var row = 0; row < modules; row++) {
+      for (var col = 0; col < modules; col++) {
+        if (qr.isDark(row, col)) {
+          canvas.drawRect(
+            Rect.fromLTWH(col * cell, row * cell, cell + .3, cell + .3),
+            paint,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaymentQrPainter oldDelegate) =>
+      oldDelegate.data != data;
+}
+
 class _SalesmanMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -1995,7 +2106,7 @@ class _SalesmanMapPainter extends CustomPainter {
       canvas.drawPath(path, minor);
     }
     final route = Paint()
-      ..color = const Color(0xFF6A4CF5)
+      ..color = const Color(0xFF0B5D3B)
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round

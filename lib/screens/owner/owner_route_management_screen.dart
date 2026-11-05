@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -38,6 +40,7 @@ class _OwnerRouteManagementScreenState
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  String? _companyId;
   List<Map<String, dynamic>> _routes = [];
   List<Map<String, dynamic>> _salesmen = [];
   final Map<String, List<String>> _todayAssignments = {};
@@ -49,6 +52,8 @@ class _OwnerRouteManagementScreenState
   String? _selectedRouteId;
   final Set<String> _selectedSalesmanIds = {};
   Set<String> _selectedCustomerIds = {};
+  List<Map<String, dynamic>> _mapVisits = [];
+  bool _mapVisitsLoading = false;
 
   Map<String, dynamic>? get _selectedRoute {
     for (final route in _routes) {
@@ -72,10 +77,29 @@ class _OwnerRouteManagementScreenState
     return locations;
   }
 
+  List<String> _otherSalesmenAssignedToCustomer(
+    String customerId, {
+    String excludingSalesmanId = '',
+  }) {
+    return _salesmen
+        .where((salesman) {
+          final salesmanId = (salesman['id'] ?? '').toString();
+          return salesmanId.isNotEmpty &&
+              salesmanId != excludingSalesmanId &&
+              (_todayCustomerAssignments[salesmanId] ?? const <String>[])
+                  .contains(customerId);
+        })
+        .map((salesman) => (salesman['name'] ?? 'Salesman').toString())
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
     _load();
+    if (widget.page == OwnerRoutePage.map) {
+      Future.microtask(_loadMapVisits);
+    }
   }
 
   @override
@@ -92,6 +116,7 @@ class _OwnerRouteManagementScreenState
     try {
       await CustomerService.loadCustomers();
       await TransactionService.loadCustomerBalances();
+      final companyId = await _requireCompanyId();
       final now = DateTime.now();
       final todayKey =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -99,7 +124,10 @@ class _OwnerRouteManagementScreenState
       try {
         final rows = await _client
             .from('salesman_route_templates')
-            .select('id, route_name, locations, customer_ids, updated_at')
+            .select(
+              'id, route_name, locations, customer_ids, updated_at, company_id',
+            )
+            .eq('company_id', companyId)
             .order('route_name');
         routeRows = List<Map<String, dynamic>>.from(rows);
       } catch (error) {
@@ -108,7 +136,8 @@ class _OwnerRouteManagementScreenState
         debugPrint('Customer-level route column unavailable: $error');
         final rows = await _client
             .from('salesman_route_templates')
-            .select('id, route_name, locations, updated_at')
+            .select('id, route_name, locations, updated_at, company_id')
+            .eq('company_id', companyId)
             .order('route_name');
         routeRows = List<Map<String, dynamic>>.from(rows);
       }
@@ -117,8 +146,11 @@ class _OwnerRouteManagementScreenState
         _client.from('profiles').select('id, name, role').order('name'),
         _client
             .from('salesman_daily_route_selections')
-            .select('salesman_id, locations, customer_ids, route_date')
-            .eq('route_date', todayKey)
+            .select(
+              'salesman_id, locations, customer_ids, route_date, company_id',
+            )
+            .eq('company_id', companyId)
+            .lte('route_date', todayKey)
             .order('route_date', ascending: false),
         SalesmanVisitService.loadTodayStatusesForOwner(),
       ]);
@@ -134,10 +166,14 @@ class _OwnerRouteManagementScreenState
       for (final row in assignmentRows) {
         final id = (row['salesman_id'] ?? '').toString();
         final rawLocations = row['locations'];
-        if (id.isNotEmpty &&
-            rawLocations is List &&
-            !assignments.containsKey(id)) {
-          assignments[id] = rawLocations.map((e) => e.toString()).toList();
+        if (id.isNotEmpty && !assignments.containsKey(id)) {
+          // The latest dated row is the active assignment. Empty rows are
+          // owner-created removal markers that keep older routes inactive.
+          if (rawLocations is List) {
+            assignments[id] = rawLocations.map((e) => e.toString()).toList();
+          } else {
+            assignments[id] = <String>[];
+          }
         }
         final rawCustomerIds = row['customer_ids'];
         List<String> parsedCustomerIds = const <String>[];
@@ -154,7 +190,7 @@ class _OwnerRouteManagementScreenState
             // Keep the location assignment fallback for malformed legacy data.
           }
         }
-        if (id.isNotEmpty && parsedCustomerIds.isNotEmpty) {
+        if (id.isNotEmpty && !customerAssignments.containsKey(id)) {
           customerAssignments[id] = parsedCustomerIds;
         }
       }
@@ -165,6 +201,7 @@ class _OwnerRouteManagementScreenState
           .toList();
       if (!mounted) return;
       setState(() {
+        _companyId = companyId;
         _routes = List<Map<String, dynamic>>.from(results[0] as List);
         _salesmen = salesmen;
         _todayAssignments
@@ -206,6 +243,101 @@ class _OwnerRouteManagementScreenState
     }
   }
 
+  Future<String> _requireCompanyId() async {
+    final cached = _companyId;
+    if (cached != null && cached.isNotEmpty) return cached;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw StateError('Please sign in again.');
+    final profile = await _client
+        .from('profiles')
+        .select('company_id')
+        .eq('id', userId)
+        .maybeSingle();
+    final companyId = profile?['company_id']?.toString();
+    if (companyId == null || companyId.isEmpty) {
+      throw StateError('This owner account is not linked to a company.');
+    }
+    _companyId = companyId;
+    return companyId;
+  }
+
+  Future<void> _loadMapVisits() async {
+    if (!mounted) return;
+    setState(() => _mapVisitsLoading = true);
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw StateError('Please sign in again.');
+      final profile = await _client
+          .from('profiles')
+          .select('company_id')
+          .eq('id', userId)
+          .maybeSingle();
+      final companyId = profile?['company_id']?.toString();
+      if (companyId == null || companyId.isEmpty) {
+        throw StateError('This account is not linked to a company.');
+      }
+
+      final customers = List<Map<String, dynamic>>.from(
+        await _client
+            .from('customers')
+            .select('id, business_name, location, latitude, longitude')
+            .eq('company_id', companyId)
+            .eq('is_active', true)
+            .not('latitude', 'is', null)
+            .not('longitude', 'is', null)
+            .order('business_name')
+            .limit(2000),
+      );
+      final customerIds = customers
+          .map((row) => row['id']?.toString())
+          .whereType<String>()
+          .toList();
+      final now = DateTime.now();
+      final todayKey =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final statuses = customerIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : List<Map<String, dynamic>>.from(
+              await _client
+                  .from('salesman_customer_daily_status')
+                  .select('customer_id, status')
+                  .eq('status_date', todayKey)
+                  .inFilter('customer_id', customerIds),
+            );
+      final statusByCustomer = {
+        for (final row in statuses)
+          row['customer_id'].toString(): row['status']?.toString() ?? '',
+      };
+      final points = <Map<String, dynamic>>[];
+      for (final customer in customers) {
+        final lat = double.tryParse(customer['latitude']?.toString() ?? '');
+        final lng = double.tryParse(customer['longitude']?.toString() ?? '');
+        if (lat == null ||
+            lng == null ||
+            lat < -90 ||
+            lat > 90 ||
+            lng < -180 ||
+            lng > 180) {
+          continue;
+        }
+        points.add({
+          ...customer,
+          'latitude': lat,
+          'longitude': lng,
+          'status': statusByCustomer[customer['id'].toString()] ?? '',
+        });
+      }
+      if (!mounted) return;
+      setState(() {
+        _mapVisits = points;
+        _mapVisitsLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Load visit map points failed: $error');
+      if (mounted) setState(() => _mapVisitsLoading = false);
+    }
+  }
+
   Future<void> _createRoute() async {
     final name = _routeNameController.text.trim();
     if (name.isEmpty) {
@@ -214,10 +346,15 @@ class _OwnerRouteManagementScreenState
     }
     setState(() => _saving = true);
     try {
+      final companyId = await _requireCompanyId();
       final row = await _client
           .from('salesman_route_templates')
-          .insert({'route_name': name, 'locations': <String>[]})
-          .select('id, route_name, locations, updated_at')
+          .insert({
+            'company_id': companyId,
+            'route_name': name,
+            'locations': <String>[],
+          })
+          .select('id, route_name, locations, updated_at, company_id')
           .single();
       if (!mounted) return;
       setState(() {
@@ -358,9 +495,9 @@ class _OwnerRouteManagementScreenState
                   // A route should only be assigned from customers who
                   // currently owe money. A customer whose balance reaches
                   // zero after today's payment remains visible to the
-                  // salesman through today's visit/status record.
-                  TransactionService.getCustomerBalance(customer.id) > 0 &&
-                  true,
+                  // salesman through today's visit/status record. Existing
+                  // assignments to other salesmen do not exclude a customer.
+                  TransactionService.getCustomerBalance(customer.id) > 0,
             )
             .toList()
           ..sort(
@@ -403,7 +540,8 @@ class _OwnerRouteManagementScreenState
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Select only the customers this route should include. '
-                      'Only customers you select here will be assigned and shown to salesmen.',
+                      'Only customers you select here will be assigned and shown to salesmen. '
+                      'A customer may be assigned to more than one salesman.',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -435,41 +573,54 @@ class _OwnerRouteManagementScreenState
                   else
                     Expanded(
                       child: ListView(
-                        children: filteredEligible
-                            .map(
-                              (customer) => CheckboxListTile(
-                                value: selected.contains(customer.id),
-                                title: Text(customer.businessName),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(customer.location),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      CurrencyFormatter.customerBalance(
-                                        TransactionService.getCustomerBalance(
-                                          customer.id,
-                                        ),
-                                      ),
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                        children: filteredEligible.map((customer) {
+                          final otherSalesmen =
+                              _otherSalesmenAssignedToCustomer(customer.id);
+                          return CheckboxListTile(
+                            value: selected.contains(customer.id),
+                            title: Text(customer.businessName),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(customer.location),
+                                const SizedBox(height: 2),
+                                Text(
+                                  CurrencyFormatter.customerBalance(
+                                    TransactionService.getCustomerBalance(
+                                      customer.id,
                                     ),
-                                  ],
+                                  ),
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                onChanged: (checked) => setDialogState(() {
-                                  if (checked == true) {
-                                    selected.add(customer.id);
-                                  } else {
-                                    selected.remove(customer.id);
-                                  }
-                                }),
-                              ),
-                            )
-                            .toList(),
+                                if (otherSalesmen.isNotEmpty)
+                                  Text(
+                                    'Also assigned to: ${otherSalesmen.join(', ')}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                            onChanged: (checked) => setDialogState(() {
+                              if (checked == true) {
+                                selected.add(customer.id);
+                              } else {
+                                selected.remove(customer.id);
+                              }
+                            }),
+                          );
+                        }).toList(),
                       ),
                     ),
                 ],
@@ -511,9 +662,9 @@ class _OwnerRouteManagementScreenState
       _message('Select at least one customer first.');
       return;
     }
-    final assignmentLocations = _locationsForSelectedCustomers().toSet();
     setState(() => _saving = true);
     try {
+      final companyId = await _requireCompanyId();
       final today = DateTime.now();
       final dateKey =
           '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
@@ -523,6 +674,7 @@ class _OwnerRouteManagementScreenState
       await _client
           .from('salesman_route_templates')
           .update({
+            'company_id': companyId,
             'locations': locations,
             'customer_ids': _selectedCustomerIds.toList(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
@@ -531,6 +683,7 @@ class _OwnerRouteManagementScreenState
       final assignments = salesmanIds
           .map(
             (salesmanId) => {
+              'company_id': companyId,
               'salesman_id': salesmanId,
               'route_date': dateKey,
               'locations': locations,
@@ -538,12 +691,11 @@ class _OwnerRouteManagementScreenState
             },
           )
           .toList();
+      // Upsert in place so an RLS or network error cannot delete the prior
+      // assignment before the replacement is saved.
       await _client
           .from('salesman_daily_route_selections')
-          .delete()
-          .eq('route_date', dateKey)
-          .inFilter('salesman_id', salesmanIds);
-      await _client.from('salesman_daily_route_selections').insert(assignments);
+          .upsert(assignments, onConflict: 'salesman_id,route_date');
       if (!mounted) return;
       setState(() {
         final routeIndex = _routes.indexWhere(
@@ -604,21 +756,19 @@ class _OwnerRouteManagementScreenState
 
     setState(() => _saving = true);
     try {
+      final companyId = await _requireCompanyId();
       final today = DateTime.now();
       final dateKey =
           '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       // Store an empty assignment for today instead of deleting the last row.
       // This prevents an older assignment from becoming active again tomorrow.
       await _client.from('salesman_daily_route_selections').upsert({
+        'company_id': companyId,
         'salesman_id': salesmanId,
         'route_date': dateKey,
         'locations': <String>[],
         'customer_ids': <String>[],
       }, onConflict: 'salesman_id,route_date');
-      await _client
-          .from('salesman_customer_daily_status')
-          .delete()
-          .eq('entered_by', salesmanId);
       if (!mounted) return;
       setState(() {
         _todayAssignments[salesmanId] = <String>[];
@@ -628,6 +778,528 @@ class _OwnerRouteManagementScreenState
     } catch (error) {
       debugPrint('Remove daily route failed: $error');
       _message('Could not remove today’s route. Please try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _addCustomersToSalesman({
+    required String salesmanId,
+    required String salesmanName,
+  }) async {
+    final assignedIds = List<String>.from(
+      _todayCustomerAssignments[salesmanId] ?? const <String>[],
+    );
+    if (assignedIds.isEmpty) {
+      _message('Assign a route to this salesman before adding customers.');
+      return;
+    }
+
+    final activeSalesmen = _salesmen
+        .where(
+          (salesman) =>
+              (_todayCustomerAssignments[(salesman['id'] ?? '').toString()] ??
+                      const <String>[])
+                  .isNotEmpty,
+        )
+        .toList();
+    final selectedIds = <String>[];
+    final selectedSalesmanIds = <String>{salesmanId};
+    var searchQuery = '';
+    var insertBeforeCustomerId = '';
+    final screenSize = MediaQuery.sizeOf(context);
+    final customerById = {
+      for (final customer in CustomerService.customers) customer.id: customer,
+    };
+    final assignmentRequest = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final query = searchQuery.trim().toLowerCase();
+          final selectedAssignments = selectedSalesmanIds
+              .map((id) => _todayCustomerAssignments[id] ?? const <String>[])
+              .toList();
+          final availableCustomers =
+              CustomerService.customers.where((customer) {
+                final hasBalance =
+                    TransactionService.getCustomerBalance(customer.id) > 0;
+                final needsAssignment = selectedAssignments.any(
+                  (ids) => !ids.contains(customer.id),
+                );
+                final matchesSearch =
+                    query.isEmpty ||
+                    customer.businessName.toLowerCase().contains(query) ||
+                    customer.location.toLowerCase().contains(query) ||
+                    customer.phone.toLowerCase().contains(query);
+                return hasBalance && needsAssignment && matchesSearch;
+              }).toList()..sort(
+                (a, b) => a.businessName.toLowerCase().compareTo(
+                  b.businessName.toLowerCase(),
+                ),
+              );
+          return AlertDialog(
+            title: const Text('Add customers to salesman routes'),
+            content: SizedBox(
+              width: screenSize.width > 700 ? 520 : screenSize.width * .82,
+              height: screenSize.height * .72,
+              child: Column(
+                children: [
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      'Select one or more salesmen, then choose customers. The chosen position applies to $salesmanName’s route; customers are appended to the other selected routes. Existing visit history stays unchanged.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Salesmen',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setDialogState(() {
+                          selectedSalesmanIds
+                            ..clear()
+                            ..addAll(
+                              activeSalesmen.map(
+                                (salesman) => (salesman['id'] ?? '').toString(),
+                              ),
+                            );
+                        }),
+                        child: const Text('Select all'),
+                      ),
+                    ],
+                  ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 104),
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: activeSalesmen.map((salesman) {
+                          final id = (salesman['id'] ?? '').toString();
+                          return FilterChip(
+                            label: Text(
+                              (salesman['name'] ?? 'Salesman').toString(),
+                            ),
+                            selected: selectedSalesmanIds.contains(id),
+                            onSelected: (selected) => setDialogState(() {
+                              if (selected) {
+                                selectedSalesmanIds.add(id);
+                              } else if (id != salesmanId) {
+                                selectedSalesmanIds.remove(id);
+                              }
+                            }),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      selectedSalesmanIds.isEmpty
+                          ? 'Select at least one salesman.'
+                          : 'Selected: ${selectedSalesmanIds.map((id) => activeSalesmen.firstWhere((salesman) => (salesman['id'] ?? '').toString() == id, orElse: () => {'name': 'Salesman'})['name']).join(', ')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: insertBeforeCustomerId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Position on $salesmanName’s route',
+                    ),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('At end (${assignedIds.length + 1})'),
+                      ),
+                      ...assignedIds.asMap().entries.map((entry) {
+                        final customerName =
+                            customerById[entry.value]?.businessName ??
+                            'Assigned customer';
+                        return DropdownMenuItem<String>(
+                          value: entry.value,
+                          child: Text(
+                            '${entry.key + 1}. $customerName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) => setDialogState(
+                      () => insertBeforeCustomerId = value ?? '',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Search customers',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => searchQuery = value),
+                  ),
+                  const SizedBox(height: 8),
+                  if (selectedIds.isNotEmpty) ...[
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        'New customer order: ${selectedIds.map((id) => customerById[id]?.businessName ?? 'Customer').join(' → ')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Expanded(
+                    child: selectedSalesmanIds.isEmpty
+                        ? const Center(
+                            child: Text('Select a salesman to see customers.'),
+                          )
+                        : availableCustomers.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No additional customers with a pending balance are available for these salesmen.',
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: availableCustomers.length,
+                            itemBuilder: (context, index) {
+                              final customer = availableCustomers[index];
+                              final selected = selectedIds.contains(
+                                customer.id,
+                              );
+                              final alreadyAssignedTo = selectedSalesmanIds
+                                  .where(
+                                    (id) =>
+                                        (_todayCustomerAssignments[id] ??
+                                                const <String>[])
+                                            .contains(customer.id),
+                                  )
+                                  .map(
+                                    (id) => activeSalesmen
+                                        .firstWhere(
+                                          (salesman) =>
+                                              (salesman['id'] ?? '')
+                                                  .toString() ==
+                                              id,
+                                          orElse: () => {'name': 'Salesman'},
+                                        )['name']
+                                        .toString(),
+                                  )
+                                  .toList();
+                              final willBeAddedTo = selectedSalesmanIds
+                                  .where(
+                                    (id) =>
+                                        !(_todayCustomerAssignments[id] ??
+                                                const <String>[])
+                                            .contains(customer.id),
+                                  )
+                                  .map(
+                                    (id) => activeSalesmen
+                                        .firstWhere(
+                                          (salesman) =>
+                                              (salesman['id'] ?? '')
+                                                  .toString() ==
+                                              id,
+                                          orElse: () => {'name': 'Salesman'},
+                                        )['name']
+                                        .toString(),
+                                  )
+                                  .toList();
+                              return CheckboxListTile(
+                                value: selected,
+                                title: Text(
+                                  customer.businessName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '${customer.location} · ${CurrencyFormatter.customerBalance(TransactionService.getCustomerBalance(customer.id))}\n${alreadyAssignedTo.isEmpty ? '' : 'Already on: ${alreadyAssignedTo.join(', ')} · '}${willBeAddedTo.isEmpty ? 'Already on all selected routes' : 'Will add to: ${willBeAddedTo.join(', ')}'}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onChanged: (checked) => setDialogState(() {
+                                  if (checked == true) {
+                                    if (!selectedIds.contains(customer.id)) {
+                                      selectedIds.add(customer.id);
+                                    }
+                                  } else {
+                                    selectedIds.remove(customer.id);
+                                  }
+                                }),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: selectedIds.isEmpty || selectedSalesmanIds.isEmpty
+                    ? null
+                    : () => Navigator.pop<Map<String, dynamic>>(dialogContext, {
+                        'customerIds': List<String>.from(selectedIds),
+                        'salesmanIds': selectedSalesmanIds.toList(),
+                        'insertBeforeCustomerId': insertBeforeCustomerId,
+                      }),
+                child: Text(
+                  selectedIds.isEmpty
+                      ? 'Choose customers'
+                      : 'Add ${selectedIds.length} customer${selectedIds.length == 1 ? '' : 's'} to ${selectedSalesmanIds.length} salesman${selectedSalesmanIds.length == 1 ? '' : 's'}',
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (assignmentRequest == null || !mounted) return;
+    final customersToAdd = List<String>.from(
+      assignmentRequest['customerIds'] as List,
+    );
+    final recipientIds = List<String>.from(
+      assignmentRequest['salesmanIds'] as List,
+    );
+    final requestedPosition =
+        (assignmentRequest['insertBeforeCustomerId'] ?? '').toString();
+    if (customersToAdd.isEmpty || recipientIds.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      final companyId = await _requireCompanyId();
+      final now = DateTime.now();
+      final dateKey =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      List<String> decodeStringList(dynamic value) {
+        if (value is List) return value.map((item) => item.toString()).toList();
+        if (value is String && value.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is List) {
+              return decoded.map((item) => item.toString()).toList();
+            }
+          } catch (_) {}
+        }
+        return <String>[];
+      }
+
+      final currentRows = await Future.wait(
+        recipientIds.map(
+          (recipientId) => _client
+              .from('salesman_daily_route_selections')
+              .select('salesman_id, locations, customer_ids')
+              .eq('company_id', companyId)
+              .eq('salesman_id', recipientId)
+              .eq('route_date', dateKey)
+              .maybeSingle(),
+        ),
+      );
+      final assignments = <Map<String, dynamic>>[];
+      final nextCustomersBySalesman = <String, List<String>>{};
+      final nextLocationsBySalesman = <String, List<String>>{};
+      var totalAdded = 0;
+
+      for (var index = 0; index < recipientIds.length; index++) {
+        final recipientId = recipientIds[index];
+        final currentRow = currentRows[index];
+        if (currentRow == null) {
+          throw StateError(
+            'A selected salesman no longer has an active route today.',
+          );
+        }
+
+        final savedIds = decodeStringList(currentRow['customer_ids']);
+        final nextIds = savedIds.isEmpty
+            ? List<String>.from(
+                _todayCustomerAssignments[recipientId] ?? const <String>[],
+              )
+            : savedIds;
+        final nextIdSet = nextIds.toSet();
+        final newIds = customersToAdd
+            .where((id) => nextIdSet.add(id))
+            .toList(growable: false);
+        if (newIds.isEmpty) continue;
+
+        final isPositionSalesman = recipientId == salesmanId;
+        final selectedPosition =
+            isPositionSalesman && requestedPosition.isNotEmpty
+            ? nextIds.indexOf(requestedPosition)
+            : -1;
+        final insertionIndex = selectedPosition < 0
+            ? nextIds.length
+            : selectedPosition;
+        nextIds.insertAll(insertionIndex, newIds);
+
+        final previousLocations = decodeStringList(currentRow['locations']);
+        final nextLocations = <String>[];
+        final locationKeys = <String>{};
+        for (final id in nextIds) {
+          final location = customerById[id]?.location.trim() ?? '';
+          if (location.isNotEmpty && locationKeys.add(location.toLowerCase())) {
+            nextLocations.add(location);
+          }
+        }
+        for (final location in previousLocations) {
+          final cleaned = location.trim();
+          if (cleaned.isNotEmpty && locationKeys.add(cleaned.toLowerCase())) {
+            nextLocations.add(cleaned);
+          }
+        }
+
+        assignments.add({
+          'company_id': companyId,
+          'salesman_id': recipientId,
+          'route_date': dateKey,
+          'locations': nextLocations,
+          'customer_ids': nextIds,
+        });
+        nextCustomersBySalesman[recipientId] = nextIds;
+        nextLocationsBySalesman[recipientId] = nextLocations;
+        totalAdded += newIds.length;
+      }
+
+      if (assignments.isEmpty) {
+        _message(
+          'Those customers are already assigned to all selected salesmen.',
+        );
+        return;
+      }
+      await _client
+          .from('salesman_daily_route_selections')
+          .upsert(assignments, onConflict: 'salesman_id,route_date');
+      if (!mounted) return;
+      setState(() {
+        _todayAssignments.addAll(nextLocationsBySalesman);
+        _todayCustomerAssignments.addAll(nextCustomersBySalesman);
+      });
+      _message(
+        'Added $totalAdded customer assignment${totalAdded == 1 ? '' : 's'} across ${assignments.length} salesman route${assignments.length == 1 ? '' : 's'}. Visit history was preserved.',
+      );
+    } catch (error) {
+      debugPrint('Add customers to salesman route failed: $error');
+      _message('Could not add customers to this route. Please try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _removeCustomerFromSalesmanRoute({
+    required String salesmanId,
+    required String salesmanName,
+    required Customer customer,
+  }) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove customer from route?'),
+        content: Text(
+          'Remove ${customer.businessName} from $salesmanName’s active route? The customer, payments, and visit history will remain unchanged.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remove from route'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      final companyId = await _requireCompanyId();
+      final now = DateTime.now();
+      final dateKey =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final currentRow = await _client
+          .from('salesman_daily_route_selections')
+          .select('locations, customer_ids')
+          .eq('company_id', companyId)
+          .eq('salesman_id', salesmanId)
+          .eq('route_date', dateKey)
+          .maybeSingle();
+      if (currentRow == null) {
+        throw StateError('This salesman no longer has an active route today.');
+      }
+
+      List<String> decodeStringList(dynamic value) {
+        if (value is List) return value.map((item) => item.toString()).toList();
+        if (value is String && value.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is List) {
+              return decoded.map((item) => item.toString()).toList();
+            }
+          } catch (_) {}
+        }
+        return <String>[];
+      }
+
+      final savedIds = decodeStringList(currentRow['customer_ids']);
+      final currentIds = savedIds.isEmpty
+          ? List<String>.from(
+              _todayCustomerAssignments[salesmanId] ?? const <String>[],
+            )
+          : savedIds;
+      if (!currentIds.contains(customer.id)) {
+        _message('This customer is already removed from the route.');
+        return;
+      }
+      final nextIds = currentIds
+          .where((id) => id != customer.id)
+          .toList(growable: false);
+      final customerById = {
+        for (final item in CustomerService.customers) item.id: item,
+      };
+      final nextLocations = <String>[];
+      final locationKeys = <String>{};
+      for (final id in nextIds) {
+        final location = customerById[id]?.location.trim() ?? '';
+        if (location.isNotEmpty && locationKeys.add(location.toLowerCase())) {
+          nextLocations.add(location);
+        }
+      }
+
+      await _client.from('salesman_daily_route_selections').upsert({
+        'company_id': companyId,
+        'salesman_id': salesmanId,
+        'route_date': dateKey,
+        'locations': nextLocations,
+        'customer_ids': nextIds,
+      }, onConflict: 'salesman_id,route_date');
+      if (!mounted) return;
+      setState(() {
+        _todayAssignments[salesmanId] = nextLocations;
+        _todayCustomerAssignments[salesmanId] = nextIds;
+      });
+      _message(
+        '${customer.businessName} was removed from $salesmanName’s route.',
+      );
+    } catch (error) {
+      debugPrint('Remove customer from salesman route failed: $error');
+      _message(
+        'Could not remove this customer from the route. Please try again.',
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -997,7 +1669,7 @@ class _OwnerRouteManagementScreenState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Select one or more salesmen. The route stays assigned until you remove it from Salesmen & Assigned Routes. Assignments use the selected customers above.',
+                          'Select one or more salesmen. The route stays assigned until you remove it from Salesmen & Assigned Routes. Assignments use the selected customers above, and the same customer can be assigned to multiple salesmen.',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 8),
@@ -1146,6 +1818,10 @@ class _OwnerRouteManagementScreenState
                 }
                 final assignedIds =
                     _todayCustomerAssignments[salesmanId] ?? const <String>[];
+                final customerSerialNumbers = {
+                  for (var index = 0; index < assignedIds.length; index++)
+                    assignedIds[index]: index + 1,
+                };
                 final subtitle = assignedIds.isEmpty
                     ? 'No active route assignment'
                     : '${assignedRouteName == null ? 'Assigned customers' : 'Route: $assignedRouteName'}\n${assignedIds.length} selected customers';
@@ -1211,6 +1887,21 @@ class _OwnerRouteManagementScreenState
                             : Wrap(
                                 spacing: 2,
                                 children: [
+                                  IconButton(
+                                    tooltip:
+                                        'Add customers to this and other salesman routes',
+                                    onPressed: _saving
+                                        ? null
+                                        : () => _addCustomersToSalesman(
+                                            salesmanId: salesmanId,
+                                            salesmanName:
+                                                (salesman['name'] ?? 'Salesman')
+                                                    .toString(),
+                                          ),
+                                    icon: const Icon(
+                                      Icons.person_add_alt_1_outlined,
+                                    ),
+                                  ),
                                   IconButton(
                                     tooltip: 'Print assigned customers',
                                     onPressed: () => _printAssignedCustomers(
@@ -1312,6 +2003,13 @@ class _OwnerRouteManagementScreenState
                             ),
                           ),
                         ...visibleCustomers.map((customer) {
+                          final serialNumber =
+                              customerSerialNumbers[customer.id];
+                          final otherSalesmen =
+                              _otherSalesmenAssignedToCustomer(
+                                customer.id,
+                                excludingSalesmanId: salesmanId,
+                              );
                           final status = _todayCustomerStatuses[customer.id];
                           final statusLabel = switch (status) {
                             'paid' => 'Visited',
@@ -1338,10 +2036,28 @@ class _OwnerRouteManagementScreenState
                             leading: CircleAvatar(
                               child: Text(initials.isEmpty ? '?' : initials),
                             ),
-                            title: Text(
-                              customer.businessName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            title: Row(
+                              children: [
+                                if (serialNumber != null) ...[
+                                  Text(
+                                    '$serialNumber.',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    customer.businessName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1368,25 +2084,61 @@ class _OwnerRouteManagementScreenState
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
+                                if (otherSalesmen.isNotEmpty)
+                                  Text(
+                                    'Also assigned to: ${otherSalesmen.join(', ')}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
                               ],
                             ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.09),
-                                borderRadius: BorderRadius.circular(7),
-                              ),
-                              child: Text(
-                                statusLabel,
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.09),
+                                    borderRadius: BorderRadius.circular(7),
+                                  ),
+                                  child: Text(
+                                    statusLabel,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                IconButton(
+                                  tooltip: 'Remove customer from this route',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: _saving
+                                      ? null
+                                      : () => _removeCustomerFromSalesmanRoute(
+                                          salesmanId: salesmanId,
+                                          salesmanName:
+                                              (salesman['name'] ?? 'Salesman')
+                                                  .toString(),
+                                          customer: customer,
+                                        ),
+                                  icon: Icon(
+                                    Icons.person_remove_alt_1_outlined,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
                             ),
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -1407,38 +2159,94 @@ class _OwnerRouteManagementScreenState
   }
 
   Widget _buildMapPage() {
-    return ListView(
+    final points = _mapVisits
+        .map(
+          (visit) =>
+              LatLng(visit['latitude'] as double, visit['longitude'] as double),
+        )
+        .toList();
+    final center = points.isEmpty ? const LatLng(10.3, 76.3) : points.first;
+    return Padding(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 12 : 20),
-      children: [
-        const Text(
-          'Saved route locations',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Review the locations saved under each route. Places & Routes is where you can edit them.',
-        ),
-        const SizedBox(height: 12),
-        if (_routes.isEmpty)
-          const Text('No routes created yet.')
-        else
-          ..._routes.map((route) {
-            final locations = (route['locations'] as List? ?? const [])
-                .map((e) => e.toString())
-                .toList();
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.map_outlined),
-                title: Text(route['route_name'].toString()),
-                subtitle: Text(
-                  locations.isEmpty
-                      ? 'No locations added'
-                      : locations.join(' → '),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Visit Map',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
-            );
-          }),
-      ],
+              Text('${_mapVisits.length} customers on map'),
+              IconButton(
+                tooltip: 'Refresh map',
+                onPressed: _loadMapVisits,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: center,
+                  initialZoom: points.isEmpty ? 7 : 11,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.ledgerpro.business_payment_app',
+                  ),
+                  if (points.isNotEmpty)
+                    MarkerLayer(
+                      markers: _mapVisits.map((visit) {
+                        final rejected = visit['status'] == 'rejected';
+                        return Marker(
+                          point: LatLng(
+                            visit['latitude'] as double,
+                            visit['longitude'] as double,
+                          ),
+                          width: 42,
+                          height: 52,
+                          child: Tooltip(
+                            message:
+                                '${visit['business_name']} · ${visit['location']}${visit['status'] == '' ? '' : ' · ${rejected ? 'Refused today' : 'Visited today'}'}',
+                            child: Icon(
+                              Icons.location_on,
+                              size: 42,
+                              color: rejected
+                                  ? Colors.red
+                                  : Colors.green.shade700,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('© OpenStreetMap contributors'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_mapVisitsLoading) const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+          Text(
+            points.isEmpty
+                ? 'No customer coordinates are saved yet. When a salesman records a visit with location access, that position becomes the customer’s map location.'
+                : 'Showing each customer at their latest recorded visit location. Green means visited today; red means refused today.',
+          ),
+        ],
+      ),
     );
   }
 }

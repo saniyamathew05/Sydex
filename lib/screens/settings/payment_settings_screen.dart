@@ -22,6 +22,8 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
   bool _requireSignature = true;
 
   bool _allowPaymentNotes = true;
+  final _upiController = TextEditingController();
+  String? _companyId;
 
   @override
   void initState() {
@@ -32,10 +34,13 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
 
   Future<void> _loadSettings() async {
     try {
+      _companyId = await _requireOwnerCompanyId();
+
       final response = await _supabase
           .from('payment_settings')
           .select()
           .eq('id', 1)
+          .eq('company_id', _companyId!)
           .maybeSingle();
 
       if (response != null) {
@@ -47,6 +52,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
           _requireSignature = response['require_signature'] ?? true;
 
           _allowPaymentNotes = response['allow_payment_notes'] ?? true;
+          _upiController.text = response['upi_id'] ?? '';
         });
       }
     } catch (error) {
@@ -62,32 +68,57 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _upiController.dispose();
+    super.dispose();
+  }
+
   Future<void> _saveSettings() async {
     setState(() {
       _isSaving = true;
     });
 
     try {
-      await _supabase.from('payment_settings').upsert({
-        'id': 1,
-
+      // Match the company scope used by the database RLS policy. Profile
+      // company_id can be stale for existing accounts after company linking.
+      final companyId = await _requireOwnerCompanyId();
+      _companyId = companyId;
+      final settings = {
         'currency': _currency,
-
         'currency_symbol': _currencySymbol,
-
         'require_signature': _requireSignature,
-
         'allow_payment_notes': _allowPaymentNotes,
-
+        'upi_id': _upiController.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
-      });
+      };
+      // Update first so saving an existing company row does not depend on an
+      // INSERT-on-conflict path. Create the row only for a new company.
+      final updated = await _supabase
+          .from('payment_settings')
+          .update(settings)
+          .eq('id', 1)
+          .eq('company_id', companyId)
+          .select('id');
+      if (updated.isEmpty) {
+        await _supabase.from('payment_settings').insert({
+          'id': 1,
+          'company_id': companyId,
+          ...settings,
+        });
+      }
 
       if (!mounted) return;
 
       _showSnackBar('Payment settings saved.');
     } catch (error) {
+      debugPrint('Could not save payment settings: $error');
       if (mounted) {
-        _showSnackBar('Could not save payment settings.');
+        final detail = error.toString().toLowerCase().contains('row-level') ||
+                error.toString().contains('42501')
+            ? ' Check that this account is an owner in the linked business.'
+            : '';
+        _showSnackBar('Could not save payment settings.$detail');
       }
     } finally {
       if (mounted) {
@@ -96,6 +127,25 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
         });
       }
     }
+  }
+
+  Future<String> _requireOwnerCompanyId() async {
+    if (_supabase.auth.currentUser == null) {
+      throw StateError('Please sign in again.');
+    }
+    final role = (await _supabase.rpc('get_my_role'))
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (role != 'owner') {
+      throw StateError('Only a business owner can change payment settings.');
+    }
+    final value = await _supabase.rpc('current_company_id');
+    final companyId = value?.toString().trim() ?? '';
+    if (companyId.isEmpty) {
+      throw StateError('This owner account is not linked to a company.');
+    }
+    return companyId;
   }
 
   void _showSnackBar(String message) {
@@ -117,6 +167,23 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
               padding: const EdgeInsets.all(20),
 
               children: [
+                _PaymentSettingCard(
+                  icon: Icons.qr_code_2_rounded,
+                  title: 'Payment QR',
+                  subtitle:
+                      'Add one or more UPI IDs, one per line. Salesmen can select one to display.',
+                  child: TextField(
+                    controller: _upiController,
+                    maxLines: 3,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Business UPI ID',
+                      hintText: 'yourbusiness@upi',
+                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 _PaymentSettingCard(
                   icon: Icons.currency_rupee,
 

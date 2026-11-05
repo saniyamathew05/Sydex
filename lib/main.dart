@@ -1,10 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'screens/owner/owner_main_screen.dart';
 
@@ -16,13 +14,6 @@ import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final isWindowsApp =
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  if (isWindowsApp) {
-    await windowManager.ensureInitialized();
-    await windowManager.setPreventClose(true);
-  }
 
   const supabaseUrl = 'https://rxjexwtdhopkltrrlbnd.supabase.co';
 
@@ -59,35 +50,19 @@ class BusinessPaymentApp extends StatefulWidget {
 }
 
 class _BusinessPaymentAppState extends State<BusinessPaymentApp>
-    with WidgetsBindingObserver, WindowListener {
-  bool _isClosing = false;
+    with WidgetsBindingObserver {
   Future<void>? _closeSignOut;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      windowManager.addListener(this);
-    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      windowManager.removeListener(this);
-    }
     super.dispose();
-  }
-
-  @override
-  void onWindowClose() async {
-    if (_isClosing) return;
-    _isClosing = true;
-    await _signOutOnClose();
-    await windowManager.setPreventClose(false);
-    await windowManager.close();
   }
 
   @override
@@ -141,36 +116,36 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
   // ==========================================================
 
   ThemeData _buildLightTheme() {
-    const primary = Color(0xFF4F2BCB);
+    const primary = Color(0xFF0B5D3B);
 
-    const secondary = Color(0xFF6D4AFF);
+    const secondary = Color(0xFF149A5A);
 
-    const background = Color(0xFFF5F6FC);
+    const background = Color(0xFFF7F3EC);
 
     const surface = Color(0xFFFFFFFF);
 
-    const border = Color(0xFFE5E7F2);
+    const border = Color(0xFFE4DED4);
 
-    const textPrimary = Color(0xFF11152E);
+    const textPrimary = Color(0xFF14211A);
 
-    const textSecondary = Color(0xFF68708B);
+    const textSecondary = Color(0xFF657066);
 
     final colorScheme = ColorScheme.light(
       primary: primary,
 
       onPrimary: Colors.white,
 
-      primaryContainer: const Color(0xFFEAE5FF),
+      primaryContainer: const Color(0xFFDDF3E5),
 
-      onPrimaryContainer: const Color(0xFF2D176F),
+      onPrimaryContainer: const Color(0xFF06452C),
 
       secondary: secondary,
 
       onSecondary: Colors.white,
 
-      secondaryContainer: const Color(0xFFEAE5FF),
+      secondaryContainer: const Color(0xFFDDF3E5),
 
-      onSecondaryContainer: const Color(0xFF352079),
+      onSecondaryContainer: const Color(0xFF06452C),
 
       surface: surface,
 
@@ -178,17 +153,17 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       surfaceContainerLowest: Colors.white,
 
-      surfaceContainerLow: const Color(0xFFFCFCFF),
+      surfaceContainerLow: const Color(0xFFFAFCFA),
 
-      surfaceContainer: const Color(0xFFF2F3FA),
+      surfaceContainer: const Color(0xFFF3F7F4),
 
-      surfaceContainerHigh: const Color(0xFFEDEEFF),
+      surfaceContainerHigh: const Color(0xFFEAF3EC),
 
-      surfaceContainerHighest: const Color(0xFFE4E6F3),
+      surfaceContainerHighest: const Color(0xFFE2EDE4),
 
       onSurfaceVariant: textSecondary,
 
-      outline: const Color(0xFFC9CBE0),
+      outline: const Color(0xFFBFCFC2),
 
       outlineVariant: border,
 
@@ -232,7 +207,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       tooltipTheme: const TooltipThemeData(
         decoration: BoxDecoration(
-          color: Color(0xFF11152E),
+          color: Color(0xFF071B12),
           borderRadius: BorderRadius.all(Radius.circular(8)),
         ),
         textStyle: TextStyle(color: Colors.white),
@@ -247,7 +222,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFFF2F3FA),
+        backgroundColor: const Color(0xFFF3F7F4),
         labelStyle: const TextStyle(color: textPrimary),
         secondaryLabelStyle: const TextStyle(color: textPrimary),
         side: const BorderSide(color: border),
@@ -344,7 +319,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
           disabledBackgroundColor: const Color(0xFFCBD5D1),
 
-          disabledForegroundColor: const Color(0xFF68708B),
+          disabledForegroundColor: const Color(0xFF657066),
 
           elevation: 0,
 
@@ -401,7 +376,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
 
-        indicatorColor: const Color(0xFFEAE5FF),
+        indicatorColor: const Color(0xFFDDF3E5),
 
         elevation: 0,
 
@@ -445,7 +420,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
 
-        backgroundColor: const Color(0xFF11152E),
+        backgroundColor: const Color(0xFF071B12),
 
         contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
 
@@ -479,54 +454,54 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
   // ==========================================================
 
   ThemeData _buildDarkTheme() {
-    const primary = Color(0xFF9A83FF);
+    const primary = Color(0xFF65C982);
 
-    const secondary = Color(0xFF7C5CFA);
+    const secondary = Color(0xFF2B9A5B);
 
-    const background = Color(0xFF0D1026);
+    const background = Color(0xFF071B12);
 
-    const surface = Color(0xFF151A35);
+    const surface = Color(0xFF0D2A1D);
 
-    const border = Color(0xFF343957);
+    const border = Color(0xFF345245);
 
-    const textPrimary = Color(0xFFF2F3FA);
+    const textPrimary = Color(0xFFF3F7F4);
 
-    const textSecondary = Color(0xFFC0C5DF);
+    const textSecondary = Color(0xFFC0D0C4);
 
     final colorScheme = ColorScheme.dark(
       primary: primary,
 
-      onPrimary: const Color(0xFF21115A),
+      onPrimary: const Color(0xFF063D28),
 
-      primaryContainer: const Color(0xFF302064),
+      primaryContainer: const Color(0xFF145336),
 
-      onPrimaryContainer: const Color(0xFFEAE5FF),
+      onPrimaryContainer: const Color(0xFFDDF3E5),
 
       secondary: secondary,
 
-      onSecondary: const Color(0xFF21115A),
+      onSecondary: const Color(0xFF063D28),
 
-      secondaryContainer: const Color(0xFF302064),
+      secondaryContainer: const Color(0xFF145336),
 
-      onSecondaryContainer: const Color(0xFFEAE5FF),
+      onSecondaryContainer: const Color(0xFFDDF3E5),
 
       surface: surface,
 
       onSurface: textPrimary,
 
-      surfaceContainerLowest: const Color(0xFF0D1026),
+      surfaceContainerLowest: const Color(0xFF071B12),
 
-      surfaceContainerLow: const Color(0xFF11152E),
+      surfaceContainerLow: const Color(0xFF0D2A1D),
 
-      surfaceContainer: const Color(0xFF171936),
+      surfaceContainer: const Color(0xFF102B20),
 
-      surfaceContainerHigh: const Color(0xFF202544),
+      surfaceContainerHigh: const Color(0xFF173729),
 
-      surfaceContainerHighest: const Color(0xFF292F50),
+      surfaceContainerHighest: const Color(0xFF1C4431),
 
       onSurfaceVariant: textSecondary,
 
-      outline: const Color(0xFF747B9D),
+      outline: const Color(0xFF73917E),
 
       outlineVariant: border,
 
@@ -570,7 +545,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       tooltipTheme: const TooltipThemeData(
         decoration: BoxDecoration(
-          color: Color(0xFF292F50),
+          color: Color(0xFF1C4431),
           borderRadius: BorderRadius.all(Radius.circular(8)),
         ),
         textStyle: TextStyle(color: textPrimary),
@@ -585,7 +560,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF202544),
+        backgroundColor: const Color(0xFF173729),
         labelStyle: const TextStyle(color: textPrimary),
         secondaryLabelStyle: const TextStyle(color: textPrimary),
         side: const BorderSide(color: border),
@@ -625,7 +600,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
 
-        fillColor: const Color(0xFF171936),
+        fillColor: const Color(0xFF102B20),
 
         floatingLabelBehavior: FloatingLabelBehavior.auto,
 
@@ -667,7 +642,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
         labelStyle: const TextStyle(color: textSecondary),
 
-        hintStyle: const TextStyle(color: Color(0xFFB7BED8)),
+        hintStyle: const TextStyle(color: Color(0xFFC0D0C4)),
 
         prefixIconColor: textSecondary,
 
@@ -678,11 +653,11 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
 
-          foregroundColor: const Color(0xFF21115A),
+          foregroundColor: const Color(0xFF063D28),
 
-          disabledBackgroundColor: const Color(0xFF343957),
+          disabledBackgroundColor: const Color(0xFF345245),
 
-          disabledForegroundColor: const Color(0xFFCFD3E5),
+          disabledForegroundColor: const Color(0xFFE0ECE2),
 
           elevation: 0,
 
@@ -731,7 +706,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: primary,
 
-        foregroundColor: Color(0xFF21115A),
+        foregroundColor: Color(0xFF063D28),
 
         elevation: 3,
       ),
@@ -739,7 +714,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
 
-        indicatorColor: const Color(0xFF302064),
+        indicatorColor: const Color(0xFF145336),
 
         elevation: 0,
 
@@ -783,10 +758,10 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
 
-        backgroundColor: const Color(0xFF292F50),
+        backgroundColor: const Color(0xFF1C4431),
 
         contentTextStyle: const TextStyle(
-          color: Color(0xFFF2F3FA),
+          color: Color(0xFFF3F7F4),
 
           fontSize: 13,
         ),
@@ -969,8 +944,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final password = passwordController.text;
 
-    if (email.isEmpty || password.isEmpty) {
-      _showError('Please enter email and password.');
+    if (email.isEmpty ||
+        password.isEmpty ||
+        email.length > 254 ||
+        password.length > 128) {
+      _showError('Please enter a valid email and password.');
 
       return;
     }
@@ -1034,6 +1012,15 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  Future<void> registerCompany() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            RegisterCompanyScreen(initialEmail: emailController.text.trim()),
+      ),
+    );
   }
 
   void _showError(String message) {
@@ -1221,6 +1208,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : const Text('Login'),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: isLoading ? null : registerCompany,
+                          child: const Text('Register a new company'),
+                        ),
                       ],
                     ),
                   ),
@@ -1253,6 +1245,246 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RegisterCompanyScreen extends StatefulWidget {
+  final String initialEmail;
+
+  const RegisterCompanyScreen({super.key, this.initialEmail = ''});
+
+  @override
+  State<RegisterCompanyScreen> createState() => _RegisterCompanyScreenState();
+}
+
+class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _company;
+  late final TextEditingController _owner;
+  late final TextEditingController _email;
+  final _password = TextEditingController();
+  bool _loading = false;
+  bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _company = TextEditingController();
+    _owner = TextEditingController();
+    _email = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _company.dispose();
+    _owner.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      final response = await AuthService.registerCompany(
+        companyName: _company.text.trim(),
+        ownerName: _owner.text.trim(),
+        email: _email.text.trim(),
+        password: _password.text,
+      );
+      if (!mounted) return;
+      if (response.session == null || response.user == null) {
+        throw Exception(
+          'Check your email to confirm the account, then log in.',
+        );
+      }
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => OwnerMainScreen(userName: _owner.text.trim()),
+        ),
+        (route) => false,
+      );
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (error) {
+      _showError(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  InputDecoration _decoration(String label, IconData icon) =>
+      InputDecoration(labelText: label, prefixIcon: Icon(icon));
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: _loading ? null : () => Navigator.pop(context),
+        ),
+        title: const Text('Create your business account'),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF063D28), Color(0xFF0B6A43)],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.eco_rounded,
+                            color: Colors.white,
+                            size: 34,
+                          ),
+                          SizedBox(height: 14),
+                          Text(
+                            'Welcome to LedgerPro',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Set up your private business workspace and start managing customers, payments, and routes.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Business details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Your data will be kept in your company workspace.',
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: _company,
+                      maxLength: 120,
+                      decoration: _decoration(
+                        'Company name',
+                        Icons.business_rounded,
+                      ),
+                      validator: (v) =>
+                          v!.trim().isEmpty ? 'Enter company name' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _owner,
+                      maxLength: 120,
+                      decoration: _decoration(
+                        'Owner name',
+                        Icons.person_outline_rounded,
+                      ),
+                      validator: (v) =>
+                          v!.trim().isEmpty ? 'Enter owner name' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _email,
+                      maxLength: 254,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: _decoration(
+                        'Email address',
+                        Icons.email_outlined,
+                      ),
+                      validator: (v) => v!.trim().isEmpty || !v.contains('@')
+                          ? 'Enter a valid email'
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _password,
+                      maxLength: 128,
+                      obscureText: _obscure,
+                      decoration:
+                          _decoration(
+                            'Password (12+ characters)',
+                            Icons.lock_outline_rounded,
+                          ).copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                      validator: (v) =>
+                          v!.length < 12 ? 'Use at least 12 characters' : null,
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: _loading ? null : _register,
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.arrow_forward_rounded),
+                        label: Text(
+                          _loading
+                              ? 'Creating workspace...'
+                              : 'Create business account',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

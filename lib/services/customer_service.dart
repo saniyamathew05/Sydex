@@ -85,6 +85,16 @@ class CustomerService {
         throw Exception('You must be logged in to add a customer.');
       }
 
+      final profile = await _supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .maybeSingle();
+      final companyId = profile?['company_id']?.toString();
+      if (companyId == null || companyId.isEmpty) {
+        throw Exception('Your account is not linked to a company.');
+      }
+
       final cleanBusinessName = businessName.trim();
 
       final cleanLocation = location.trim();
@@ -106,6 +116,7 @@ class CustomerService {
       final response = await _supabase
           .from('customers')
           .insert({
+            'company_id': companyId,
             'business_name': cleanBusinessName,
             'location': cleanLocation,
             'phone': cleanPhone,

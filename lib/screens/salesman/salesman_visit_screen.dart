@@ -10,7 +10,7 @@ import 'salesman_customer_screen.dart';
 /// Salesman's daily route and visit-status screen.
 ///
 /// Route locations and visit outcomes are persisted through Supabase via
-/// SalesmanVisitService. Visit outcomes require a GPS location.
+/// SalesmanVisitService. GPS capture is optional for visit outcomes.
 class SalesmanVisitScreen extends StatefulWidget {
   const SalesmanVisitScreen({super.key});
 
@@ -24,7 +24,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
   String? _error;
   String? _routeName;
   List<String> _routeLocations = <String>[];
-  Set<String> _routeCustomerIds = <String>{};
+  List<String> _routeCustomerIds = <String>[];
   Map<String, String> _statuses = <String, String>{};
   final Set<String> _draftLocations = <String>{};
   final Set<String> _busyCustomerIds = <String>{};
@@ -43,26 +43,20 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
 
   List<Customer> get _routeCustomers {
     if (_routeCustomerIds.isEmpty) return <Customer>[];
-    final customers = _customers
+    final customersById = {
+      for (final customer in _customers) customer.id: customer,
+    };
+    return _routeCustomerIds
+        .map((id) => customersById[id])
+        .whereType<Customer>()
         .where(
           (customer) =>
-              ((TransactionService.customerBalances[customer.id] ??
-                          customer.openingBalance) >
-                      0 ||
-                  _statuses.containsKey(customer.id)) &&
-              _routeCustomerIds.contains(customer.id),
+              (TransactionService.customerBalances[customer.id] ??
+                      customer.openingBalance) >
+                  0 ||
+              _statuses.containsKey(customer.id),
         )
-        .toList();
-    if (_routeCustomerIds.isNotEmpty) {
-      final order = {
-        for (var i = 0; i < _routeCustomerIds.length; i++)
-          _routeCustomerIds.elementAt(i): i,
-      };
-      customers.sort(
-        (a, b) => (order[a.id] ?? 999999).compareTo(order[b.id] ?? 999999),
-      );
-    }
-    return customers;
+        .toList(growable: false);
   }
 
   @override
@@ -81,14 +75,18 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
       await TransactionService.loadTransactions();
       final values = await Future.wait<dynamic>([
         SalesmanVisitService.loadTodayRoute(),
-        SalesmanVisitService.loadTodayCustomerIds(),
+        SalesmanVisitService.loadTodayCustomerIdsInOrder(),
         SalesmanVisitService.loadTodayStatuses(),
       ]);
       final routeLocations = List<String>.from(values[0] as List<String>);
+      final routeCustomerIds = List<String>.from(
+        values[1] as List<String>,
+      );
       String? routeName;
       try {
-        routeName = await SalesmanVisitService.loadRouteNameForLocations(
-          routeLocations,
+        routeName = await SalesmanVisitService.loadRouteNameForCustomerIds(
+          routeCustomerIds,
+          assignedLocations: routeLocations,
         );
       } catch (error) {
         debugPrint('Could not load assigned route name: $error');
@@ -97,7 +95,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
       setState(() {
         _routeLocations = routeLocations;
         _routeName = routeName;
-        _routeCustomerIds = Set<String>.from(values[1] as Set<String>);
+        _routeCustomerIds = routeCustomerIds;
         _statuses = Map<String, String>.from(values[2] as Map<String, String>);
         _draftLocations
           ..clear()

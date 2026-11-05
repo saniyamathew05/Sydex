@@ -60,7 +60,8 @@ class SalesmanVisitService {
     return <String>[];
   }
 
-  static Future<Set<String>> loadTodayCustomerIds() async {
+  /// Loads the assigned customer IDs in the exact order saved by the owner.
+  static Future<List<String>> loadTodayCustomerIdsInOrder() async {
     final userId = _requireUserId();
     try {
       final row = await _client
@@ -72,27 +73,36 @@ class SalesmanVisitService {
           .limit(1)
           .maybeSingle();
 
-      final assignedIds = _customerIdsFromValue(row?['customer_ids']);
+      final assignedIds = _orderedCustomerIdsFromValue(row?['customer_ids']);
       if (assignedIds.isNotEmpty) return assignedIds;
 
       // Customer IDs are the authoritative assignment. Empty means no customers assigned.
     } catch (_) {
       // The customer_ids column is optional for older deployed databases.
     }
-    return <String>{};
+    return <String>[];
   }
 
-  static Set<String> _customerIdsFromValue(dynamic value) {
-    if (value is List) return value.map((item) => item.toString()).toSet();
+  /// Membership-only compatibility API for screens that do not display order.
+  static Future<Set<String>> loadTodayCustomerIds() async =>
+      (await loadTodayCustomerIdsInOrder()).toSet();
+
+  static List<String> _orderedCustomerIdsFromValue(dynamic value) {
+    List<dynamic>? values;
+    if (value is List) values = value;
     if (value is String && value.trim().isNotEmpty) {
       try {
         final decoded = jsonDecode(value);
-        if (decoded is List) {
-          return decoded.map((item) => item.toString()).toSet();
-        }
+        if (decoded is List) values = decoded;
       } catch (_) {}
     }
-    return <String>{};
+    if (values == null) return <String>[];
+
+    final seen = <String>{};
+    return values
+        .map((item) => item.toString().trim())
+        .where((id) => id.isNotEmpty && seen.add(id))
+        .toList(growable: false);
   }
 
   static Set<String> _normalizedLocations(dynamic value) {
@@ -113,6 +123,41 @@ class SalesmanVisitService {
       List<Map<String, dynamic>>.from(routes),
       assignedLocations,
     );
+  }
+
+  /// Resolve the named route using its originally assigned customers. This
+  /// keeps the name stable when the owner later adds extra customers to a
+  /// salesman's daily route.
+  static Future<String?> loadRouteNameForCustomerIds(
+    List<String> assignedCustomerIds, {
+    List<String> assignedLocations = const <String>[],
+  }) async {
+    final assigned = assignedCustomerIds.toSet();
+    if (assigned.isNotEmpty) {
+      final routes = await _client
+          .from('salesman_route_templates')
+          .select('route_name, locations, customer_ids');
+      final matches = <({String name, int customerCount})>[];
+      for (final route in routes) {
+        final name = route['route_name']?.toString().trim() ?? '';
+        final routeCustomerIds =
+            _orderedCustomerIdsFromValue(route['customer_ids']);
+        if (name.isEmpty ||
+            routeCustomerIds.isEmpty ||
+            !routeCustomerIds.every(assigned.contains)) {
+          continue;
+        }
+        matches.add((name: name, customerCount: routeCustomerIds.length));
+      }
+      if (matches.isNotEmpty) {
+        matches.sort((a, b) {
+          final bySpecificity = b.customerCount.compareTo(a.customerCount);
+          return bySpecificity != 0 ? bySpecificity : a.name.compareTo(b.name);
+        });
+        return matches.first.name;
+      }
+    }
+    return loadRouteNameForLocations(assignedLocations);
   }
 
   static String? _findRouteName(
@@ -199,7 +244,10 @@ class SalesmanVisitService {
           .lt('transaction_date', startOfTomorrow.toUtc().toIso8601String());
       for (final payment in payments) {
         final customerId = payment['customer_id']?.toString();
-        if (customerId != null) result[customerId] = 'paid';
+        // An explicit visit outcome is the source of truth for today. Payment
+        // history is only a fallback for older records that predate visit
+        // status tracking; it must not turn an explicit refusal into "paid".
+        if (customerId != null) result.putIfAbsent(customerId, () => 'paid');
       }
     } catch (_) {
       // Keep visit statuses usable if payment history is temporarily restricted.

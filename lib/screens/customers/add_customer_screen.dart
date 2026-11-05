@@ -116,7 +116,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     for (final route in _routeTemplates) {
       if (!_selectedRouteIds.contains(route['id']?.toString())) continue;
       final values = route['locations'];
-      if (values is List) locations.addAll(values.map((item) => item.toString()));
+      if (values is List) {
+        locations.addAll(values.map((item) => item.toString()));
+      }
     }
     return locations.toList()..sort();
   }
@@ -460,7 +462,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
       final profile = await supabase
           .from('profiles')
-          .select('id, name, role')
+          .select('id, name, role, company_id')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -472,7 +474,15 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         throw Exception('Your account is not an owner account.');
       }
 
+      final companyId = profile['company_id']?.toString();
+      if (companyId == null || companyId.isEmpty) {
+        throw Exception(
+          'Your account is not linked to a company. Sign out and sign back in, then try again.',
+        );
+      }
+
       await supabase.from('customers').insert({
+        'company_id': companyId,
         'business_name': businessName,
         'location': location,
         'phone': phone,
@@ -658,11 +668,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         _selectedRouteIds.isEmpty
                             ? 'No routes selected'
                             : _routeTemplates
-                                .where((route) => _selectedRouteIds.contains(
+                                  .where(
+                                    (route) => _selectedRouteIds.contains(
                                       route['id']?.toString(),
-                                    ))
-                                .map((route) => route['route_name']?.toString() ?? 'Route')
-                                .join(', '),
+                                    ),
+                                  )
+                                  .map(
+                                    (route) =>
+                                        route['route_name']?.toString() ??
+                                        'Route',
+                                  )
+                                  .join(', '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -672,9 +688,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       _selectedRouteLocations.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedRouteLocations.contains(
-                        locationController.text.trim(),
-                      )
+                      initialValue:
+                          _selectedRouteLocations.contains(
+                            locationController.text.trim(),
+                          )
                           ? locationController.text.trim()
                           : null,
                       decoration: const InputDecoration(

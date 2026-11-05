@@ -22,8 +22,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
   String _searchQuery = '';
   String _selectedLocation = 'All';
 
-  static const _purple = Color(0xFF4F2BCB);
-  static const _purpleBright = Color(0xFF6D4AFF);
+  static const _green = Color(0xFF0B5D3B);
+  static const _greenBright = Color(0xFF149A5A);
   Color get _page => Theme.of(context).scaffoldBackgroundColor;
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
@@ -112,7 +112,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _purple),
+            style: FilledButton.styleFrom(backgroundColor: _green),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Remove'),
           ),
@@ -165,7 +165,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: FilledButton.icon(
               onPressed: _addCustomer,
               style: FilledButton.styleFrom(
-                backgroundColor: _purple,
+                backgroundColor: _green,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -185,7 +185,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ],
       ),
       body: RefreshIndicator(
-        color: _purpleBright,
+        color: _greenBright,
         onRefresh: _loadData,
         child: ValueListenableBuilder<int>(
           valueListenable: CustomerService.dataVersion,
@@ -226,7 +226,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _purple, width: 1.4),
+                          borderSide: BorderSide(color: _green, width: 1.4),
                         ),
                       ),
                     ),
@@ -271,10 +271,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   ? FontWeight.w700
                                   : FontWeight.w500,
                             ),
-                            selectedColor: _purpleBright,
+                            selectedColor: _greenBright,
                             backgroundColor: surface,
                             side: BorderSide(
-                              color: selected ? _purpleBright : _border,
+                              color: selected ? _greenBright : _border,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
@@ -340,7 +340,7 @@ class _CustomerRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  static const _purple = Color(0xFF4F2BCB);
+  static const _green = Color(0xFF0B5D3B);
   String _money(double amount) => CurrencyFormatter.rupees(amount, decimals: 0);
 
   @override
@@ -376,14 +376,14 @@ class _CustomerRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: isDark
-                        ? const [Color(0xFF41318D), Color(0xFF29245D)]
-                        : const [Color(0xFFD9D0FF), Color(0xFFB9C8FF)],
+                        ? const [Color(0xFF155A3A), Color(0xFF123023)]
+                        : const [Color(0xFFDDF3E5), Color(0xFFC9E5D1)],
                   ),
                 ),
                 child: Text(
                   initials,
                   style: TextStyle(
-                    color: _purple,
+                    color: _green,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),

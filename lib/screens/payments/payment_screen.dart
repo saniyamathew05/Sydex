@@ -659,13 +659,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final received = _amountReceived;
     final remaining = _remainingBalance;
-    const emerald = Color(0xFF4F2BCB);
-    const emeraldLight = Color(0xFF6D4AFF);
+    const emerald = Color(0xFF0B5D3B);
+    const emeraldLight = Color(0xFF149A5A);
 
     final fieldFill = isDark
-        ? const Color(0xFF11152E)
+        ? const Color(0xFF071B12)
         : const Color(0xFFF7F9F8);
-    final cardColor = isDark ? const Color(0xFF11152E) : Colors.white;
+    final cardColor = isDark ? const Color(0xFF0D2A1D) : Colors.white;
     final hasCustomerPhone = widget.customer.phone
         .replaceAll(RegExp(r'\D'), '')
         .isNotEmpty;
@@ -698,7 +698,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: isDark ? const Color(0xFF2A3532) : const Color(0xFFE5E7F2),
+            color: isDark ? const Color(0xFF2A3532) : const Color(0xFFE2EDE4),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -715,7 +715,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'Record Payment',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        backgroundColor: colors.surface,
+        backgroundColor: const Color(0xFF063D28),
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
@@ -735,8 +736,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isDark
-                            ? const Color(0xFF252842)
-                            : const Color(0xFFE5E7F2),
+                            ? const Color(0xFF173729)
+                            : const Color(0xFFE2EDE4),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -816,8 +817,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          isDark ? const Color(0xFF352079) : emerald,
-                          isDark ? const Color(0xFF4F2BCB) : emeraldLight,
+                          isDark ? const Color(0xFF06452C) : emerald,
+                          isDark ? const Color(0xFF06452C) : emeraldLight,
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -1064,8 +1065,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                         color: isDark
-                            ? const Color(0xFF252842)
-                            : const Color(0xFFE5E7F2),
+                            ? const Color(0xFF173729)
+                            : const Color(0xFFE2EDE4),
                       ),
                     ),
                     child: Column(
@@ -1162,8 +1163,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: isDark
-                            ? const Color(0xFF454A69)
-                            : const Color(0xFFE5E7F2),
+                            ? const Color(0xFF345245)
+                            : const Color(0xFFE2EDE4),
                       ),
                       borderRadius: BorderRadius.circular(16),
                       color: emeraldForeground,
