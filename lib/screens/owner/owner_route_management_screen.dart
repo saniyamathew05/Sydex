@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -37,6 +38,8 @@ class _OwnerRouteManagementScreenState
     extends State<OwnerRouteManagementScreen> {
   final _client = Supabase.instance.client;
   final _routeNameController = TextEditingController();
+  RealtimeChannel? _visitStatusChannel;
+  bool _refreshingVisitStatuses = false;
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -104,8 +107,57 @@ class _OwnerRouteManagementScreenState
 
   @override
   void dispose() {
+    final visitStatusChannel = _visitStatusChannel;
+    if (visitStatusChannel != null) {
+      unawaited(_client.removeChannel(visitStatusChannel));
+    }
     _routeNameController.dispose();
     super.dispose();
+  }
+
+  void _subscribeToVisitStatuses(String companyId) {
+    if (widget.page != OwnerRoutePage.salesmen) return;
+    if (_visitStatusChannel != null && _companyId == companyId) return;
+
+    final previousChannel = _visitStatusChannel;
+    _visitStatusChannel = null;
+    if (previousChannel != null) {
+      unawaited(_client.removeChannel(previousChannel));
+    }
+
+    _visitStatusChannel = _client
+        .channel('owner-visit-statuses-$companyId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'salesman_customer_daily_status',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'company_id',
+            value: companyId,
+          ),
+          callback: (_) => _refreshVisitStatuses(),
+        )
+        .subscribe();
+  }
+
+  Future<void> _refreshVisitStatuses() async {
+    if (_refreshingVisitStatuses) return;
+    _refreshingVisitStatuses = true;
+    try {
+      final companyId = _companyId;
+      if (companyId == null) return;
+      final statuses = await SalesmanVisitService.loadTodayStatusesForOwner(
+        companyId: companyId,
+      );
+      if (mounted) {
+        setState(() => _todayCustomerStatuses = statuses);
+      }
+    } catch (error) {
+      debugPrint('Could not refresh owner visit statuses: $error');
+    } finally {
+      _refreshingVisitStatuses = false;
+    }
   }
 
   Future<void> _load() async {
@@ -152,7 +204,7 @@ class _OwnerRouteManagementScreenState
             .eq('company_id', companyId)
             .lte('route_date', todayKey)
             .order('route_date', ascending: false),
-        SalesmanVisitService.loadTodayStatusesForOwner(),
+        SalesmanVisitService.loadTodayStatusesForOwner(companyId: companyId),
       ]);
       final allProfiles = List<Map<String, dynamic>>.from(results[1] as List);
       final assignmentRows = List<Map<String, dynamic>>.from(
@@ -232,6 +284,7 @@ class _OwnerRouteManagementScreenState
               );
         _loading = false;
       });
+      _subscribeToVisitStatuses(companyId);
     } catch (error) {
       if (!mounted) return;
       setState(() {

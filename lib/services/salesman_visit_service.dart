@@ -257,10 +257,13 @@ class SalesmanVisitService {
   }
 
   /// Owner view remains limited to statuses recorded today.
-  static Future<Map<String, String>> loadTodayStatusesForOwner() async {
+  static Future<Map<String, String>> loadTodayStatusesForOwner({
+    required String companyId,
+  }) async {
     final rows = await _client
         .from('salesman_customer_daily_status')
         .select('customer_id, status')
+        .eq('company_id', companyId)
         .eq('status_date', _todayKey());
     final result = <String, String>{};
     for (final row in rows) {
