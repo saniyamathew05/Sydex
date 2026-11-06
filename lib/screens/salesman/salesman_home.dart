@@ -2746,7 +2746,6 @@ class _PaymentPreviewCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 9),
       child: Material(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
