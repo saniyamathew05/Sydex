@@ -215,6 +215,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
     required double outstanding,
   }) {
+    final colors = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 850;
@@ -227,9 +228,9 @@ class _ReportsContentState extends State<_ReportsContent> {
 
             icon: Icons.account_balance_wallet_rounded,
 
-            iconColor: const Color(0xFF087F6A),
+            iconColor: colors.primary,
 
-            backgroundColor: const Color(0xFFE4F5F0),
+            backgroundColor: colors.primaryContainer,
           ),
 
           _SummaryCard(
@@ -253,7 +254,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
             iconColor: Theme.of(context).colorScheme.primary,
 
-            backgroundColor: const Color(0xFFE8F5EB),
+            backgroundColor: colors.primaryContainer,
           ),
 
           _SummaryCard(
@@ -416,15 +417,15 @@ class _ReportsContentState extends State<_ReportsContent> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Theme.of(context).colorScheme.surfaceContainerHigh
-                      : const Color(0xFFE4F5F0),
+                      : Theme.of(context).colorScheme.primaryContainer,
 
                   borderRadius: BorderRadius.circular(12),
                 ),
 
-                child: const Icon(
+                child: Icon(
                   Icons.trending_up_rounded,
 
-                  color: Color(0xFF087F6A),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
 
@@ -554,19 +555,23 @@ class _ReportsContentState extends State<_ReportsContent> {
   }
 
   Widget _buildTodayCard(double amount, int payments) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF087F6A), Color(0xFF0B927A)],
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(colors.primary, Colors.black, .16)!,
+            colors.primary,
+          ],
         ),
 
         borderRadius: BorderRadius.circular(20),
 
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF087F6A).withOpacity(0.20),
+            color: colors.primary.withValues(alpha: .20),
 
             blurRadius: 20,
 
@@ -787,7 +792,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFF087F6A), size: 23),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 23),
 
           const SizedBox(height: 8),
 
@@ -866,7 +871,7 @@ class _ReportsContentState extends State<_ReportsContent> {
               color: rank == 1
                   ? (Theme.of(context).brightness == Brightness.dark
                         ? Theme.of(context).colorScheme.surfaceContainerHigh
-                        : const Color(0xFFE4F5F0))
+                        : Theme.of(context).colorScheme.primaryContainer)
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
 
               borderRadius: BorderRadius.circular(10),
@@ -915,7 +920,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
                   fontWeight: FontWeight.w800,
 
-                  color: Color(0xFF087F6A),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
 
@@ -1047,15 +1052,15 @@ class _ReportsContentState extends State<_ReportsContent> {
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark
                   ? Theme.of(context).colorScheme.surfaceContainerHigh
-                  : const Color(0xFFE4F5F0),
+                  : Theme.of(context).colorScheme.primaryContainer,
 
               borderRadius: BorderRadius.circular(12),
             ),
 
-            child: const Icon(
+            child: Icon(
               Icons.arrow_downward_rounded,
 
-              color: Color(0xFF087F6A),
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
 
@@ -1103,7 +1108,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
               fontWeight: FontWeight.w800,
 
-              color: Color(0xFF087F6A),
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ],
