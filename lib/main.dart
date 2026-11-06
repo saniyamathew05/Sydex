@@ -1389,269 +1389,174 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned(
-              top: 8,
-              right: 16,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.calendar_today_outlined, size: 17),
-                label: Text(
-                  _formatBusinessDate(BusinessDateService.selectedDate.value),
+    final card = Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .05),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
-                onPressed: isLoading ? null : _pickBusinessDate,
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Please enter your details',
+            style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Welcome back',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.6,
+              color: colors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 28),
+          TextField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              hintText: 'Email address',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: passwordController,
+            obscureText: obscurePassword,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => isLoading ? null : login(),
+            decoration: InputDecoration(
+              hintText: 'Password',
+              prefixIcon: const Icon(Icons.lock_outline_rounded),
+              suffixIcon: IconButton(
+                tooltip: obscurePassword ? 'Show password' : 'Hide password',
+                onPressed: () =>
+                    setState(() => obscurePassword = !obscurePassword),
+                icon: Icon(
+                  obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 42),
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-
-                    child: Column(
-                      children: [
-                        // ------------------------------------------------
-
-                        // LOGO
-
-                        // ------------------------------------------------
-                        Container(
-                          width: 78,
-
-                          height: 78,
-
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-
-                              end: Alignment.bottomRight,
-
-                              colors: [colors.primary, colors.secondary],
-                            ),
-
-                            borderRadius: BorderRadius.circular(22),
-
-                            boxShadow: [
-                              BoxShadow(
-                                color: colors.primary.withValues(alpha: 0.22),
-
-                                blurRadius: 25,
-
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-
-                          child: const Icon(
-                            Icons.account_balance_wallet_rounded,
-
-                            color: Colors.white,
-
-                            size: 38,
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        const Text(
-                          'Welcome back',
-
-                          style: TextStyle(
-                            fontSize: 30,
-
-                            fontWeight: FontWeight.w800,
-
-                            letterSpacing: -0.8,
-                          ),
-                        ),
-
-                        const SizedBox(height: 7),
-
-                        Text(
-                          'Sign in to continue to LedgerPro.',
-
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        const SizedBox(height: 34),
-
-                        // ------------------------------------------------
-
-                        // LOGIN CARD
-
-                        // ------------------------------------------------
-                        Container(
-                          padding: const EdgeInsets.all(22),
-
-                          decoration: BoxDecoration(
-                            color: colors.surface,
-
-                            borderRadius: BorderRadius.circular(22),
-
-                            border: Border.all(color: colors.outlineVariant),
-
-                            boxShadow: isDark
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.04,
-                                      ),
-
-                                      blurRadius: 25,
-
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                          ),
-
-                          child: Column(
-                            children: [
-                              TextField(
-                                controller: emailController,
-
-                                keyboardType: TextInputType.emailAddress,
-
-                                decoration: const InputDecoration(
-                                  labelText: 'Email address',
-
-                                  prefixIcon: Icon(Icons.email_outlined),
-                                ),
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              TextField(
-                                controller: passwordController,
-
-                                obscureText: obscurePassword,
-
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline_rounded,
-                                  ),
-
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        obscurePassword = !obscurePassword;
-                                      });
-                                    },
-
-                                    icon: Icon(
-                                      obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              SizedBox(
-                                width: double.infinity,
-
-                                height: 52,
-
-                                child: ElevatedButton(
-                                  onPressed: isLoading ? null : login,
-
-                                  child: isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-
-                                          height: 22,
-
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.2,
-                                          ),
-                                        )
-                                      : const Text('Sign In'),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: isLoading ? null : _forgotPassword,
-                                  child: const Text('Forgot password?'),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              TextButton(
-                                onPressed: isLoading ? null : registerCompany,
-                                child: const Text('Create a business account'),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-
-                          children: [
-                            Icon(
-                              Icons.verified_user_outlined,
-
-                              size: 14,
-
-                              color: colors.onSurfaceVariant,
-                            ),
-
-                            const SizedBox(width: 6),
-
-                            Text(
-                              'Secure business account',
-
-                              style: TextStyle(
-                                fontSize: 12,
-
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: isLoading ? null : _forgotPassword,
+              child: const Text('Forgot password?'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton(
+              onPressed: isLoading ? null : login,
+              child: isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.onPrimary,
+                      ),
+                    )
+                  : const Text('Sign In'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  "Don't have a business account? ",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
+                TextButton(
+                  onPressed: isLoading ? null : registerCompany,
+                  child: const Text('Get started'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: colors.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'LedgerPro',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  card,
+                  const SizedBox(height: 18),
+                  Center(
+                    child: Text(
+                      'Secure business account',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
-  }
-
-  String _formatBusinessDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-  Future<void> _pickBusinessDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: BusinessDateService.selectedDate.value,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(now.year + 1, now.month, now.day),
-    );
-    if (picked != null) await BusinessDateService.setDate(picked);
-    if (mounted) setState(() {});
   }
 }
 
