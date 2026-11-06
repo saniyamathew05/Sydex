@@ -41,7 +41,8 @@ Future<void> main() async {
   // its one-time code for a session. Other launches still start signed out.
   final hasConfirmationCode =
       kIsWeb && Uri.base.queryParameters['code']?.trim().isNotEmpty == true;
-  if (!hasConfirmationCode) {
+  final hasPendingGoogleSignIn = await AuthService.hasPendingGoogleSignIn();
+  if (!hasConfirmationCode && !hasPendingGoogleSignIn) {
     try {
       await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
     } catch (error) {
@@ -834,12 +835,35 @@ class _AuthGateState extends State<AuthGate> {
   String? errorMessage;
 
   bool _handledCallback = false;
+  bool _openingOAuthDashboard = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      state,
+    ) {
+      final user = state.session?.user;
+      if (state.event == AuthChangeEvent.signedIn && user != null) {
+        unawaited(_handleGoogleOAuthSignIn(user));
+      }
+    });
     _checkCurrentUser();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleGoogleOAuthSignIn(User user) async {
+    if (_openingOAuthDashboard || !await AuthService.hasPendingGoogleSignIn()) {
+      return;
+    }
+    _openingOAuthDashboard = true;
+    await _openCorrectDashboard(user.id);
   }
 
   Future<void> _checkCurrentUser() async {
@@ -852,7 +876,7 @@ class _AuthGateState extends State<AuthGate> {
         try {
           final response = await Supabase.instance.client.auth
               .exchangeCodeForSession(code);
-          user = response.session?.user ?? AuthService.currentUser;
+          user = response.session.user;
         } catch (error) {
           if (!mounted) return;
           setState(() {
@@ -904,6 +928,7 @@ class _AuthGateState extends State<AuthGate> {
 
       final name = profile['name'] as String;
 
+      await AuthService.clearPendingGoogleSignIn();
       if (!mounted) return;
 
       if (role == 'owner') {
@@ -1444,6 +1469,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => isLoading = true);
+    try {
+      final launched = await AuthService.signInWithGoogle();
+      if (!launched) {
+        throw Exception('Could not open Google sign-in. Please try again.');
+      }
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError('Could not start Google sign-in. Please try again.');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
   Future<void> _forgotPassword() async {
     final email = emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
@@ -1604,6 +1645,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   : const Text('Sign In'),
             ),
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : _signInWithGoogle,
+              icon: const _GoogleMark(),
+              label: const Text('Continue with Google'),
+            ),
+          ),
           const SizedBox(height: 16),
           Center(
             child: Wrap(
@@ -1685,6 +1736,22 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'G',
+      style: TextStyle(
+        color: Color(0xFF4285F4),
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
