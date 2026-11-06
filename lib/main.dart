@@ -1037,7 +1037,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 26),
-          _WelcomeLedgerPreview(accent: colors.primary),
+          _WelcomeFeatureCarousel(accent: colors.primary),
           const Spacer(),
         ],
       ),
@@ -1118,74 +1118,187 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _WelcomeLedgerPreview extends StatelessWidget {
-  const _WelcomeLedgerPreview({required this.accent});
+class _WelcomeFeatureCarousel extends StatefulWidget {
+  const _WelcomeFeatureCarousel({required this.accent});
   final Color accent;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'MONTHLY OVERVIEW',
-          style: TextStyle(
-            color: Colors.black.withValues(alpha: .52),
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-          ),
+  State<_WelcomeFeatureCarousel> createState() =>
+      _WelcomeFeatureCarouselState();
+}
+
+class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
+  final _controller = PageController();
+  Timer? _timer;
+  int _current = 0;
+
+  static const _features =
+      <({IconData icon, String title, String description, String value})>[
+        (
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Customer balances',
+          description: 'Keep every outstanding amount clear.',
+          value: '₹ 1,24,500',
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _PreviewValue(
-                label: 'Outstanding',
-                value: '₹ 1,24,500',
-                color: Colors.black,
-              ),
-            ),
-            Expanded(
-              child: _PreviewValue(
-                label: 'Collected',
-                value: '₹ 82,300',
-                color: accent,
-              ),
-            ),
-          ],
+        (
+          icon: Icons.payments_outlined,
+          title: 'Fast collections',
+          description: 'Record cash, cheque, and online payments.',
+          value: '₹ 82,300',
         ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: List.generate(
-            8,
-            (index) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Container(
-                  height: 14.0 + (index % 4) * 10,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: .22 + (index % 3) * .14),
-                    borderRadius: BorderRadius.circular(3),
+        (
+          icon: Icons.route_outlined,
+          title: 'Customer visits',
+          description: 'Organize assigned customers for the day.',
+          value: '24 customers',
+        ),
+        (
+          icon: Icons.receipt_long_outlined,
+          title: 'Clear records',
+          description: 'Keep receipts and payment history together.',
+          value: '128 entries',
+        ),
+      ];
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_controller.hasClients) return;
+      final next = (_current + 1) % _features.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      SizedBox(
+        height: 236,
+        child: PageView.builder(
+          controller: _controller,
+          itemCount: _features.length,
+          onPageChanged: (value) => setState(() => _current = value),
+          itemBuilder: (context, index) {
+            final item = _features[index];
+            return Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: widget.accent.withValues(alpha: .13),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(item.icon, color: widget.accent),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.description,
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const Spacer(),
+                  Text(
+                    item.value,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(
+                      8,
+                      (bar) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Container(
+                            height: 12.0 + ((bar + index) % 4) * 11,
+                            decoration: BoxDecoration(
+                              color: widget.accent.withValues(
+                                alpha: .20 + (bar % 3) * .15,
+                              ),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Feature preview · illustrative only',
+                    style: TextStyle(color: Colors.black54, fontSize: 11),
+                  ),
+                ],
               ),
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 12),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          _features.length,
+          (index) => AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: index == _current ? 18 : 6,
+            height: 6,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: index == _current ? .95 : .38,
+              ),
+              borderRadius: BorderRadius.circular(99),
             ),
           ),
         ),
-        const SizedBox(height: 14),
-        Container(height: 1, color: Colors.black12),
-        const SizedBox(height: 10),
-        const Text(
-          'Ledger preview · illustrative only',
-          style: TextStyle(color: Colors.black54, fontSize: 11),
-        ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
