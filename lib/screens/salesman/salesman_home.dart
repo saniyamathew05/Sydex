@@ -782,6 +782,66 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.insights_rounded,
+                      size: 18,
+                      color: colors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Today’s visit progress',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$visited / ${route.length}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: colors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: route.isEmpty ? 0 : visited / route.length,
+                    minHeight: 8,
+                    backgroundColor: colors.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  route.isEmpty
+                      ? 'No customers are assigned today.'
+                      : '$pending customers remaining',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 6),
           if (noPayment > 0)
             Text(
