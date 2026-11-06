@@ -9,6 +9,7 @@ class SalesmanDailyActivity {
     required this.salesmanName,
     required this.routeLocations,
     required this.visitedCustomerCount,
+    required this.refusedCustomerCount,
     required this.assignedCustomerIds,
     this.routeName,
   });
@@ -17,6 +18,7 @@ class SalesmanDailyActivity {
   final String salesmanName;
   final List<String> routeLocations;
   final int visitedCustomerCount;
+  final int refusedCustomerCount;
   final Set<String> assignedCustomerIds;
   final String? routeName;
 }
@@ -330,7 +332,7 @@ class SalesmanVisitService {
           .order('route_date', ascending: false),
       _client
           .from('salesman_customer_daily_status')
-          .select('entered_by, customer_id')
+          .select('entered_by, customer_id, status')
           .eq('status_date', today),
       _client.from('salesman_route_templates').select('route_name, locations'),
     ]);
@@ -358,6 +360,7 @@ class SalesmanVisitService {
     }
 
     final visitsBySalesman = <String, Set<String>>{};
+    final refusedBySalesman = <String, Set<String>>{};
     for (final row in statusRows) {
       final salesmanId = row['entered_by']?.toString();
       final customerId = row['customer_id']?.toString();
@@ -365,6 +368,11 @@ class SalesmanVisitService {
         visitsBySalesman
             .putIfAbsent(salesmanId, () => <String>{})
             .add(customerId);
+        if (row['status']?.toString() == 'rejected') {
+          refusedBySalesman
+              .putIfAbsent(salesmanId, () => <String>{})
+              .add(customerId);
+        }
       }
     }
 
@@ -377,6 +385,11 @@ class SalesmanVisitService {
           : (visitsBySalesman[salesmanId] ?? const <String>{}).intersection(
               assignedIds,
             );
+      final refusedIds = assignedIds.isEmpty
+          ? (refusedBySalesman[salesmanId] ?? const <String>{})
+          : (refusedBySalesman[salesmanId] ?? const <String>{}).intersection(
+              assignedIds,
+            );
       final routeName = _findRouteName(templates, locations);
 
       return SalesmanDailyActivity(
@@ -385,6 +398,7 @@ class SalesmanVisitService {
         routeName: routeName,
         routeLocations: locations,
         visitedCustomerCount: visitedIds.length,
+        refusedCustomerCount: refusedIds.length,
         assignedCustomerIds: assignedIds,
       );
     }).toList();

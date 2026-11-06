@@ -1446,7 +1446,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                               _orange,
                             ),
                             _activityChip(
-                              'Skipped ${math.max(0, planned - visited)}',
+                              'Refused ${activity.refusedCustomerCount}',
                               _red,
                             ),
                           ],
