@@ -681,7 +681,6 @@ class _CustomerRow extends StatelessWidget {
   final VoidCallback onPayment;
   final VoidCallback onPurchase;
 
-  static const _green = Color(0xFF0B5D3B);
   String _money(double amount) => CurrencyFormatter.rupees(amount, decimals: 0);
 
   @override
@@ -690,6 +689,7 @@ class _CustomerRow extends StatelessWidget {
     final foreground = Theme.of(context).colorScheme.onSurface;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final scheme = Theme.of(context).colorScheme;
+    final primary = scheme.primary;
     final surface = Theme.of(context).colorScheme.surface;
     final desktop = MediaQuery.sizeOf(context).width >= 900;
     final initials = customer.businessName.trim().isEmpty
@@ -725,7 +725,7 @@ class _CustomerRow extends StatelessWidget {
                 child: Text(
                   initials,
                   style: TextStyle(
-                    color: _green,
+                    color: primary,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
