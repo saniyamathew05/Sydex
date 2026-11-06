@@ -408,6 +408,53 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     }
   }
 
+  Future<void> _finishRoute() async {
+    if (routeCustomers.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Finish current route?'),
+        content: const Text(
+          'Your recorded visits and refused customers will remain saved. If the owner has queued another route, it will become active next.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Finish route'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final outcome = await SalesmanVisitService.finishCurrentRoute();
+      if (!mounted) return;
+      await _loadData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            outcome == 'next_route_activated'
+                ? 'Route finished. Your next assigned route is ready.'
+                : 'Route finished. No queued route is waiting.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not finish the route. Please try again.'),
+        ),
+      );
+    }
+  }
+
   Future<void> _openCustomer(Customer customer) async {
     try {
       todaysCustomerStatuses = await SalesmanVisitService.loadTodayStatuses();
@@ -844,6 +891,17 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                     color: colors.onSurfaceVariant,
                   ),
                 ),
+                if (route.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _finishRoute,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('Finish route'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -879,9 +879,6 @@ class _OwnerRouteManagementScreenState
     setState(() => _saving = true);
     try {
       final companyId = await _requireCompanyId();
-      final today = DateTime.now();
-      final dateKey =
-          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       final locations = _locationsForSelectedCustomers();
       // The latest dated assignment remains active until the owner removes it.
       // Keep the saved named route in sync so salesmen can display its name.
@@ -894,25 +891,29 @@ class _OwnerRouteManagementScreenState
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', route['id'].toString());
-      final assignments = salesmanIds
-          .map(
-            (salesmanId) => {
-              'company_id': companyId,
-              'salesman_id': salesmanId,
-              'route_date': dateKey,
-              'locations': locations,
-              'customer_ids': _selectedCustomerIds.toList(),
-            },
-          )
-          .toList();
-      // Updating an active route must never erase a salesman's work already
-      // recorded today. Paid/visited and refused outcomes remain tied to the
-      // business date, even when the owner changes the remaining route.
-      // Upsert in place so an RLS or network error cannot delete the prior
-      // assignment before the replacement is saved.
-      await _client
-          .from('salesman_daily_route_selections')
-          .upsert(assignments, onConflict: 'salesman_id,route_date');
+      final assignmentStates = await Future.wait(
+        salesmanIds.map(
+          (salesmanId) async => MapEntry(
+            salesmanId,
+            (await _client.rpc(
+              'queue_or_assign_salesman_route',
+              params: {
+                'p_salesman_id': salesmanId,
+                'p_locations': locations,
+                'p_customer_ids': _selectedCustomerIds.toList(),
+              },
+            )).toString(),
+          ),
+        ),
+      );
+      final activeSalesmanIds = assignmentStates
+          .where((entry) => entry.value == 'active')
+          .map((entry) => entry.key)
+          .toSet();
+      final queuedCount = assignmentStates
+          .where((entry) => entry.value == 'queued')
+          .length;
+
       if (!mounted) return;
       setState(() {
         final routeIndex = _routes.indexWhere(
@@ -925,17 +926,23 @@ class _OwnerRouteManagementScreenState
             'customer_ids': _selectedCustomerIds.toList(),
           };
         }
-        for (final salesmanId in salesmanIds) {
+        for (final salesmanId in activeSalesmanIds) {
           _todayAssignments[salesmanId] = locations;
           _todayCustomerAssignments[salesmanId] = List<String>.from(
             _selectedCustomerIds,
           );
         }
       });
+      final activeCount = activeSalesmanIds.length;
       _message(
-        'Route assigned to ${salesmanIds.length} salesman'
-        '${salesmanIds.length == 1 ? '' : 's'}.',
+        [
+          if (activeCount > 0)
+            'Route activated for $activeCount salesman${activeCount == 1 ? '' : 's'}',
+          if (queuedCount > 0)
+            'queued for $queuedCount salesman${queuedCount == 1 ? '' : 's'} until their current route is finished',
+        ].join('; '),
       );
+      await _load();
     } catch (error) {
       debugPrint('Assign daily route failed: $error');
       _message(
@@ -973,25 +980,17 @@ class _OwnerRouteManagementScreenState
 
     setState(() => _saving = true);
     try {
-      final companyId = await _requireCompanyId();
-      final today = DateTime.now();
-      final dateKey =
-          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      // Store an empty assignment for today instead of deleting the last row.
-      // This prevents an older assignment from becoming active again tomorrow.
-      await _client.from('salesman_daily_route_selections').upsert({
-        'company_id': companyId,
-        'salesman_id': salesmanId,
-        'route_date': dateKey,
-        'locations': <String>[],
-        'customer_ids': <String>[],
-      }, onConflict: 'salesman_id,route_date');
+      final activation = await _client.rpc(
+        'activate_next_salesman_route',
+        params: {'p_salesman_id': salesmanId, 'p_allow_owner': true},
+      );
       if (!mounted) return;
-      setState(() {
-        _todayAssignments[salesmanId] = <String>[];
-        _todayCustomerAssignments[salesmanId] = <String>[];
-      });
-      _message('Route assignment removed for $salesmanName.');
+      await _load();
+      _message(
+        activation.toString() == 'next_route_activated'
+            ? 'Current route removed for $salesmanName. The next queued route is now active.'
+            : 'Route assignment removed for $salesmanName.',
+      );
     } catch (error) {
       debugPrint('Remove daily route failed: $error');
       _message('Could not remove today’s route. Please try again.');

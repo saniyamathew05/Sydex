@@ -87,6 +87,17 @@ class SalesmanVisitService {
     return <String>[];
   }
 
+  /// Marks the active route complete and activates the next owner-queued route,
+  /// if there is one. It deliberately leaves daily visit/refusal records alone.
+  static Future<String> finishCurrentRoute() async {
+    final userId = _requireUserId();
+    final result = await _client.rpc(
+      'activate_next_salesman_route',
+      params: {'p_salesman_id': userId, 'p_allow_owner': false},
+    );
+    return result.toString();
+  }
+
   /// Membership-only compatibility API for screens that do not display order.
   static Future<Set<String>> loadTodayCustomerIds() async =>
       (await loadTodayCustomerIdsInOrder()).toSet();
