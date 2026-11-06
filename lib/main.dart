@@ -1011,61 +1011,64 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isWide = MediaQuery.sizeOf(context).width >= 760;
+    final heroContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: isWide
+          ? MainAxisAlignment.center
+          : MainAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'LedgerPro',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        if (isWide) const Spacer() else const SizedBox(height: 28),
+        const Text(
+          'Your business.\nBeautifully balanced.',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            height: 1.08,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'A clear view of collections, balances, and customers.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .78),
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 26),
+        _WelcomeFeatureCarousel(accent: colors.primary),
+        if (isWide) const Spacer() else const SizedBox(height: 16),
+      ],
+    );
     final hero = Container(
       color: Color.lerp(colors.primary, Colors.black, .28),
       padding: const EdgeInsets.fromLTRB(28, 36, 28, 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'LedgerPro',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          const Text(
-            'Your business.\nBeautifully balanced.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              height: 1.08,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'A clear view of collections, balances, and customers.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .78),
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 26),
-          _WelcomeFeatureCarousel(accent: colors.primary),
-          const Spacer(),
-        ],
-      ),
+      child: isWide ? heroContent : SingleChildScrollView(child: heroContent),
     );
     final actions = Container(
       color: colors.surface,
@@ -1246,11 +1249,11 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
       case _WelcomePreview.balances:
         return Column(
           children: const [
-            _FeatureCustomerRow(name: 'Surya Traders', amount: '₹ 18,450'),
-            _FeatureCustomerRow(name: 'Archana Stores', amount: '₹ 6,240'),
+            _FeatureCustomerRow(name: 'Atlas Supplies', amount: '18,450'),
+            _FeatureCustomerRow(name: 'Northstar Retail', amount: '6,240'),
             _FeatureCustomerRow(
-              name: 'KB Traders',
-              amount: '₹ 0',
+              name: 'Horizon Goods',
+              amount: '0',
               cleared: true,
             ),
           ],
@@ -1270,15 +1273,15 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
             const SizedBox(height: 9),
             Row(
               children: [
-                _paymentMethod(Icons.payments_outlined, 'Cash', '₹ 24,500'),
+                _paymentMethod(Icons.payments_outlined, 'Cash', '24,500'),
                 const SizedBox(width: 8),
                 _paymentMethod(
                   Icons.account_balance_outlined,
                   'Online',
-                  '₹ 18,200',
+                  '18,200',
                 ),
                 const SizedBox(width: 8),
-                _paymentMethod(Icons.description_outlined, 'Cheque', '₹ 7,800'),
+                _paymentMethod(Icons.description_outlined, 'Cheque', '7,800'),
               ],
             ),
             const Spacer(),
@@ -1305,21 +1308,21 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Surya Traders',
+                'Atlas Supplies',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   color: Colors.black87,
                 ),
               ),
               const Divider(height: 16),
-              _purchaseLine('Paint supplies', '₹ 8,400'),
+              _purchaseLine('Business supplies', '8,400'),
               const SizedBox(height: 6),
-              _purchaseLine('Discount', '− ₹ 400', muted: true),
+              _purchaseLine('Discount', '− 400', muted: true),
               const Spacer(),
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'Total  ₹ 8,000',
+                  'Total  8,000',
                   style: TextStyle(
                     color: widget.accent,
                     fontWeight: FontWeight.w800,
@@ -1342,9 +1345,9 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               ),
             ),
             const SizedBox(height: 8),
-            _routeStop('Kollam', true),
-            _routeStop('Kottarakkara', true),
-            _routeStop('Chadayamangalam', false),
+            _routeStop('Customer 1', true),
+            _routeStop('Customer 2', true),
+            _routeStop('Customer 3', false),
             const Spacer(),
             Text(
               '2 of 3 customers visited',
@@ -1362,14 +1365,14 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
             _ledgerRow(
               Icons.add_circle_outline,
               'Payment received',
-              '+ ₹ 4,000',
+              '+ 4,000',
               true,
             ),
             const Divider(height: 16),
             _ledgerRow(
               Icons.shopping_bag_outlined,
               'Purchase recorded',
-              '₹ 2,500',
+              '2,500',
               false,
             ),
             const Divider(height: 16),
@@ -1381,15 +1384,11 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: _reportMetric('Collections', '₹ 82,300', 'This month'),
+              child: _reportMetric('Collections', '82,300', 'This month'),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _reportMetric(
-                'Outstanding',
-                '₹ 1,24,500',
-                '401 customers',
-              ),
+              child: _reportMetric('Outstanding', '124,500', '401 customers'),
             ),
           ],
         );
@@ -1427,7 +1426,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                   ),
                   const SizedBox(height: 7),
                   const Text(
-                    'UPI QR',
+                    'Payment QR',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -1622,7 +1621,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
   Widget build(BuildContext context) => Column(
     children: [
       SizedBox(
-        height: 236,
+        height: 260,
         child: PageView.builder(
           controller: _controller,
           itemCount: _features.length,
