@@ -93,6 +93,15 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
     _ => 'All dates',
   };
 
+  String get _dateRangeFilterLabel {
+    final range = _selectedDateRange;
+    if (range == null) return 'Choose date range…';
+    String format(DateTime date) =>
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
+    return '${format(range.start)} – ${format(range.end)}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -686,14 +695,14 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
             value: _dateFilter,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Date'),
-            items: const [
-              DropdownMenuItem(value: 'today', child: Text('Today')),
-              DropdownMenuItem(value: 'all', child: Text('All dates')),
-              DropdownMenuItem(value: 'week', child: Text('This week')),
-              DropdownMenuItem(value: 'month', child: Text('This month')),
+            items: [
+              const DropdownMenuItem(value: 'today', child: Text('Today')),
+              const DropdownMenuItem(value: 'all', child: Text('All dates')),
+              const DropdownMenuItem(value: 'week', child: Text('This week')),
+              const DropdownMenuItem(value: 'month', child: Text('This month')),
               DropdownMenuItem(
                 value: 'date',
-                child: Text('Choose date range…'),
+                child: Text(_dateRangeFilterLabel),
               ),
             ],
             onChanged: (value) {
@@ -751,17 +760,6 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
               label: const Text('Reset filters'),
             ),
           ),
-          if (_dateFilter == 'date' && _selectedDateRange != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Dates: ${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month}/${_selectedDateRange!.start.year} – '
-                '${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}/${_selectedDateRange!.end.year}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
         ],
       ],
     );
