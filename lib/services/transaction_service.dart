@@ -11,6 +11,7 @@ import 'ledger_service.dart';
 import 'payment_service.dart';
 
 import 'signature_service.dart';
+import 'supabase_pagination.dart';
 
 class TransactionService {
   static final List<PaymentTransaction> transactions = [];
@@ -22,11 +23,22 @@ class TransactionService {
   static bool isLoading = false;
 
   static String? errorMessage;
+  static String? _cacheUserId;
 
   static Map<String, double> get customerBalances =>
       LedgerService.customerBalances;
 
+  static void _prepareCacheForCurrentUser() {
+    final userId = _supabase.auth.currentUser?.id;
+    if (_cacheUserId == userId) return;
+
+    transactions.clear();
+    _cacheUserId = userId;
+  }
+
   static Future<void> loadTransactions() async {
+    _prepareCacheForCurrentUser();
+
     // Reuse the shared customer cache when screens have already loaded it.
     // This avoids a second full customer query during every ledger refresh.
     if (CustomerService.customers.isEmpty) {
@@ -39,9 +51,10 @@ class TransactionService {
     dataVersion.value++;
 
     try {
-      final response = await _supabase
-          .from('payments')
-          .select('''
+      final response = await SupabasePagination.loadAll(
+        (from, to) => _supabase
+            .from('payments')
+            .select('''
 
             id,
 
@@ -70,10 +83,14 @@ class TransactionService {
 
             payment_method_note,
 
-            is_bounced
+            is_bounced,
+            customers (business_name)
 
           ''')
-          .order('transaction_date', ascending: false);
+            .order('transaction_date', ascending: false)
+            .order('id', ascending: false)
+            .range(from, to),
+      );
 
       final userIds = response
           .map((row) => row['user_id']?.toString())
@@ -98,14 +115,15 @@ class TransactionService {
         }
       }
 
-      transactions.clear();
-
+      final refreshedTransactions = <PaymentTransaction>[];
       for (final row in response) {
         final customerId = row['customer_id'] as String;
 
         final customer = CustomerService.getCustomerById(customerId);
-        // Inactive/deleted customers are excluded from all payment screens.
-        if (customer == null) continue;
+        final linkedCustomer = row['customers'];
+        final historyName = linkedCustomer is Map
+            ? linkedCustomer['business_name']?.toString().trim()
+            : null;
 
         final userId = row['user_id']?.toString();
         final profile = userId == null ? null : profilesById[userId];
@@ -122,13 +140,17 @@ class TransactionService {
         final amountReceived =
             (row['amount_received'] as num?)?.toDouble() ?? (amount - discount);
 
-        transactions.add(
+        refreshedTransactions.add(
           PaymentTransaction(
             id: row['id'] as String,
 
             customerId: customerId,
 
-            customerName: customer?.businessName ?? 'Customer',
+            customerName:
+                customer?.businessName ??
+                (historyName == null || historyName.isEmpty
+                    ? 'Customer'
+                    : historyName),
 
             amount: amount,
 
@@ -157,9 +179,24 @@ class TransactionService {
             paymentMethod: row['payment_method']?.toString() ?? 'cash',
 
             paymentMethodNote: row['payment_method_note']?.toString() ?? '',
+
+            isBounced: row['is_bounced'] == true,
+
+            transactionType: 'payment_received',
           ),
         );
       }
+      refreshedTransactions.sort((a, b) {
+        final dateOrder = b.transactionDate.compareTo(a.transactionDate);
+        if (dateOrder != 0) return dateOrder;
+        return (b.createdAt ?? b.transactionDate).compareTo(
+          a.createdAt ?? a.transactionDate,
+        );
+      });
+
+      transactions
+        ..clear()
+        ..addAll(refreshedTransactions);
 
       await loadCustomerBalances();
     } catch (error) {
@@ -172,19 +209,96 @@ class TransactionService {
   }
 
   static Future<void> loadCustomerBalances() async {
+    _prepareCacheForCurrentUser();
+
+    if (CustomerService.customers.isEmpty &&
+        _supabase.auth.currentUser != null) {
+      await CustomerService.loadCustomers();
+    }
+
+    var rpcLoaded = false;
     try {
       await LedgerService.loadCustomerBalances();
-
-      dataVersion.value++;
+      rpcLoaded = true;
     } catch (error) {
+      // Continue to the company-visible ledger fallback below. A failed RPC
+      // must not make missing customer balances look like zero.
       errorMessage = error.toString();
-
-      dataVersion.value++;
     }
+
+    // The RPC normally returns every active customer. If an older or
+    // partially migrated database omits a row, reconstruct only the
+    // missing customers from their company-visible ledger entries instead
+    // of silently showing zero. RLS still scopes this read to the signed-in
+    // company's data.
+    final missingCustomers = CustomerService.customers
+        .where(
+          (customer) =>
+              !rpcLoaded || !customerBalances.containsKey(customer.id),
+        )
+        .toList(growable: false);
+    if (missingCustomers.isNotEmpty) {
+      try {
+        final entries = await SupabasePagination.loadAll(
+          (from, to) => _supabase
+              .from('ledger_entries')
+              .select('id, customer_id, entry_type, amount')
+              .inFilter(
+                'customer_id',
+                missingCustomers.map((customer) => customer.id).toList(),
+              )
+              .order('id')
+              .range(from, to),
+        );
+        final balanceByCustomer = <String, double>{
+          for (final customer in missingCustomers)
+            customer.id: customer.openingBalance,
+        };
+        for (final entry in entries) {
+          final customerId = entry['customer_id']?.toString();
+          if (customerId == null ||
+              !balanceByCustomer.containsKey(customerId)) {
+            continue;
+          }
+          final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+          final type = entry['entry_type']?.toString().toLowerCase();
+          if (type == 'purchase' || type == 'sale' || type == 'bounced_check') {
+            balanceByCustomer[customerId] =
+                (balanceByCustomer[customerId] ?? 0) + amount;
+          } else if (type == 'payment' ||
+              type == 'return' ||
+              type == 'sales_return') {
+            balanceByCustomer[customerId] =
+                (balanceByCustomer[customerId] ?? 0) - amount;
+          }
+        }
+        for (final entry in balanceByCustomer.entries) {
+          customerBalances[entry.key] =
+              (entry.value * 100).roundToDouble() / 100;
+        }
+        errorMessage = null;
+      } catch (fallbackError) {
+        errorMessage = fallbackError.toString();
+        debugPrint(
+          'Could not reconstruct missing customer balances: $fallbackError',
+        );
+        for (final customer in missingCustomers) {
+          customerBalances.putIfAbsent(
+            customer.id,
+            () => customer.openingBalance,
+          );
+        }
+      }
+    }
+
+    dataVersion.value++;
   }
 
   static double getCustomerBalance(String customerId) {
-    return LedgerService.getCustomerBalance(customerId);
+    if (customerBalances.containsKey(customerId)) {
+      return LedgerService.getCustomerBalance(customerId);
+    }
+    return CustomerService.getCustomerById(customerId)?.openingBalance ?? 0;
   }
 
   static Future<Uint8List?> downloadSignature(String? signaturePath) async {
@@ -286,6 +400,10 @@ class TransactionService {
           paymentMethod: savedTransaction.paymentMethod,
 
           paymentMethodNote: savedTransaction.paymentMethodNote,
+
+          isBounced: savedTransaction.isBounced,
+
+          transactionType: savedTransaction.transactionType,
         ),
       );
 
@@ -309,7 +427,7 @@ class TransactionService {
         return 'Owner';
       case 'salesman':
       case 'salesperson':
-        return 'Salesman';
+        return 'Marketing Executive';
       default:
         return 'Unknown';
     }
@@ -387,9 +505,13 @@ class TransactionService {
   }
 
   static Future<List<Map<String, dynamic>>> getCustomerLedger(
-    String customerId,
-  ) {
-    return LedgerService.getCustomerLedger(customerId);
+    String customerId, {
+    double openingBalance = 0,
+  }) {
+    return LedgerService.getCustomerLedger(
+      customerId,
+      openingBalance: openingBalance,
+    );
   }
 
   static Future<double> getCurrentBalanceFromLedger({
@@ -409,7 +531,10 @@ class TransactionService {
 
     required double openingBalance,
   }) {
-    return LedgerService.getCustomerBalance(customerId);
+    if (customerBalances.containsKey(customerId)) {
+      return LedgerService.getCustomerBalance(customerId);
+    }
+    return openingBalance;
   }
 
   static List<PaymentTransaction> getCustomerTransactions(String customerId) {
@@ -417,7 +542,13 @@ class TransactionService {
         .where((transaction) => transaction.customerId == customerId)
         .toList();
 
-    result.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+    result.sort((a, b) {
+      final dateOrder = b.transactionDate.compareTo(a.transactionDate);
+      if (dateOrder != 0) return dateOrder;
+      return (b.createdAt ?? b.transactionDate).compareTo(
+        a.createdAt ?? a.transactionDate,
+      );
+    });
 
     return result;
   }
@@ -426,15 +557,18 @@ class TransactionService {
     final now = DateTime.now();
 
     return transactions
-        .where(
-          (transaction) {
-            final localDate = transaction.transactionDate.toLocal();
-            return localDate.year == now.year &&
-                localDate.month == now.month &&
-                localDate.day == now.day;
-          },
-        )
-        .fold(0.0, (sum, transaction) => sum + transaction.amountReceived);
+        .where((transaction) {
+          final localDate = transaction.transactionDate.toLocal();
+          return transaction.transactionType == 'payment_received' &&
+              !transaction.isBounced &&
+              localDate.year == now.year &&
+              localDate.month == now.month &&
+              localDate.day == now.day;
+        })
+        .fold(
+          0.0,
+          (sum, transaction) => sum + transaction.actualAmountReceived,
+        );
   }
 
   static double getTotalCollectedToday() {
@@ -444,23 +578,22 @@ class TransactionService {
   static int getPaymentsToday() {
     final now = DateTime.now();
 
-    return transactions
-        .where(
-          (transaction) {
-            final localDate = transaction.transactionDate.toLocal();
-            return localDate.year == now.year &&
-                localDate.month == now.month &&
-                localDate.day == now.day;
-          },
-        )
-        .length;
+    return transactions.where((transaction) {
+      final localDate = transaction.transactionDate.toLocal();
+      return transaction.transactionType == 'payment_received' &&
+          !transaction.isBounced &&
+          localDate.year == now.year &&
+          localDate.month == now.month &&
+          localDate.day == now.day;
+    }).length;
   }
 
   static double getTotalMoneyToReceive(List<dynamic> customers) {
     double total = 0;
 
     for (final customer in customers) {
-      total += LedgerService.getCustomerBalance(customer.id);
+      final balance = LedgerService.getCustomerBalance(customer.id);
+      if (balance > 0) total += balance;
     }
 
     return total;

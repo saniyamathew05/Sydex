@@ -79,9 +79,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
         SalesmanVisitService.loadTodayStatuses(),
       ]);
       final routeLocations = List<String>.from(values[0] as List<String>);
-      final routeCustomerIds = List<String>.from(
-        values[1] as List<String>,
-      );
+      final routeCustomerIds = List<String>.from(values[1] as List<String>);
       String? routeName;
       try {
         routeName = await SalesmanVisitService.loadRouteNameForCustomerIds(
@@ -137,7 +135,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
       _error = null;
     });
     try {
-      await SalesmanVisitService.recordStatus(
+      final locationSaved = await SalesmanVisitService.recordStatus(
         customerId: customer.id,
         status: status,
         note: status == 'rejected'
@@ -147,9 +145,8 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
       await _refresh();
       if (mounted) {
         _message(
-          status == 'paid'
-              ? 'Visit marked as payment received.'
-              : 'Visit marked as no payment received.',
+          '${status == 'paid' ? 'Visit marked as payment received.' : 'Visit marked as no payment received.'}'
+          '${locationSaved ? '' : ' Turn on location and allow access to add this customer to the map.'}',
         );
       }
     } catch (error) {
@@ -312,16 +309,16 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
     final theme = Theme.of(context);
     final status = _statuses[customer.id];
     final busy = _busyCustomerIds.contains(customer.id);
-    final completed = status != null;
+    final completed = status == 'paid' || status == 'rejected';
     final statusLabel = status == 'paid'
         ? 'Payment received'
         : status == 'rejected'
-        ? 'No payment'
+        ? 'Refused today'
         : 'Not visited';
     final statusColor = status == 'paid'
         ? Colors.green
         : status == 'rejected'
-        ? Colors.orange
+        ? theme.colorScheme.error
         : theme.colorScheme.outline;
 
     return Card(
@@ -358,7 +355,9 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Amount due: ${CurrencyFormatter.rupees(TransactionService.getCustomerBalance(customer.id))}',
+                        CurrencyFormatter.customerBalance(
+                          TransactionService.getCustomerBalance(customer.id),
+                        ),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.primary,
                           fontSize: 14,

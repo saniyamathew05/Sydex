@@ -47,12 +47,8 @@ class _ReportsContentState extends State<_ReportsContent> {
   Widget build(BuildContext context) {
     final customers = CustomerService.customers;
 
-    final activeCustomerIds = customers.map((customer) => customer.id).toSet();
-
     final transactions = TransactionService.transactions
-        .where(
-          (transaction) => activeCustomerIds.contains(transaction.customerId),
-        )
+        .where((transaction) => !transaction.isBounced)
         .toList(growable: false);
 
     final chartData = _buildChartData(transactions, _selectedPeriod);
@@ -695,13 +691,13 @@ class _ReportsContentState extends State<_ReportsContent> {
     final todayAmount = today.fold<double>(
       0,
 
-      (sum, transaction) => sum + transaction.amountReceived,
+      (sum, transaction) => sum + transaction.actualAmountReceived,
     );
 
     final yesterdayAmount = yesterday.fold<double>(
       0,
 
-      (sum, transaction) => sum + transaction.amountReceived,
+      (sum, transaction) => sum + transaction.actualAmountReceived,
     );
 
     final change = yesterdayAmount == 0
@@ -1100,7 +1096,7 @@ class _ReportsContentState extends State<_ReportsContent> {
           ),
 
           Text(
-            '+ ${_formatMoney(transaction.amountReceived)}',
+            '+ ${_formatMoney(transaction.actualAmountReceived)}',
 
             style: TextStyle(
               fontSize: 14,
@@ -1244,7 +1240,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             .fold<double>(
               0,
 
-              (sum, transaction) => sum + transaction.amountReceived,
+              (sum, transaction) => sum + transaction.actualAmountReceived,
             );
 
         return _ChartPoint(label: _shortDate(date), value: total);
@@ -1271,7 +1267,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             .fold<double>(
               0,
 
-              (sum, transaction) => sum + transaction.amountReceived,
+              (sum, transaction) => sum + transaction.actualAmountReceived,
             );
 
         return _ChartPoint(label: _shortDate(date), value: total);
@@ -1290,7 +1286,7 @@ class _ReportsContentState extends State<_ReportsContent> {
           .fold<double>(
             0,
 
-            (sum, transaction) => sum + transaction.amountReceived,
+            (sum, transaction) => sum + transaction.actualAmountReceived,
           );
 
       return _ChartPoint(label: _shortMonth(monthDate), value: total);
@@ -1301,7 +1297,7 @@ class _ReportsContentState extends State<_ReportsContent> {
     return transactions.fold<double>(
       0,
 
-      (sum, transaction) => sum + transaction.amountReceived,
+      (sum, transaction) => sum + transaction.actualAmountReceived,
     );
   }
 
@@ -1317,7 +1313,7 @@ class _ReportsContentState extends State<_ReportsContent> {
         summary[transaction.customerId] = _CustomerPaymentSummary(
           name: transaction.customerName,
 
-          totalPaid: transaction.amountReceived,
+          totalPaid: transaction.actualAmountReceived,
 
           paymentCount: 1,
         );
@@ -1325,7 +1321,7 @@ class _ReportsContentState extends State<_ReportsContent> {
         summary[transaction.customerId] = _CustomerPaymentSummary(
           name: existing.name,
 
-          totalPaid: existing.totalPaid + transaction.amountReceived,
+          totalPaid: existing.totalPaid + transaction.actualAmountReceived,
 
           paymentCount: existing.paymentCount + 1,
         );

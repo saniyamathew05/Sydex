@@ -14,6 +14,7 @@ class PaymentTransaction {
   final double previousBalance;
   final double remainingBalance;
   final DateTime transactionDate;
+
   /// When this row was actually entered, independent of its business date.
   final DateTime? createdAt;
   final String notes;
@@ -28,6 +29,9 @@ class PaymentTransaction {
 
   /// Extra payment-method details, such as a cheque number.
   final String paymentMethodNote;
+
+  /// A cheque that bounced is not money actually received.
+  final bool isBounced;
 
   /// Ledger transaction type: 'sale', 'payment_received', or 'sales_return'.
   ///
@@ -53,6 +57,19 @@ class PaymentTransaction {
     this.receivedBy = 'Unknown',
     this.paymentMethod = 'cash',
     this.paymentMethodNote = '',
+    this.isBounced = false,
     this.transactionType = 'unknown',
   }) : amountReceived = amountReceived ?? (amount - discount);
+
+  /// Net money collected after removing the discount given to the customer.
+  /// Use the persisted net amount when available. The constructor derives it
+  /// from amount minus discount only for legacy rows without that field.
+  double get actualAmountReceived =>
+      isBounced ? 0 : amountReceived.clamp(0, double.infinity).toDouble();
+
+  String get reference {
+    final compact = id.replaceAll('-', '').toUpperCase();
+    final suffix = compact.length > 10 ? compact.substring(0, 10) : compact;
+    return 'TXN-$suffix';
+  }
 }

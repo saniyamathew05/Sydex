@@ -9,6 +9,7 @@ class SalesmanDailyActivity {
     required this.salesmanName,
     required this.routeLocations,
     required this.visitedCustomerCount,
+    required this.assignedCustomerIds,
     this.routeName,
   });
 
@@ -16,6 +17,7 @@ class SalesmanDailyActivity {
   final String salesmanName;
   final List<String> routeLocations;
   final int visitedCustomerCount;
+  final Set<String> assignedCustomerIds;
   final String? routeName;
 }
 
@@ -140,8 +142,9 @@ class SalesmanVisitService {
       final matches = <({String name, int customerCount})>[];
       for (final route in routes) {
         final name = route['route_name']?.toString().trim() ?? '';
-        final routeCustomerIds =
-            _orderedCustomerIdsFromValue(route['customer_ids']);
+        final routeCustomerIds = _orderedCustomerIdsFromValue(
+          route['customer_ids'],
+        );
         if (name.isEmpty ||
             routeCustomerIds.isEmpty ||
             !routeCustomerIds.every(assigned.contains)) {
@@ -207,6 +210,19 @@ class SalesmanVisitService {
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     if (cleaned.isNotEmpty) {
+      // A newly assigned route starts a fresh visit run for today. Remove
+      // stale visit outcomes from an earlier run so the new route is not
+      // shown as already visited.
+      try {
+        await _client
+            .from('salesman_customer_daily_status')
+            .delete()
+            .eq('entered_by', userId)
+            .eq('status_date', _todayKey());
+      } catch (_) {
+        // Keep route assignment usable if an older deployment does not allow
+        // deleting daily status rows; the date-scoped read remains safe.
+      }
       await _client.from('salesman_daily_route_selections').upsert({
         'salesman_id': userId,
         'route_date': _todayKey(),
@@ -216,14 +232,15 @@ class SalesmanVisitService {
   }
 
   static Future<Map<String, String>> loadTodayStatuses() async {
-    _requireUserId();
+    final userId = _requireUserId();
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
     final startOfTomorrow = startOfToday.add(const Duration(days: 1));
     final rows = await _client
         .from('salesman_customer_daily_status')
         .select('customer_id, status')
-        .eq('status_date', _todayKey());
+        .eq('status_date', _todayKey())
+        .eq('entered_by', userId);
 
     final result = <String, String>{};
     for (final row in rows) {
@@ -240,6 +257,7 @@ class SalesmanVisitService {
       final payments = await _client
           .from('payments')
           .select('customer_id')
+          .eq('user_id', userId)
           .gte('transaction_date', startOfToday.toUtc().toIso8601String())
           .lt('transaction_date', startOfTomorrow.toUtc().toIso8601String());
       for (final payment in payments) {
@@ -274,6 +292,29 @@ class SalesmanVisitService {
     return result;
   }
 
+  /// Visit outcomes grouped by Marketing Executive. A customer may be
+  /// assigned to more than one executive, so an outcome must never be shared
+  /// between their individual Pending/Visited lists.
+  static Future<Map<String, Map<String, String>>>
+  loadTodayStatusesForOwnerBySalesman({required String companyId}) async {
+    final rows = await _client
+        .from('salesman_customer_daily_status')
+        .select('entered_by, customer_id, status')
+        .eq('company_id', companyId)
+        .eq('status_date', _todayKey());
+    final result = <String, Map<String, String>>{};
+    for (final row in rows) {
+      final salesmanId = row['entered_by']?.toString();
+      final customerId = row['customer_id']?.toString();
+      final status = row['status']?.toString();
+      if (salesmanId != null && customerId != null && status != null) {
+        result.putIfAbsent(salesmanId, () => <String, String>{})[customerId] =
+            status;
+      }
+    }
+    return result;
+  }
+
   static Future<List<SalesmanDailyActivity>> loadTodaySalesmanActivity() async {
     final today = _todayKey();
     final results = await Future.wait([
@@ -284,7 +325,7 @@ class SalesmanVisitService {
           .order('name'),
       _client
           .from('salesman_daily_route_selections')
-          .select('salesman_id, locations, route_date')
+          .select('salesman_id, locations, customer_ids, route_date')
           .lte('route_date', today)
           .order('route_date', ascending: false),
       _client
@@ -300,16 +341,19 @@ class SalesmanVisitService {
     final templates = List<Map<String, dynamic>>.from(results[3] as List);
 
     final routesBySalesman = <String, List<String>>{};
+    final customersBySalesman = <String, Set<String>>{};
     for (final row in routeRows) {
       final salesmanId = row['salesman_id']?.toString();
       final locations = row['locations'];
-      if (salesmanId != null &&
-          locations is List &&
-          !routesBySalesman.containsKey(salesmanId)) {
-        routesBySalesman[salesmanId] = locations
-            .map((location) => location.toString().trim())
-            .where((location) => location.isNotEmpty)
-            .toList();
+      final customerIds = _orderedCustomerIdsFromValue(row['customer_ids']);
+      if (salesmanId != null && !routesBySalesman.containsKey(salesmanId)) {
+        routesBySalesman[salesmanId] = locations is List
+            ? locations
+                  .map((location) => location.toString().trim())
+                  .where((location) => location.isNotEmpty)
+                  .toList()
+            : <String>[];
+        customersBySalesman[salesmanId] = customerIds.toSet();
       }
     }
 
@@ -327,6 +371,12 @@ class SalesmanVisitService {
     return profiles.map((profile) {
       final salesmanId = profile['id'].toString();
       final locations = routesBySalesman[salesmanId] ?? const <String>[];
+      final assignedIds = customersBySalesman[salesmanId] ?? const <String>{};
+      final visitedIds = assignedIds.isEmpty
+          ? (visitsBySalesman[salesmanId] ?? const <String>{})
+          : (visitsBySalesman[salesmanId] ?? const <String>{}).intersection(
+              assignedIds,
+            );
       final routeName = _findRouteName(templates, locations);
 
       return SalesmanDailyActivity(
@@ -334,7 +384,8 @@ class SalesmanVisitService {
         salesmanName: profile['name']?.toString() ?? 'Salesman',
         routeName: routeName,
         routeLocations: locations,
-        visitedCustomerCount: visitsBySalesman[salesmanId]?.length ?? 0,
+        visitedCustomerCount: visitedIds.length,
+        assignedCustomerIds: assignedIds,
       );
     }).toList();
   }
@@ -366,29 +417,33 @@ class SalesmanVisitService {
     );
   }
 
-  /// Returns a location only when permission is already granted and GPS is on.
-  /// This never asks the salesman to enable location services.
-  static Future<Position?> captureLocationIfAlreadyAllowed() async {
+  /// Best-effort location capture for visits. A visit is still recorded if GPS
+  /// is unavailable, but asking for permission here lets first-time users save
+  /// the customer's position for the owner map.
+  static Future<Position?> captureLocationForVisit() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) return null;
-      final permission = await Geolocator.checkPermission();
-      if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         return null;
       }
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 3),
+          timeLimit: Duration(seconds: 10),
         ),
       );
     } catch (_) {
-      // Payment completion must not depend on optional visit location capture.
+      // Recording a payment or visit must not depend on optional GPS capture.
       return null;
     }
   }
 
-  static Future<void> recordStatus({
+  static Future<bool> recordStatus({
     required String customerId,
     required String status,
     Position? capturedPosition,
@@ -400,8 +455,7 @@ class SalesmanVisitService {
 
     // GPS is optional for either outcome. Preserve an already captured
     // position for the visit audit, but never block recording the visit on it.
-    final position =
-        capturedPosition ?? await captureLocationIfAlreadyAllowed();
+    final position = capturedPosition ?? await captureLocationForVisit();
     await _client.rpc(
       'record_salesman_customer_status',
       params: {
@@ -413,5 +467,6 @@ class SalesmanVisitService {
         'p_note': note,
       },
     );
+    return position != null;
   }
 }

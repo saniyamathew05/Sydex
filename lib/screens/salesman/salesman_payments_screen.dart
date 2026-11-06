@@ -11,6 +11,7 @@ import '../../services/transaction_service.dart';
 import '../../services/customer_service.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/payment_receipt_share_service.dart';
+import '../../services/supabase_pagination.dart';
 import '../../models/customer.dart';
 
 class SalesmanPaymentsScreen extends StatefulWidget {
@@ -41,6 +42,11 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       .where(_matchesDate)
       .where(_matchesMethod)
       .where(_matchesSalesman)
+      .where(
+        (payment) =>
+            payment['entry_type']?.toString().toLowerCase() != 'refusal' &&
+            payment['is_bounced'] != true,
+      )
       .toList(growable: false);
 
   double get _selectedPaymentsTotal =>
@@ -100,6 +106,16 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
     super.dispose();
   }
 
+  Future<List<Map<String, dynamic>>> _loadPaymentRows(String columns) =>
+      SupabasePagination.loadAll(
+        (from, to) => _supabase
+            .from('payments')
+            .select(columns)
+            .order('transaction_date', ascending: false)
+            .order('id', ascending: false)
+            .range(from, to),
+      );
+
   Future<void> _loadPayments() async {
     if (mounted) {
       setState(() {
@@ -143,43 +159,37 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
             signature_path,
             payment_method,
             payment_method_note,
+            is_bounced,
             user_id,
             customer_id,
             hidden_from_ledger,
             customers (business_name, location, phone)
           ''';
-      List<dynamic> response;
+      List<Map<String, dynamic>> response;
       try {
-        response = await _supabase
-            .from('payments')
-            .select(paymentColumns)
-            .order('transaction_date', ascending: false);
+        response = await _loadPaymentRows(paymentColumns);
       } catch (error) {
-        // Older databases may not have the optional shared visibility column.
-        debugPrint('Payment visibility column unavailable: $error');
+        // Older databases may not have these optional payment columns.
+        debugPrint('Optional payment columns unavailable: $error');
         try {
-          response = await _supabase
-              .from('payments')
-              .select(paymentColumns.replaceFirst('hidden_from_ledger,', ''))
-              .order('transaction_date', ascending: false);
+          response = await _loadPaymentRows(
+            paymentColumns
+                .replaceFirst('hidden_from_ledger,', '')
+                .replaceFirst('is_bounced,', ''),
+          );
         } catch (fallbackError) {
           // A stale PostgREST schema cache can also reject the nested customer
           // relationship. Load the payment rows so the screen remains usable.
           debugPrint('Payment relationship unavailable: $fallbackError');
-          response = await _supabase
-              .from('payments')
-              .select(
-                paymentColumns
-                    .replaceFirst('hidden_from_ledger,', '')
-                    .replaceFirst(
-                      'customers (business_name, location, phone)',
-                      '',
-                    ),
-              )
-              .order('transaction_date', ascending: false);
+          response = await _loadPaymentRows(
+            paymentColumns
+                .replaceFirst('hidden_from_ledger,', '')
+                .replaceFirst('is_bounced,', '')
+                .replaceFirst('customers (business_name, location, phone)', ''),
+          );
         }
       }
-      final payments = List<Map<String, dynamic>>.from(response);
+      final payments = response;
 
       // Include refused visits as red, zero-amount payment-history events.
       if (_assignedCustomerIds.isNotEmpty) {
@@ -442,13 +452,21 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       return values.any((value) => value.toLowerCase().contains(query));
     }).toList();
     filtered.sort((a, b) {
-      final aDate =
+      final aTransactionDate =
           DateTime.tryParse(a['transaction_date']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate =
+      final bTransactionDate =
           DateTime.tryParse(b['transaction_date']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
+      final dateOrder = bTransactionDate.compareTo(aTransactionDate);
+      if (dateOrder != 0) return dateOrder;
+      final aCreated =
+          DateTime.tryParse(a['created_at']?.toString() ?? '') ??
+          aTransactionDate;
+      final bCreated =
+          DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+          bTransactionDate;
+      return bCreated.compareTo(aCreated);
     });
     return filtered;
   }
@@ -956,10 +974,13 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
     final discount = (payment['discount'] as num?)?.toDouble() ?? 0;
 
-    final amountReceived =
-        (payment['amount_received'] as num?)?.toDouble() ??
-        (settlementAmount - discount);
-    final amountForSelectedMethod = _methodFilter == 'all'
+    final amountReceived = payment['is_bounced'] == true
+        ? 0.0
+        : (payment['amount_received'] as num?)?.toDouble() ??
+              (settlementAmount - discount);
+    final amountForSelectedMethod = payment['is_bounced'] == true
+        ? 0.0
+        : _methodFilter == 'all'
         ? amountReceived
         : PaymentMethodBreakdown.amountFor(
             note: payment['payment_method_note']?.toString(),
@@ -1481,9 +1502,10 @@ class _SalesmanPaymentDetailsScreenState
 
     final discount = (payment['discount'] as num?)?.toDouble() ?? 0;
 
-    final amountReceived =
-        (payment['amount_received'] as num?)?.toDouble() ??
-        (settlementAmount - discount);
+    final amountReceived = payment['is_bounced'] == true
+        ? 0.0
+        : (payment['amount_received'] as num?)?.toDouble() ??
+              (settlementAmount - discount);
 
     final previousBalance =
         (payment['previous_balance'] as num?)?.toDouble() ?? 0;
@@ -1668,7 +1690,7 @@ class _SalesmanPaymentDetailsScreenState
               _InfoRow(
                 label: 'Balance before',
 
-                value: '${CurrencyFormatter.rupees(previousBalance)}',
+                value: CurrencyFormatter.balanceAfter(previousBalance),
               ),
 
               _InfoRow(
@@ -1693,7 +1715,7 @@ class _SalesmanPaymentDetailsScreenState
               _InfoRow(
                 label: 'Balance after',
 
-                value: '${CurrencyFormatter.rupees(remainingBalance)}',
+                value: CurrencyFormatter.balanceAfter(remainingBalance),
 
                 valueColor: remainingBalance == 0
                     ? Colors.green.shade700

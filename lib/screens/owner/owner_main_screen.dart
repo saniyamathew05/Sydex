@@ -27,6 +27,8 @@ import 'owner_dashboard.dart';
 
 import 'salesman_visit_audit_screen.dart';
 import 'owner_route_management_screen.dart';
+import 'owner_notifications_screen.dart';
+import '../../theme/ledgerpro_tokens.dart';
 
 class OwnerMainScreen extends StatefulWidget {
   final String userName;
@@ -104,6 +106,15 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   void _openPayments() {
     setState(() {
       _selectedIndex = 2;
+    });
+  }
+
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OwnerNotificationsScreen()),
+    ).then((_) {
+      if (mounted) setState(() {});
     });
   }
 
@@ -191,7 +202,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     final baseTheme = Theme.of(context);
 
     final colors = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF0B5D3B),
+      seedColor: LedgerProTokens.green,
 
       brightness: baseTheme.brightness,
     );
@@ -220,17 +231,17 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 64,
 
         backgroundColor: colors.surface,
 
-        indicatorColor: const Color(0xFFDDF3E5),
+        indicatorColor: Colors.transparent,
 
         elevation: 8,
 
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(
-            fontSize: 11,
+            fontSize: 10,
 
             fontWeight: FontWeight.w700,
 
@@ -273,24 +284,15 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     );
 
     final pages = [
-      _OwnerHomeContent(
+      OwnerDashboard(
         userName: widget.userName,
-
-        onAddPurchase: _openAddPurchase,
-
+        onRecordPurchase: _openAddPurchase,
+        onAddCustomer: _openAddCustomer,
         onOpenCustomers: _openCustomers,
-
         onOpenPayments: _openPayments,
-
-        onOpenReports: _openReports,
-
+        onOpenNotifications: _openNotifications,
         onOpenVisitAudit: _openVisitAudit,
-
-        onReceivePayment: _openReceivePayment,
-
-        onOpenSettings: _openSettings,
-
-        isInitialLoading: _isInitialLoading,
+        onOpenRoute: _openPlaces,
       ),
 
       const CustomersScreen(),
@@ -304,6 +306,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
       OwnerDashboard(
         userName: widget.userName,
         onOpenPayments: _openPayments,
+        onOpenNotifications: _openNotifications,
         onOpenCustomers: _openCustomers,
         onOpenVisitAudit: _openVisitAudit,
         onOpenRoute: _openPlaces,
@@ -492,10 +495,15 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const AddPurchaseScreen()),
             ),
           ),
-          _item(Icons.location_on_outlined, 'Places', -1, onTap: onPlaces),
+          _item(
+            Icons.location_on_outlined,
+            'Routes & Areas',
+            -1,
+            onTap: onPlaces,
+          ),
           _item(
             Icons.person_outline_rounded,
-            'Salesman',
+            'Marketing Executive',
             -1,
             onTap: onSalesmen,
           ),
@@ -600,6 +608,8 @@ class _OwnerHomeContent extends StatelessWidget {
 
   final VoidCallback onOpenPayments;
 
+  final VoidCallback onOpenNotifications;
+
   final VoidCallback onOpenReports;
 
   final VoidCallback onOpenVisitAudit;
@@ -618,6 +628,7 @@ class _OwnerHomeContent extends StatelessWidget {
     required this.onOpenCustomers,
 
     required this.onOpenPayments,
+    required this.onOpenNotifications,
 
     required this.onOpenReports,
 
@@ -631,13 +642,13 @@ class _OwnerHomeContent extends StatelessWidget {
   });
 
   String _getGreeting() {
-    final hour = DateTime.now().hour;
+    final hour = DateTime.now().toLocal().hour;
 
     if (hour < 12) {
       return 'Good morning';
     }
 
-    if (hour < 17) {
+    if (hour < 18) {
       return 'Good afternoon';
     }
 
@@ -686,6 +697,11 @@ class _OwnerHomeContent extends StatelessWidget {
 
         actions: [
           IconButton(
+            tooltip: 'Notifications',
+            onPressed: onOpenNotifications,
+            icon: const Icon(Icons.notifications_none_rounded),
+          ),
+          IconButton(
             tooltip: 'Settings',
 
             onPressed: onOpenSettings,
@@ -726,38 +742,9 @@ class _OwnerHomeContent extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
 
                         children: [
-                          Text(
-                            'Welcome, $userName',
-
-                            style: TextStyle(
-                              fontSize: 14,
-
-                              fontWeight: FontWeight.w600,
-
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
                           const _DashboardSummary(),
 
-                          const SizedBox(height: 24),
-
-                          _PrimaryActionCard(
-                            icon: Icons.add_shopping_cart_rounded,
-
-                            title: 'New Sale',
-
-                            subtitle:
-                                'Record a sale and increase a customer balance',
-
-                            onTap: onAddPurchase,
-
-                            colors: colors,
-                          ),
-
-                          const SizedBox(height: 26),
+                          const SizedBox(height: 18),
 
                           Text(
                             'Quick Actions',
@@ -765,13 +752,13 @@ class _OwnerHomeContent extends StatelessWidget {
                             style: TextStyle(
                               color: colors.onSurface,
 
-                              fontSize: 18,
+                              fontSize: 16,
 
                               fontWeight: FontWeight.w800,
                             ),
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
 
                           Row(
                             children: [
@@ -2144,14 +2131,15 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   String _money(double value) => '₹${value.abs().toStringAsFixed(2)}';
 
   double _amountForCurrentMethod(PaymentTransaction payment) {
-    if (_methodFilter == 'all') return payment.amountReceived;
+    if (payment.isBounced) return 0;
+    if (_methodFilter == 'all') return payment.actualAmountReceived;
     final hasSplit = PaymentMethodBreakdown.parse(
       payment.paymentMethodNote,
     ).isNotEmpty;
     return PaymentMethodBreakdown.amountFor(
       note: payment.paymentMethodNote,
       method: _methodFilter,
-      fallbackAmount: hasSplit ? 0 : payment.amountReceived,
+      fallbackAmount: hasSplit ? 0 : payment.actualAmountReceived,
     );
   }
 
@@ -2192,12 +2180,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   List<PaymentTransaction> _filteredPayments() {
-    final activeCustomerIds = CustomerService.customers
-        .map((customer) => customer.id)
-        .toSet();
     final payments = TransactionService.transactions.where((payment) {
       if (_hiddenPaymentIds.contains(payment.id)) return false;
-      if (!activeCustomerIds.contains(payment.customerId)) return false;
       if (!_matchesDate(payment)) return false;
       if (_methodFilter != 'all') {
         final method = payment.paymentMethod.trim().toLowerCase().replaceAll(
@@ -2217,7 +2201,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           payment.paymentMethod.toLowerCase().contains(_searchQuery) ||
           payment.notes.toLowerCase().contains(_searchQuery);
     }).toList();
-    payments.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+    payments.sort((a, b) {
+      final dateOrder = b.transactionDate.compareTo(a.transactionDate);
+      if (dateOrder != 0) return dateOrder;
+      return (b.createdAt ?? b.transactionDate).compareTo(
+        a.createdAt ?? a.transactionDate,
+      );
+    });
     return payments;
   }
 
@@ -2428,7 +2418,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Payment?'),
         content: Text(
-          'Delete the payment of ${_money(payment.amountReceived)} received from ${payment.customerName}?\n\nThis will restore the customer balance.',
+          'Delete the payment of ${_money(payment.actualAmountReceived)} actually received from ${payment.customerName}?\n\nThis will restore the customer balance.',
         ),
         actions: [
           TextButton(
@@ -2470,7 +2460,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  @override
   Widget _desktopLedgerHeader(ColorScheme colors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -2647,7 +2636,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             (sum, payment) =>
                 sum +
                 (_methodFilter == 'all'
-                    ? payment.amountReceived
+                    ? payment.actualAmountReceived
                     : PaymentMethodBreakdown.amountFor(
                         note: payment.paymentMethodNote,
                         method: _methodFilter,
@@ -2655,7 +2644,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             PaymentMethodBreakdown.parse(
                               payment.paymentMethodNote,
                             ).isEmpty
-                            ? payment.amountReceived
+                            ? payment.actualAmountReceived
                             : 0,
                       )),
           );
@@ -3112,6 +3101,15 @@ class _PaymentTile extends StatelessWidget {
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
 
+                      fontSize: 11,
+                    ),
+                  ),
+
+                  const SizedBox(height: 3),
+                  Text(
+                    '${payment.reference} • Server confirmed',
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
                       fontSize: 11,
                     ),
                   ),

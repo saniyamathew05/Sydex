@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,8 @@ import 'screens/salesman/salesman_home.dart';
 import 'services/theme_controller.dart';
 
 import 'services/auth_service.dart';
+import 'services/business_date_service.dart';
+import 'theme/ledgerpro_tokens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +34,23 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
+  // Sessions are intentionally not restored across app launches. This keeps
+  // a closed/shared device from reopening the last business account, even if
+  // the operating system terminated the process before lifecycle cleanup ran.
+  // Preserve a web confirmation callback long enough for AuthGate to exchange
+  // its one-time code for a session. Other launches still start signed out.
+  final hasConfirmationCode =
+      kIsWeb && Uri.base.queryParameters['code']?.trim().isNotEmpty == true;
+  if (!hasConfirmationCode) {
+    try {
+      await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+    } catch (error) {
+      debugPrint('Could not clear the previous local session: $error');
+    }
+  }
+
   await ThemeController.loadTheme();
+  await BusinessDateService.load();
 
   runApp(const BusinessPaymentApp());
 }
@@ -90,22 +109,22 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.themeMode,
-
-      builder: (context, themeMode, _) {
-        return MaterialApp(
+      builder: (context, themeMode, _) => ValueListenableBuilder<Color>(
+        valueListenable: ThemeController.accentColor,
+        builder: (context, accent, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
 
           title: 'LedgerPro',
 
           themeMode: themeMode,
 
-          theme: _buildLightTheme(),
+          theme: _buildLightTheme(accent),
 
-          darkTheme: _buildDarkTheme(),
+          darkTheme: _buildDarkTheme(accent),
 
           home: const AuthGate(),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -115,20 +134,18 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
   // ==========================================================
 
-  ThemeData _buildLightTheme() {
-    const primary = Color(0xFF0B5D3B);
+  ThemeData _buildLightTheme(Color primary) {
+    final secondary = primary.withValues(alpha: .88);
 
-    const secondary = Color(0xFF149A5A);
-
-    const background = Color(0xFFF7F3EC);
+    const background = LedgerProTokens.background;
 
     const surface = Color(0xFFFFFFFF);
 
-    const border = Color(0xFFE4DED4);
+    const border = LedgerProTokens.border;
 
-    const textPrimary = Color(0xFF14211A);
+    const textPrimary = LedgerProTokens.text;
 
-    const textSecondary = Color(0xFF657066);
+    const textSecondary = LedgerProTokens.muted;
 
     final colorScheme = ColorScheme.light(
       primary: primary,
@@ -183,10 +200,9 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       colorScheme: colorScheme,
 
-      textTheme: ThemeData.light().textTheme.apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
-      ),
+      textTheme: LedgerProTokens.textTheme(
+        ThemeData.light().textTheme,
+      ).apply(bodyColor: textPrimary, displayColor: textPrimary),
 
       primaryTextTheme: ThemeData.light().primaryTextTheme.apply(
         bodyColor: Colors.white,
@@ -253,7 +269,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         surfaceTintColor: Colors.transparent,
 
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusCard),
 
           side: const BorderSide(color: border),
         ),
@@ -262,7 +278,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
 
-        fillColor: const Color(0xFFF8F8FD),
+        fillColor: const Color(0xFFF4F7F3),
 
         floatingLabelBehavior: FloatingLabelBehavior.auto,
 
@@ -273,31 +289,31 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
 
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
 
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFDC2626)),
         ),
 
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
         ),
@@ -328,7 +344,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -346,7 +362,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           side: const BorderSide(color: border),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -365,7 +381,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
       ),
 
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
 
         foregroundColor: Colors.white,
@@ -382,7 +398,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
+            return TextStyle(
               fontSize: 12,
 
               fontWeight: FontWeight.w700,
@@ -391,7 +407,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
             );
           }
 
-          return const TextStyle(
+          return TextStyle(
             fontSize: 12,
 
             fontWeight: FontWeight.w500,
@@ -402,7 +418,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primary);
+            return IconThemeData(color: primary);
           }
 
           return const IconThemeData(color: textSecondary);
@@ -443,7 +459,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         showDragHandle: true,
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
     );
   }
 
@@ -453,14 +469,14 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
   // ==========================================================
 
-  ThemeData _buildDarkTheme() {
-    const primary = Color(0xFF65C982);
+  ThemeData _buildDarkTheme(Color accent) {
+    final primary = Color.lerp(accent, Colors.white, .42)!;
 
-    const secondary = Color(0xFF2B9A5B);
+    final secondary = Color.lerp(accent, Colors.white, .25)!;
 
-    const background = Color(0xFF071B12);
+    const background = LedgerProTokens.navy;
 
-    const surface = Color(0xFF0D2A1D);
+    const surface = LedgerProTokens.navySoft;
 
     const border = Color(0xFF345245);
 
@@ -521,10 +537,9 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       colorScheme: colorScheme,
 
-      textTheme: ThemeData.dark().textTheme.apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
-      ),
+      textTheme: LedgerProTokens.textTheme(
+        ThemeData.dark().textTheme,
+      ).apply(bodyColor: textPrimary, displayColor: textPrimary),
 
       primaryTextTheme: ThemeData.dark().primaryTextTheme.apply(
         bodyColor: textPrimary,
@@ -591,7 +606,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         surfaceTintColor: Colors.transparent,
 
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusCard),
 
           side: const BorderSide(color: border),
         ),
@@ -611,31 +626,31 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
 
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
 
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFF87171)),
         ),
 
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFF87171), width: 2),
         ),
@@ -666,7 +681,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
@@ -703,7 +718,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
       ),
 
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
 
         foregroundColor: Color(0xFF063D28),
@@ -720,7 +735,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
+            return TextStyle(
               fontSize: 12,
 
               fontWeight: FontWeight.w700,
@@ -729,7 +744,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
             );
           }
 
-          return const TextStyle(
+          return TextStyle(
             fontSize: 12,
 
             fontWeight: FontWeight.w500,
@@ -740,7 +755,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primary);
+            return IconThemeData(color: primary);
           }
 
           return const IconThemeData(color: textSecondary);
@@ -785,7 +800,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         showDragHandle: true,
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
     );
   }
 }
@@ -808,6 +823,8 @@ class _AuthGateState extends State<AuthGate> {
 
   String? errorMessage;
 
+  bool _handledCallback = false;
+
   @override
   void initState() {
     super.initState();
@@ -816,7 +833,27 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _checkCurrentUser() async {
-    final user = AuthService.currentUser;
+    User? user = AuthService.currentUser;
+
+    if (kIsWeb && !_handledCallback) {
+      _handledCallback = true;
+      final code = Uri.base.queryParameters['code'];
+      if (code != null && code.isNotEmpty) {
+        try {
+          final response = await Supabase.instance.client.auth
+              .exchangeCodeForSession(code);
+          user = response.session?.user ?? AuthService.currentUser;
+        } catch (error) {
+          if (!mounted) return;
+          setState(() {
+            errorMessage =
+                'Email confirmation could not be completed. Please request a new link.';
+            isLoading = false;
+          });
+          return;
+        }
+      }
+    }
 
     if (user == null) {
       if (!mounted) return;
@@ -833,6 +870,10 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _openCorrectDashboard(String userId) async {
     try {
+      final user = AuthService.currentUser;
+      if (user != null) {
+        await AuthService.completeCompanyRegistration(user);
+      }
       final profile = await AuthService.getProfile(userId);
 
       if (profile == null) {
@@ -1016,9 +1057,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> registerCompany() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
             RegisterCompanyScreen(initialEmail: emailController.text.trim()),
+        transitionDuration: const Duration(milliseconds: 420),
+        reverseTransitionDuration: const Duration(milliseconds: 320),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final slide = Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation);
+          final previous =
+              Tween<Offset>(begin: Offset.zero, end: const Offset(-0.18, 0))
+                  .chain(CurveTween(curve: Curves.easeOutCubic))
+                  .animate(secondaryAnimation);
+          return SlideTransition(
+            position: previous,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
       ),
     );
   }
@@ -1037,220 +1094,257 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 8,
+              right: 16,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.calendar_today_outlined, size: 17),
+                label: Text(
+                  _formatBusinessDate(BusinessDateService.selectedDate.value),
+                ),
+                onPressed: isLoading ? null : _pickBusinessDate,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 42),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
 
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-
-              child: Column(
-                children: [
-                  // ------------------------------------------------
-
-                  // LOGO
-
-                  // ------------------------------------------------
-                  Container(
-                    width: 78,
-
-                    height: 78,
-
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-
-                        end: Alignment.bottomRight,
-
-                        colors: [colors.primary, colors.secondary],
-                      ),
-
-                      borderRadius: BorderRadius.circular(22),
-
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.primary.withValues(alpha: 0.22),
-
-                          blurRadius: 25,
-
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-
-                      color: Colors.white,
-
-                      size: 38,
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  const Text(
-                    'Business Payment',
-
-                    style: TextStyle(
-                      fontSize: 30,
-
-                      fontWeight: FontWeight.w800,
-
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-
-                  const SizedBox(height: 7),
-
-                  Text(
-                    'Sign in to continue',
-
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-
-                      fontSize: 14,
-                    ),
-                  ),
-
-                  const SizedBox(height: 34),
-
-                  // ------------------------------------------------
-
-                  // LOGIN CARD
-
-                  // ------------------------------------------------
-                  Container(
-                    padding: const EdgeInsets.all(22),
-
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-
-                      borderRadius: BorderRadius.circular(22),
-
-                      border: Border.all(color: colors.outlineVariant),
-
-                      boxShadow: isDark
-                          ? null
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-
-                                blurRadius: 25,
-
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                    ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
 
                     child: Column(
                       children: [
-                        TextField(
-                          controller: emailController,
+                        // ------------------------------------------------
 
-                          keyboardType: TextInputType.emailAddress,
+                        // LOGO
 
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
+                        // ------------------------------------------------
+                        Container(
+                          width: 78,
 
-                            prefixIcon: Icon(Icons.email_outlined),
+                          height: 78,
+
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+
+                              end: Alignment.bottomRight,
+
+                              colors: [colors.primary, colors.secondary],
+                            ),
+
+                            borderRadius: BorderRadius.circular(22),
+
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.primary.withValues(alpha: 0.22),
+
+                                blurRadius: 25,
+
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+
+                            color: Colors.white,
+
+                            size: 38,
                           ),
                         ),
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 22),
 
-                        TextField(
-                          controller: passwordController,
+                        const Text(
+                          'Business Payment',
 
-                          obscureText: obscurePassword,
+                          style: TextStyle(
+                            fontSize: 30,
 
-                          decoration: InputDecoration(
-                            labelText: 'Password',
+                            fontWeight: FontWeight.w800,
 
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            letterSpacing: -0.8,
+                          ),
+                        ),
 
-                            suffixIcon: IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  obscurePassword = !obscurePassword;
-                                });
-                              },
+                        const SizedBox(height: 7),
 
-                              icon: Icon(
-                                obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
+                        Text(
+                          'Sign in to continue',
+
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+
+                            fontSize: 14,
+                          ),
+                        ),
+
+                        const SizedBox(height: 34),
+
+                        // ------------------------------------------------
+
+                        // LOGIN CARD
+
+                        // ------------------------------------------------
+                        Container(
+                          padding: const EdgeInsets.all(22),
+
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+
+                            borderRadius: BorderRadius.circular(22),
+
+                            border: Border.all(color: colors.outlineVariant),
+
+                            boxShadow: isDark
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.04,
+                                      ),
+
+                                      blurRadius: 25,
+
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                          ),
+
+                          child: Column(
+                            children: [
+                              TextField(
+                                controller: emailController,
+
+                                keyboardType: TextInputType.emailAddress,
+
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+
+                                  prefixIcon: Icon(Icons.email_outlined),
+                                ),
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              TextField(
+                                controller: passwordController,
+
+                                obscureText: obscurePassword,
+
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+
+                                  prefixIcon: const Icon(
+                                    Icons.lock_outline_rounded,
+                                  ),
+
+                                  suffixIcon: IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        obscurePassword = !obscurePassword;
+                                      });
+                                    },
+
+                                    icon: Icon(
+                                      obscurePassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              SizedBox(
+                                width: double.infinity,
+
+                                height: 52,
+
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : login,
+
+                                  child: isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+
+                                          height: 22,
+
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                          ),
+                                        )
+                                      : const Text('Login'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: isLoading ? null : registerCompany,
+                                child: const Text('Register a new company'),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+
+                          children: [
+                            Icon(
+                              Icons.verified_user_outlined,
+
+                              size: 14,
+
+                              color: colors.onSurfaceVariant,
+                            ),
+
+                            const SizedBox(width: 6),
+
+                            Text(
+                              'Secure business account',
+
+                              style: TextStyle(
+                                fontSize: 12,
+
+                                color: colors.onSurfaceVariant,
                               ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        SizedBox(
-                          width: double.infinity,
-
-                          height: 52,
-
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : login,
-
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 22,
-
-                                    height: 22,
-
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                    ),
-                                  )
-                                : const Text('Login'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: isLoading ? null : registerCompany,
-                          child: const Text('Register a new company'),
+                          ],
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      Icon(
-                        Icons.verified_user_outlined,
-
-                        size: 14,
-
-                        color: colors.onSurfaceVariant,
-                      ),
-
-                      const SizedBox(width: 6),
-
-                      Text(
-                        'Secure business account',
-
-                        style: TextStyle(
-                          fontSize: 12,
-
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  String _formatBusinessDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  Future<void> _pickBusinessDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: BusinessDateService.selectedDate.value,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1, now.month, now.day),
+    );
+    if (picked != null) await BusinessDateService.setDate(picked);
+    if (mounted) setState(() {});
   }
 }
 
@@ -1271,6 +1365,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
   final _password = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  String? _confirmationMessage;
 
   @override
   void initState() {
@@ -1301,9 +1396,11 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
       );
       if (!mounted) return;
       if (response.session == null || response.user == null) {
-        throw Exception(
-          'Check your email to confirm the account, then log in.',
-        );
+        setState(() {
+          _confirmationMessage =
+              'This email is valid. Supabase requires email confirmation before the account can sign in. Check the inbox for ${_email.text.trim()}, confirm it, then return to log in.';
+        });
+        return;
       }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -1351,6 +1448,39 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_confirmationMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: colors.primary.withValues(alpha: .25),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.mark_email_read_outlined,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _confirmationMessage!,
+                                style: TextStyle(
+                                  color: colors.onPrimaryContainer,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(22),

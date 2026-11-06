@@ -103,7 +103,9 @@ class SettingsScreen extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
 
-            subtitle: Text('$email\n${isOwner ? 'Owner' : 'Salesman'}'),
+            subtitle: Text(
+              '$email\n${isOwner ? 'Owner' : 'Marketing Executive'}',
+            ),
 
             isThreeLine: true,
           ),
@@ -145,6 +147,65 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+
+          if (isOwner)
+            ValueListenableBuilder<Color>(
+              valueListenable: ThemeController.accentColor,
+              builder: (context, selected, _) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Brand accent',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Choose the primary color used across this device.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: ThemeController.accentChoices.entries.map((entry) {
+                        final isSelected = entry.value.value == selected.value;
+                        return Tooltip(
+                          message: entry.key,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => ThemeController.setAccent(entry.key),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: entry.value,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: isSelected
+                                  ? const Icon(Icons.check_rounded,
+                                      color: Colors.white, size: 18)
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           const Divider(),
 

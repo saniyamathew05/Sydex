@@ -235,6 +235,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
       final ledger = await TransactionService.getCustomerLedger(
         widget.customer.id,
+        openingBalance: _displayCustomer.openingBalance,
       );
       // A refusal is a visit-history event, not a ledger transaction. Keep
       // loading the normal ledger even if an older database has not yet
@@ -656,14 +657,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         final type = entry['entry_type']?.toString() ?? '';
         final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
         final discount = (entry['discount'] as num?)?.toDouble() ?? 0;
-        final amountReceived =
-            (entry['amount_received'] as num?)?.toDouble() ??
-            (amount - discount);
+        final amountReceived = entry['is_bounced'] == true
+            ? 0.0
+            : (entry['amount_received'] as num?)?.toDouble() ??
+                  (amount - discount);
 
         if (type == 'purchase') {
           totalPurchases += amount;
           totalDiscount += discount;
-        } else if (type == 'payment') {
+        } else if (type == 'payment' && entry['is_bounced'] != true) {
           totalSettled += amount;
           totalDiscount += discount;
           totalReceived += amountReceived;
@@ -718,7 +720,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     _pdfSummaryItem('Settled', _money(totalSettled)),
                     _pdfSummaryItem('Discount', _money(totalDiscount)),
                     _pdfSummaryItem('Received', _money(totalReceived)),
-                    _pdfSummaryItem('Balance Due', _money(currentBalance)),
+                    _pdfSummaryItem(
+                      currentBalance < 0 ? 'Advance' : 'Balance Due',
+                      _money(currentBalance.abs()),
+                    ),
                   ],
                 ),
               ),
@@ -755,9 +760,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   final type = entry['entry_type']?.toString() ?? '';
                   final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
                   final discount = (entry['discount'] as num?)?.toDouble() ?? 0;
-                  final received =
-                      (entry['amount_received'] as num?)?.toDouble() ??
-                      (amount - discount);
+                  final received = entry['is_bounced'] == true
+                      ? 0.0
+                      : (entry['amount_received'] as num?)?.toDouble() ??
+                            (amount - discount);
                   final balanceAfter =
                       (entry['balance_after'] as num?)?.toDouble() ?? 0;
                   final profile = entry['profiles'];
@@ -777,14 +783,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                         ? _money(discount)
                         : 'Rs. 0.00',
                     type == 'payment' ? _money(received) : 'Rs. 0.00',
-                    _money(balanceAfter),
+                    CurrencyFormatter.balanceAfter(balanceAfter),
                     receivedBy,
                   ];
                 }).toList(),
               ),
               pw.SizedBox(height: 18),
               pw.Text(
-                'Current Amount Due: ${_money(currentBalance)}',
+                '${currentBalance < 0 ? 'Customer Advance' : 'Current Amount Due'}: ${_money(currentBalance.abs())}',
                 style: pw.TextStyle(
                   fontSize: 13,
                   fontWeight: pw.FontWeight.bold,
@@ -1817,9 +1823,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                   children: [
                     _detailRow(
-                      currentBalance < 0
-                          ? 'Advance'
-                          : 'Current Amount Due',
+                      currentBalance < 0 ? 'Advance' : 'Current Amount Due',
                       _money(currentBalance.abs()),
                     ),
 
@@ -2896,8 +2900,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
     final discount = (entry['discount'] as num?)?.toDouble() ?? 0;
 
-    final amountReceived =
-        (entry['amount_received'] as num?)?.toDouble() ?? (amount - discount);
+    final amountReceived = entry['is_bounced'] == true
+        ? 0.0
+        : (entry['amount_received'] as num?)?.toDouble() ?? (amount - discount);
+    final displayedAmount = type == 'payment' ? amountReceived : amount;
 
     final balanceBefore = (entry['balance_before'] as num?)?.toDouble() ?? 0;
 
@@ -3130,8 +3136,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                   Text(
                     isPurchase || isBouncedCheck
-                        ? '+${_money(amount)}'
-                        : '-${_money(amount)}',
+                        ? '+${_money(displayedAmount)}'
+                        : '-${_money(displayedAmount)}',
 
                     style: TextStyle(
                       fontSize: 18,
@@ -3213,7 +3219,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance After', _money(balanceAfter)),
+                _detailRow(
+                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  _money(balanceAfter.abs()),
+                ),
               ] else if (isReturn) ...[
                 _detailRow('Returned Amount', _money(amount)),
 
@@ -3223,7 +3232,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance After', _money(balanceAfter)),
+                _detailRow(
+                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  _money(balanceAfter.abs()),
+                ),
               ] else ...[
                 _detailRow('Amount Settled', _money(amount)),
 
@@ -3260,7 +3272,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance After', _money(balanceAfter)),
+                _detailRow(
+                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  _money(balanceAfter.abs()),
+                ),
               ],
 
               if (notes.isNotEmpty) ...[

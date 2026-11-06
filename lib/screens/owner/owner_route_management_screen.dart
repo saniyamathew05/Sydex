@@ -48,7 +48,7 @@ class _OwnerRouteManagementScreenState
   List<Map<String, dynamic>> _salesmen = [];
   final Map<String, List<String>> _todayAssignments = {};
   final Map<String, List<String>> _todayCustomerAssignments = {};
-  Map<String, String> _todayCustomerStatuses = {};
+  Map<String, Map<String, String>> _todayCustomerStatusesBySalesman = {};
   final Map<String, String> _customerFiltersBySalesman = {};
   final Map<String, String> _customerSearchBySalesman = {};
   String _salesmanFilterId = '';
@@ -57,6 +57,7 @@ class _OwnerRouteManagementScreenState
   Set<String> _selectedCustomerIds = {};
   List<Map<String, dynamic>> _mapVisits = [];
   bool _mapVisitsLoading = false;
+  bool _mapVisitsRefreshPending = false;
 
   Map<String, dynamic>? get _selectedRoute {
     for (final route in _routes) {
@@ -116,7 +117,10 @@ class _OwnerRouteManagementScreenState
   }
 
   void _subscribeToVisitStatuses(String companyId) {
-    if (widget.page != OwnerRoutePage.salesmen) return;
+    if (widget.page != OwnerRoutePage.salesmen &&
+        widget.page != OwnerRoutePage.map) {
+      return;
+    }
     if (_visitStatusChannel != null && _companyId == companyId) return;
 
     final previousChannel = _visitStatusChannel;
@@ -136,7 +140,13 @@ class _OwnerRouteManagementScreenState
             column: 'company_id',
             value: companyId,
           ),
-          callback: (_) => _refreshVisitStatuses(),
+          callback: (_) {
+            if (widget.page == OwnerRoutePage.map) {
+              unawaited(_loadMapVisits());
+            } else {
+              unawaited(_refreshVisitStatuses());
+            }
+          },
         )
         .subscribe();
   }
@@ -147,11 +157,12 @@ class _OwnerRouteManagementScreenState
     try {
       final companyId = _companyId;
       if (companyId == null) return;
-      final statuses = await SalesmanVisitService.loadTodayStatusesForOwner(
-        companyId: companyId,
-      );
+      final statuses =
+          await SalesmanVisitService.loadTodayStatusesForOwnerBySalesman(
+            companyId: companyId,
+          );
       if (mounted) {
-        setState(() => _todayCustomerStatuses = statuses);
+        setState(() => _todayCustomerStatusesBySalesman = statuses);
       }
     } catch (error) {
       debugPrint('Could not refresh owner visit statuses: $error');
@@ -204,14 +215,16 @@ class _OwnerRouteManagementScreenState
             .eq('company_id', companyId)
             .lte('route_date', todayKey)
             .order('route_date', ascending: false),
-        SalesmanVisitService.loadTodayStatusesForOwner(companyId: companyId),
+        SalesmanVisitService.loadTodayStatusesForOwnerBySalesman(
+          companyId: companyId,
+        ),
       ]);
       final allProfiles = List<Map<String, dynamic>>.from(results[1] as List);
       final assignmentRows = List<Map<String, dynamic>>.from(
         results[2] as List,
       );
-      final todayStatuses = Map<String, String>.from(
-        results[3] as Map<String, String>,
+      final todayStatuses = Map<String, Map<String, String>>.from(
+        results[3] as Map<String, Map<String, String>>,
       );
       final assignments = <String, List<String>>{};
       final customerAssignments = <String, List<String>>{};
@@ -262,7 +275,7 @@ class _OwnerRouteManagementScreenState
         _todayCustomerAssignments
           ..clear()
           ..addAll(customerAssignments);
-        _todayCustomerStatuses = todayStatuses;
+        _todayCustomerStatusesBySalesman = todayStatuses;
         _selectedRouteId ??= _routes.isEmpty
             ? null
             : _routes.first['id'].toString();
@@ -316,6 +329,10 @@ class _OwnerRouteManagementScreenState
 
   Future<void> _loadMapVisits() async {
     if (!mounted) return;
+    if (_mapVisitsLoading) {
+      _mapVisitsRefreshPending = true;
+      return;
+    }
     setState(() => _mapVisitsLoading = true);
     try {
       final userId = _client.auth.currentUser?.id;
@@ -383,11 +400,17 @@ class _OwnerRouteManagementScreenState
       if (!mounted) return;
       setState(() {
         _mapVisits = points;
-        _mapVisitsLoading = false;
       });
     } catch (error) {
       debugPrint('Load visit map points failed: $error');
-      if (mounted) setState(() => _mapVisitsLoading = false);
+    } finally {
+      if (mounted) {
+        setState(() => _mapVisitsLoading = false);
+        if (_mapVisitsRefreshPending) {
+          _mapVisitsRefreshPending = false;
+          unawaited(_loadMapVisits());
+        }
+      }
     }
   }
 
@@ -744,6 +767,18 @@ class _OwnerRouteManagementScreenState
             },
           )
           .toList();
+      // Reassigning a route starts a fresh visit run for today. Clear any
+      // outcomes from an earlier route run so customers do not appear visited
+      // before this assignment is worked.
+      for (final salesmanId in salesmanIds) {
+        try {
+          await _client
+              .from('salesman_customer_daily_status')
+              .delete()
+              .eq('entered_by', salesmanId)
+              .eq('status_date', dateKey);
+        } catch (_) {}
+      }
       // Upsert in place so an RLS or network error cannot delete the prior
       // assignment before the replacement is saved.
       await _client
@@ -1901,9 +1936,10 @@ class _OwnerRouteManagementScreenState
                 final customerFilter =
                     _customerFiltersBySalesman[salesmanId] ?? 'All';
                 bool matchesFilter(Customer customer, String filter) {
-                  final visited = _todayCustomerStatuses.containsKey(
-                    customer.id,
-                  );
+                  final status =
+                      _todayCustomerStatusesBySalesman[salesmanId]?[customer
+                          .id];
+                  final visited = status == 'paid' || status == 'rejected';
                   return switch (filter) {
                     'Pending' => !visited,
                     'Visited' => visited,
@@ -2063,7 +2099,9 @@ class _OwnerRouteManagementScreenState
                                 customer.id,
                                 excludingSalesmanId: salesmanId,
                               );
-                          final status = _todayCustomerStatuses[customer.id];
+                          final status =
+                              _todayCustomerStatusesBySalesman[salesmanId]?[customer
+                                  .id];
                           final statusLabel = switch (status) {
                             'paid' => 'Visited',
                             'rejected' => 'Refused today',

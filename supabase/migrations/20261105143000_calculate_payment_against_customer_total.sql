@@ -1,0 +1,93 @@
+-- Always calculate a new payment from the customer's complete outstanding
+-- balance, including every sale/purchase and prior payment in the company.
+create or replace function public.record_payment_with_phone_time(
+  p_customer_id uuid,
+  p_amount numeric,
+  p_discount numeric default 0,
+  p_notes text default null,
+  p_signature_path text default null,
+  p_transaction_date timestamptz default now(),
+  p_payment_method text default 'cash',
+  p_payment_method_note text default null,
+  p_entered_at timestamptz default now()
+)
+returns public.payments
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_role text := public.get_my_role();
+  v_company_id uuid := public.current_company_id();
+  v_customer public.customers%rowtype;
+  v_previous_balance numeric(12,2);
+  v_discount numeric(12,2) := round(coalesce(p_discount, 0), 2);
+  v_amount_received numeric(12,2);
+  v_remaining_balance numeric(12,2);
+  v_payment public.payments;
+begin
+  if v_user_id is null then raise exception 'You must be logged in.'; end if;
+  if v_role not in ('owner', 'salesman') then raise exception 'You are not allowed to record payments.'; end if;
+  if v_company_id is null then raise exception 'Your account is not linked to a company.'; end if;
+  if p_amount is null or p_amount <= 0 then raise exception 'Amount to settle must be greater than zero.'; end if;
+  if p_payment_method not in ('cash', 'cheque', 'neft', 'gpay') then raise exception 'Invalid payment method.'; end if;
+  if v_discount < 0 or v_discount >= p_amount then raise exception 'Discount must be less than the amount being settled.'; end if;
+  v_amount_received := round(p_amount - v_discount, 2);
+  if v_amount_received <= 0 then raise exception 'Amount actually received must be greater than zero.'; end if;
+
+  select * into v_customer
+  from public.customers
+  where id = p_customer_id and is_active = true
+    and company_id = v_company_id
+  for update;
+  if not found then raise exception 'Customer was not found or is inactive.'; end if;
+
+  -- Aggregate the whole customer ledger. Do not use the last sale row as the
+  -- starting point; multiple sales must be settled as one customer balance.
+  select round(
+    v_customer.opening_balance + coalesce(sum(case
+      when entry_type in ('purchase', 'sale', 'bounced_check') then amount
+      when entry_type in ('payment', 'return', 'sales_return') then -amount
+      else 0
+    end), 0), 2)
+  into v_previous_balance
+  from public.ledger_entries
+  where customer_id = p_customer_id
+    and (company_id = v_company_id or company_id is null);
+
+  v_remaining_balance := round(v_previous_balance - p_amount, 2);
+
+  insert into public.payments (
+    customer_id, user_id, company_id, amount, discount, amount_received,
+    previous_balance, remaining_balance, transaction_date, notes,
+    signature_path, payment_method, payment_method_note, created_at
+  ) values (
+    p_customer_id, v_user_id, v_company_id, round(p_amount, 2), v_discount,
+    v_amount_received, v_previous_balance, v_remaining_balance,
+    coalesce(p_transaction_date, now()), p_notes, p_signature_path,
+    p_payment_method, p_payment_method_note, coalesce(p_entered_at, now())
+  ) returning * into v_payment;
+
+  insert into public.ledger_entries (
+    id, customer_id, user_id, company_id, entry_type, amount, discount,
+    amount_received, balance_before, balance_after, transaction_date, notes,
+    signature_path, created_at, payment_method, payment_method_note
+  ) values (
+    v_payment.id, p_customer_id, v_user_id, v_company_id, 'payment',
+    round(p_amount, 2), v_discount, v_amount_received, v_previous_balance,
+    v_remaining_balance, coalesce(p_transaction_date, now()), p_notes,
+    p_signature_path, coalesce(p_entered_at, now()), p_payment_method,
+    p_payment_method_note
+  );
+
+  return v_payment;
+end;
+$function$;
+
+revoke all on function public.record_payment_with_phone_time(
+  uuid, numeric, numeric, text, text, timestamptz, text, text, timestamptz
+) from public, anon;
+grant execute on function public.record_payment_with_phone_time(
+  uuid, numeric, numeric, text, text, timestamptz, text, text, timestamptz
+) to authenticated;

@@ -27,6 +27,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _openingBalanceFocus = FocusNode();
 
   bool isSaving = false;
+  bool _whatsAppReceiptOptIn = false;
 
   List<Customer> _similarCustomers = const [];
 
@@ -486,6 +487,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         'business_name': businessName,
         'location': location,
         'phone': phone,
+        'whatsapp_receipt_opt_in': _whatsAppReceiptOptIn,
         'opening_balance': openingBalance,
         'is_active': true,
       });
@@ -550,64 +552,32 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.primary,
-                        colorScheme.primary.withValues(alpha: 0.78),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_add_alt_1_outlined,
+                      color: colorScheme.primary,
+                      size: 22,
                     ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.person_add_alt_1,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                    const SizedBox(width: 9),
+                    const Text(
+                      'Add Customer',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(width: 15),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'New Customer',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              'Create a customer account and set their current balance.',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Create a new customer account',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 13,
                   ),
                 ),
-
-                const SizedBox(height: 24),
+                const Divider(height: 24),
 
                 const Text(
                   'Customer Information',
@@ -624,7 +594,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
 
                 _FormField(
                   controller: businessNameController,
@@ -638,7 +608,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                 _buildSimilarCustomerSuggestions(colorScheme),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
 
                 _FormField(
                   controller: locationController,
@@ -684,6 +654,33 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       ),
                     ),
                   ),
+                  if (_selectedRouteIds.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: _routeTemplates
+                            .where(
+                              (route) => _selectedRouteIds.contains(
+                                route['id']?.toString(),
+                              ),
+                            )
+                            .map(
+                              (route) => InputChip(
+                                label: Text(
+                                  route['route_name']?.toString() ?? 'Route',
+                                ),
+                                onDeleted: () => setState(
+                                  () => _selectedRouteIds.remove(
+                                    route['id']?.toString(),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
                   if (_selectedRouteIds.isNotEmpty &&
                       _selectedRouteLocations.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -728,7 +725,22 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   maxLength: 10,
                 ),
 
-                const SizedBox(height: 26),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _whatsAppReceiptOptIn,
+                  onChanged: phoneController.text.trim().isEmpty
+                      ? null
+                      : (value) => setState(
+                            () => _whatsAppReceiptOptIn = value ?? false,
+                          ),
+                  title: const Text('Send payment receipts on WhatsApp'),
+                  subtitle: const Text(
+                    'Select only after the customer agrees to receive payment receipts on this number.',
+                  ),
+                ),
+
+                const SizedBox(height: 18),
 
                 const Text(
                   'Account Information',
@@ -745,7 +757,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
 
                 _FormField(
                   controller: openingBalanceController,
@@ -792,31 +804,33 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 28),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: isSaving ? null : saveCustomer,
-                    icon: isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      isSaving ? 'Saving Customer...' : 'Create Customer',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: isSaving ? null : () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      onPressed: isSaving ? null : saveCustomer,
+                      icon: isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_rounded, size: 18),
+                      label: Text(
+                        isSaving ? 'Saving...' : 'Create Customer',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                  ),
+                  ],
                 ),
 
                 const SizedBox(height: 12),
@@ -895,21 +909,26 @@ class _FormField extends StatelessWidget {
         hintText: hint,
         prefixIcon: Icon(icon),
         prefixText: prefixText,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest,
         counterText: maxLength != null ? null : '',
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
             color: colorScheme.outline.withValues(alpha: 0.08),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
       ),

@@ -6,6 +6,8 @@ import '../../services/customer_service.dart';
 import '../../services/transaction_service.dart';
 import '../../services/purchase_service.dart';
 import '../../services/currency_formatter.dart';
+import '../../services/business_date_service.dart';
+import '../../services/duplicate_transaction_service.dart';
 
 class AddPurchaseScreen extends StatefulWidget {
   final Customer? initialCustomer;
@@ -29,7 +31,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
   bool _isSaving = false;
   bool _isLoadingBalance = false;
 
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = BusinessDateService.selectedDate.value;
 
   @override
   void initState() {
@@ -114,8 +116,6 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
   }
 
   Future<void> _selectDate() async {
-    final today = DateTime.now();
-
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -174,6 +174,22 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
     final notes = _notesController.text.trim();
 
+    final possibleDuplicate =
+        await DuplicateTransactionService.findPossibleDuplicate(
+      customerId: customer.id,
+      entryType: 'purchase',
+      amount: finalAmount,
+      transactionDate: _selectedDate,
+    );
+    if (possibleDuplicate != null && mounted) {
+      final saveAnyway = await _confirmPossibleDuplicate(
+        customer.businessName,
+        finalAmount,
+        possibleDuplicate,
+      );
+      if (saveAnyway != true) return;
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -212,6 +228,25 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       }
     }
   }
+
+  Future<bool?> _confirmPossibleDuplicate(
+    String customerName,
+    double amount,
+    DuplicateTransactionCandidate candidate,
+  ) => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Possible duplicate sale'),
+      content: Text(
+        'A sale of ${CurrencyFormatter.rupees(amount)} for $customerName was recorded near this time.\n\n'
+        'Existing entry: ${candidate.transactionDate?.toLocal().toString() ?? 'Unknown date'}',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Go back')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save anyway')),
+      ],
+    ),
+  );
 
   String _friendlyError(Object error) {
     final message = error is PostgrestException
@@ -494,7 +529,9 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Current Amount Due',
+                                  _currentBalance < 0
+                                      ? 'Customer Advance'
+                                      : 'Current Amount Due',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -512,7 +549,9 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                                         ),
                                       )
                                     : Text(
-                                        '${CurrencyFormatter.rupees(_currentBalance)}',
+                                        CurrencyFormatter.rupees(
+                                          _currentBalance.abs(),
+                                        ),
                                         style: TextStyle(
                                           fontSize: 25,
                                           fontWeight: FontWeight.w800,

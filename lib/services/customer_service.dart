@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/customer.dart';
+import 'supabase_pagination.dart';
 
 class CustomerService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -12,6 +13,7 @@ class CustomerService {
 
   static bool isLoading = false;
   static String? errorMessage;
+  static String? _cacheUserId;
 
   // ---------------------------------------------------------------------------
   // LOAD CUSTOMERS
@@ -26,23 +28,33 @@ class CustomerService {
       final user = _supabase.auth.currentUser;
 
       if (user == null) {
+        if (_cacheUserId != null) customers.clear();
+        _cacheUserId = null;
         throw Exception('No logged-in user found while loading customers.');
+      }
+
+      if (_cacheUserId != user.id) {
+        customers.clear();
+        _cacheUserId = user.id;
       }
 
       debugPrint('CustomerService: Loading customers for user ${user.id}');
 
-      final response = await _supabase
-          .from('customers')
-          .select(
-            'id, business_name, location, phone, opening_balance, is_active, created_at',
-          )
-          .eq('is_active', true)
-          .order('business_name', ascending: true);
+      final response = await SupabasePagination.loadAll(
+        (from, to) => _supabase
+            .from('customers')
+            .select(
+              'id, business_name, location, phone, opening_balance, is_active, created_at',
+            )
+            .eq('is_active', true)
+            .order('business_name', ascending: true)
+            .order('id', ascending: true)
+            .range(from, to),
+      );
 
-      customers.clear();
-
+      final refreshedCustomers = <Customer>[];
       for (final row in response) {
-        customers.add(
+        refreshedCustomers.add(
           Customer(
             id: row['id'] as String,
             businessName: row['business_name'] as String,
@@ -52,6 +64,10 @@ class CustomerService {
           ),
         );
       }
+
+      customers
+        ..clear()
+        ..addAll(refreshedCustomers);
 
       debugPrint('CustomerService: Loaded ${customers.length} customers');
     } catch (error, stackTrace) {

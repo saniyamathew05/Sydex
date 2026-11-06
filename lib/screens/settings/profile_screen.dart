@@ -35,7 +35,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: const InputDecoration(labelText: 'Name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Save'),
@@ -49,12 +52,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (userId == null) return;
     setState(() => _saving = true);
     try {
-      await Supabase.instance.client.from('profiles').update({'name': value}).eq('id', userId);
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'name': value})
+          .eq('id', userId);
       if (mounted) setState(() => _name = value);
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update your profile.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update your profile.')),
+        );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -105,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           Center(
             child: Text(
-              widget.role == 'owner' ? 'Owner' : 'Salesman',
+              widget.role == 'owner' ? 'Owner' : 'Marketing Executive',
 
               style: TextStyle(color: colors.onSurfaceVariant),
             ),
@@ -132,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: const Text('Role'),
 
                   subtitle: Text(
-                    widget.role == 'owner' ? 'Owner' : 'Salesman',
+                    widget.role == 'owner' ? 'Owner' : 'Marketing Executive',
                   ),
                 ),
               ],

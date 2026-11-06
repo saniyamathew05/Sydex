@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -56,15 +57,47 @@ class AuthService {
     final response = await _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {'name': ownerName, 'role': 'owner'},
+      emailRedirectTo: _webRedirectUri,
+      data: {
+        'name': ownerName,
+        'role': 'owner',
+        'company_name': companyName,
+      },
     );
     if (response.user == null || response.session == null) return response;
+    await completeCompanyRegistration(response.user!);
+    return response;
+  }
+
+  static String? get _webRedirectUri {
+    if (!kIsWeb) return null;
+    final origin = Uri.base.origin;
+    return origin.startsWith('http') ? origin : null;
+  }
+
+  /// Creates the company/profile after email confirmation when Supabase does
+  /// not issue a session during sign-up. Safe to call repeatedly after login.
+  static Future<void> completeCompanyRegistration(User user) async {
+    final profile = await _supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+    if (profile != null) return;
+
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final companyName = metadata['company_name']?.toString().trim();
+    final ownerName = metadata['name']?.toString().trim();
+    if (companyName == null || companyName.isEmpty ||
+        ownerName == null || ownerName.isEmpty) {
+      return;
+    }
+
     await _supabase.rpc('register_company', params: {'p_name': companyName});
     await _supabase.from('profiles').upsert({
-      'id': response.user!.id,
+      'id': user.id,
       'name': ownerName,
       'role': 'owner',
     });
-    return response;
   }
 }

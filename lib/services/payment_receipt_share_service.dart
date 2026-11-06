@@ -35,7 +35,10 @@ class PaymentReceiptShareService {
     if (customer.phone.trim().isEmpty) {
       throw StateError('This customer has no phone number.');
     }
-    final entries = await TransactionService.getCustomerLedger(customer.id);
+    final entries = await TransactionService.getCustomerLedger(
+      customer.id,
+      openingBalance: customer.openingBalance,
+    );
     final payments = entries
         .where((entry) => entry['entry_type'] == 'payment')
         .toList();
@@ -72,8 +75,10 @@ class PaymentReceiptShareService {
       customerName: customer.businessName,
       amount: amount,
       discount: discount,
-      amountReceived:
-          (entry['amount_received'] as num?)?.toDouble() ?? (amount - discount),
+      amountReceived: entry['is_bounced'] == true
+          ? 0
+          : (entry['amount_received'] as num?)?.toDouble() ??
+                (amount - discount),
       previousBalance:
           (entry['balance_before'] as num?)?.toDouble() ??
           (entry['previous_balance'] as num?)?.toDouble() ??

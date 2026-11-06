@@ -315,7 +315,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         DropdownMenuItem(
                           value: 'salesman',
 
-                          child: Text('Salesman'),
+                          child: Text('Marketing Executive'),
                         ),
 
                         DropdownMenuItem(value: 'owner', child: Text('Owner')),
@@ -561,7 +561,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         DropdownMenuItem(
                           value: 'salesman',
 
-                          child: Text('Salesman'),
+                          child: Text('Marketing Executive'),
                         ),
 
                         DropdownMenuItem(value: 'owner', child: Text('Owner')),
@@ -937,7 +937,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         return 'Owner';
 
       case 'salesman':
-        return 'Salesman';
+        return 'Marketing Executive';
 
       default:
         return role;

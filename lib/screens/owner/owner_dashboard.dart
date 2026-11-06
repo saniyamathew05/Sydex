@@ -9,6 +9,9 @@ import '../../services/customer_service.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
+import '../../services/supabase_pagination.dart';
+import '../../services/notification_read_store.dart';
+import '../../widgets/ledgerpro_motion.dart';
 
 /// Owner overview built around the supplied LedgerPro desktop reference.
 /// All financial/customer figures are read from the existing services.
@@ -16,6 +19,7 @@ class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({
     super.key,
     this.onOpenPayments,
+    this.onOpenNotifications,
     this.onOpenCustomers,
     this.onOpenVisitAudit,
     this.onOpenRoute,
@@ -26,6 +30,7 @@ class OwnerDashboard extends StatefulWidget {
 
   final String userName;
   final VoidCallback? onOpenPayments;
+  final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenCustomers;
   final VoidCallback? onOpenVisitAudit;
   final VoidCallback? onOpenRoute;
@@ -38,10 +43,13 @@ class OwnerDashboard extends StatefulWidget {
 
 class _OwnerDashboardState extends State<OwnerDashboard> {
   String _period = 'Today';
+  DateTimeRange? _customPeriod;
   bool _refreshing = false;
   List<SalesmanDailyActivity> _todaySalesmanActivity = const [];
   Map<String, _SalesmanTodayPayments> _todaySalesmanPayments = {};
+  List<Map<String, dynamic>> _ledgerEntries = const [];
   String? _visitLoadError;
+  Set<String> _seenNotificationIds = <String>{};
 
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _navy => Theme.of(context).colorScheme.onSurface;
@@ -55,10 +63,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   static const _orange = Color(0xFFEA8A26);
   static const _blue = Color(0xFF2F8F57);
 
-  int get _newSalesmanPaymentCount => _todaySalesmanPayments.values.fold(
-    0,
-    (total, entry) => total + entry.paidCustomers.length,
-  );
+  int get _newSalesmanPaymentCount => _todaySalesmanPayments.values
+      .expand((entry) => entry.paymentIds)
+      .where((id) => !_seenNotificationIds.contains(id))
+      .length;
 
   @override
   void initState() {
@@ -66,6 +74,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     CustomerService.dataVersion.addListener(_refresh);
     TransactionService.dataVersion.addListener(_refresh);
     _load();
+    NotificationReadStore.load().then((ids) {
+      if (mounted) setState(() => _seenNotificationIds = ids);
+    });
   }
 
   @override
@@ -87,6 +98,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       await TransactionService.loadCustomerBalances();
       await TransactionService.loadTransactions();
       try {
+        final rows = await SupabasePagination.loadAll(
+          (from, to) => Supabase.instance.client
+              .from('ledger_entries')
+              .select('id, customer_id, entry_type, amount, transaction_date')
+              .order('id')
+              .range(from, to),
+        );
+        _ledgerEntries = List<Map<String, dynamic>>.from(rows);
+      } catch (error) {
+        debugPrint('Could not load entries for dashboard calculations: $error');
+        _ledgerEntries = const [];
+      }
+      try {
         _todaySalesmanActivity =
             await SalesmanVisitService.loadTodaySalesmanActivity();
         final now = DateTime.now();
@@ -95,20 +119,34 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         final rows = await Supabase.instance.client
             .from('payments')
             .select(
-              'user_id, customer_id, amount_received, customers(business_name)',
+              'user_id, customer_id, amount_received, is_bounced, customers(business_name)',
             )
             .gte('transaction_date', start.toUtc().toIso8601String())
             .lt('transaction_date', end.toUtc().toIso8601String());
         final grouped = <String, _SalesmanTodayPayments>{};
         for (final row in rows) {
+          if (row['is_bounced'] == true) continue;
           final userId = row['user_id']?.toString();
           if (userId == null || userId.isEmpty) continue;
           final entry = grouped.putIfAbsent(userId, _SalesmanTodayPayments.new);
+          final paymentId = row['id']?.toString();
+          if (paymentId != null && paymentId.isNotEmpty) {
+            entry.paymentIds.add(paymentId);
+          }
+          final customerId = row['customer_id']?.toString();
           entry.received += (row['amount_received'] as num?)?.toDouble() ?? 0;
+          if (customerId != null && customerId.isNotEmpty) {
+            entry.receivedByCustomer[customerId] =
+                (entry.receivedByCustomer[customerId] ?? 0) +
+                ((row['amount_received'] as num?)?.toDouble() ?? 0);
+          }
           final customerName = row['customers'] is Map
               ? row['customers']['business_name']?.toString()
               : null;
           if (customerName != null && customerName.isNotEmpty) {
+            if (customerId != null && customerId.isNotEmpty) {
+              entry.customerNames[customerId] = customerName;
+            }
             entry.paidCustomers.add(customerName);
           }
         }
@@ -133,9 +171,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   );
 
   String _greeting() {
-    final hour = DateTime.now().hour;
+    final hour = DateTime.now().toLocal().hour;
     if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
+    if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   }
 
@@ -150,16 +188,24 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     switch (_period) {
+      case '7 days':
       case 'This week':
         return DateTimeRange(
-          start: today.subtract(Duration(days: today.weekday - 1)),
+          start: today.subtract(const Duration(days: 6)),
           end: today.add(const Duration(days: 1)),
         );
+      case '30 days':
       case 'This month':
         return DateTimeRange(
-          start: DateTime(today.year, today.month),
+          start: today.subtract(const Duration(days: 29)),
           end: today.add(const Duration(days: 1)),
         );
+      case 'Custom':
+        return _customPeriod ??
+            DateTimeRange(
+              start: today,
+              end: today.add(const Duration(days: 1)),
+            );
       default:
         return DateTimeRange(
           start: today,
@@ -172,8 +218,24 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     final range = _selectedRange();
     return _transactions.where((transaction) {
       final date = transaction.transactionDate.toLocal();
-      return !date.isBefore(range.start) && date.isBefore(range.end);
+      return !transaction.isBounced &&
+          !date.isBefore(range.start) &&
+          date.isBefore(range.end);
     }).toList();
+  }
+
+  List<Map<String, dynamic>> _periodLedgerEntries() {
+    final range = _selectedRange();
+    return _ledgerEntries
+        .where((entry) {
+          final date = DateTime.tryParse(
+            entry['transaction_date']?.toString() ?? '',
+          )?.toLocal();
+          return date != null &&
+              !date.isBefore(range.start) &&
+              date.isBefore(range.end);
+        })
+        .toList(growable: false);
   }
 
   int get _locationCount => CustomerService.customers
@@ -200,34 +262,61 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   List<_DayTotals> _chartDays() {
     final now = DateTime.now();
-    final count = _period == 'Today' ? 7 : (_period == 'This week' ? 7 : 7);
-    final start = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: count - 1));
+    final count = switch (_period) {
+      'Today' => 1,
+      '7 days' => 7,
+      '30 days' => 30,
+      'Custom' => _selectedRange().duration.inDays.clamp(1, 31).toInt(),
+      'This week' => 7,
+      'This month' => DateTime(now.year, now.month + 1, 0).day,
+      _ => 7,
+    };
+    final start = _period == 'Custom'
+        ? _selectedRange().start
+        : DateTime(now.year, now.month, now.day).subtract(
+            Duration(days: _period == 'This month' ? now.day - 1 : count - 1),
+          );
     final result = <_DayTotals>[];
     for (var i = 0; i < count; i++) {
       final day = start.add(Duration(days: i));
-      final daily = _transactions
-          .where((t) => _sameDay(t.transactionDate, day))
-          .toList();
-      final received = daily.fold<double>(
-        0,
-        (sum, t) => sum + t.amountReceived,
-      );
-      // For each customer, take only their last balance recorded on this day.
-      final latestByCustomer = <String, PaymentTransaction>{};
-      for (final t in daily) {
-        final previous = latestByCustomer[t.customerId];
-        if (previous == null ||
-            t.transactionDate.isAfter(previous.transactionDate)) {
-          latestByCustomer[t.customerId] = t;
+      final received = _transactions
+          .where((t) => !t.isBounced && _sameDay(t.transactionDate, day))
+          .fold<double>(0, (sum, t) => sum + t.actualAmountReceived);
+      final balancesAtEndOfDay = <String, double>{
+        for (final customer in CustomerService.customers)
+          customer.id: customer.openingBalance,
+      };
+      for (final entry in _ledgerEntries) {
+        final entryDate = DateTime.tryParse(
+          entry['transaction_date']?.toString() ?? '',
+        )?.toLocal();
+        if (entryDate == null ||
+            DateTime(
+              entryDate.year,
+              entryDate.month,
+              entryDate.day,
+            ).isAfter(day)) {
+          continue;
+        }
+        final customerId = entry['customer_id']?.toString();
+        if (customerId == null || !balancesAtEndOfDay.containsKey(customerId)) {
+          continue;
+        }
+        final type = entry['entry_type']?.toString().toLowerCase();
+        final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+        if (type == 'purchase' || type == 'sale' || type == 'bounced_check') {
+          balancesAtEndOfDay[customerId] =
+              balancesAtEndOfDay[customerId]! + amount;
+        } else if (type == 'payment' ||
+            type == 'return' ||
+            type == 'sales_return') {
+          balancesAtEndOfDay[customerId] =
+              balancesAtEndOfDay[customerId]! - amount;
         }
       }
-      final pending = latestByCustomer.values.fold<double>(
+      final pending = balancesAtEndOfDay.values.fold<double>(
         0,
-        (sum, t) => sum + math.max(0, t.remainingBalance).toDouble(),
+        (sum, balance) => sum + math.max(0, balance).toDouble(),
       );
       result.add(_DayTotals(day, received, pending));
     }
@@ -238,20 +327,28 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Widget build(BuildContext context) {
     final customers = CustomerService.customers;
     final receivable = TransactionService.getTotalMoneyToReceive(customers);
+    final overdue = _overdueAmount(customers);
     final recentPayments =
-        _transactions.where((t) => t.amountReceived > 0).toList()
-          ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+        _transactions.where((t) => t.actualAmountReceived > 0).toList()..sort(
+          (a, b) => (b.createdAt ?? b.transactionDate).compareTo(
+            a.createdAt ?? a.transactionDate,
+          ),
+        );
     final recent = recentPayments.take(5).toList();
     final locations = _locationDues(customers);
     final days = _chartDays();
     final periodTransactions = _periodTransactions();
     final periodReceived = periodTransactions.fold<double>(
       0,
-      (total, transaction) => total + transaction.amountReceived,
+      (total, transaction) => total + transaction.actualAmountReceived,
     );
-    final periodPurchases = periodTransactions
-        .where((transaction) => transaction.transactionType == 'sale')
-        .fold<double>(0, (total, transaction) => total + transaction.amount);
+    final periodPurchases = _periodLedgerEntries()
+        .where((entry) => entry['entry_type']?.toString() == 'purchase')
+        .fold<double>(
+          0,
+          (total, entry) =>
+              total + ((entry['amount'] as num?)?.toDouble() ?? 0),
+        );
     return Container(
       color: _pageBackground,
       child: LayoutBuilder(
@@ -259,6 +356,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           final wide = constraints.maxWidth >= 900;
           final medium = constraints.maxWidth >= 650;
           final pad = wide ? 24.0 : 16.0;
+          if (!medium) {
+            return _buildMobileDashboard(
+              customers: customers,
+              receivable: receivable,
+              overdue: overdue,
+              recent: recent,
+              locations: locations,
+              days: days,
+              periodReceived: periodReceived,
+              periodPurchases: periodPurchases,
+              paymentCount: periodTransactions.length,
+            );
+          }
           return SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(pad, wide ? 18 : 16, pad, 24),
             child: Column(
@@ -334,6 +444,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                               child: Text('Today'),
                             ),
                             DropdownMenuItem(
+                              value: '7 days',
+                              child: Text('7 days'),
+                            ),
+                            DropdownMenuItem(
+                              value: '30 days',
+                              child: Text('30 days'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Custom',
+                              child: Text('Custom'),
+                            ),
+                            DropdownMenuItem(
                               value: 'This week',
                               child: Text('This week'),
                             ),
@@ -343,7 +465,24 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             ),
                           ],
                           onChanged: (value) {
-                            if (value != null) setState(() => _period = value);
+                            if (value == 'Custom') {
+                              showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
+                                initialDateRange: _customPeriod,
+                              ).then((range) {
+                                if (!mounted || range == null) return;
+                                setState(() {
+                                  _customPeriod = range;
+                                  _period = 'Custom';
+                                });
+                              });
+                            } else if (value != null) {
+                              setState(() => _period = value);
+                            }
                           },
                         ),
                       ),
@@ -353,8 +492,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       clipBehavior: Clip.none,
                       children: [
                         IconButton(
-                          tooltip: 'Refresh dashboard and view payments',
-                          onPressed: _refreshing ? null : _load,
+                          tooltip: 'Notifications',
+                          onPressed: widget.onOpenNotifications,
                           icon: _refreshing
                               ? const SizedBox(
                                   width: 16,
@@ -408,6 +547,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                           child: _OwnerReceivableHero(
                             value: _money(receivable),
                             customers: customers.length,
+                            overdue: _money(overdue),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -454,6 +594,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   _OwnerReceivableHero(
                     value: _money(receivable),
                     customers: customers.length,
+                    overdue: _money(overdue),
                   ),
                   const SizedBox(height: 10),
                   GridView.count(
@@ -582,6 +723,168 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
+  Widget _buildMobileDashboard({
+    required List<Customer> customers,
+    required double receivable,
+    required double overdue,
+    required List<PaymentTransaction> recent,
+    required Map<String, double> locations,
+    required List<_DayTotals> days,
+    required double periodReceived,
+    required double periodPurchases,
+    required int paymentCount,
+  }) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: _green,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _green,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('LedgerPro', style: TextStyle(color: _ink, fontSize: 17, fontWeight: FontWeight.w800)),
+                    Text('Business overview', style: TextStyle(color: _muted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Search customers',
+                onPressed: widget.onOpenCustomers,
+                icon: Icon(Icons.search_rounded, color: _ink),
+              ),
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: widget.onOpenNotifications,
+                icon: Icon(Icons.notifications_none_rounded, color: _ink),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _OwnerReceivableHero(
+            value: _money(receivable),
+            customers: customers.length,
+            overdue: _money(overdue),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _mobileMetric('Collected today', _money(periodReceived), Icons.download_rounded, _green, const Color(0xFFE5F4E8))),
+              const SizedBox(width: 10),
+              Expanded(child: _mobileMetric('New purchases', _money(periodPurchases), Icons.shopping_cart_outlined, _orange, const Color(0xFFFFF0DE))),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('Quick actions', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _mobileAction(Icons.person_add_alt_1_rounded, 'Customer', widget.onAddCustomer),
+              _mobileAction(Icons.payments_outlined, 'Payment', widget.onOpenPayments),
+              _mobileAction(Icons.shopping_cart_outlined, 'Purchase', widget.onRecordPurchase),
+              _mobileAction(Icons.route_rounded, 'Route', widget.onOpenRoute),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _mobileSectionHeader('Payments overview', '$_period · $paymentCount payments'),
+          const SizedBox(height: 8),
+          _panel(child: _paymentsChart(days)),
+          const SizedBox(height: 18),
+          _mobileSectionHeader('Recent payments', 'View all', onTap: widget.onOpenPayments),
+          const SizedBox(height: 8),
+          _panel(child: _recentPayments(recent)),
+          const SizedBox(height: 18),
+          _mobileSectionHeader('Salesman activity', 'View map', onTap: widget.onOpenVisitAudit),
+          const SizedBox(height: 8),
+          _panel(child: _salesmanActivity(_todaySalesmanActivity, customers)),
+          const SizedBox(height: 18),
+          _mobileSectionHeader('Location-wise due', 'View all'),
+          const SizedBox(height: 8),
+          _panel(
+            child: _locationWiseDues(
+              Map<String, double>.fromEntries(locations.entries.take(3)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileMetric(String label, String value, IconData icon, Color color, Color bg) => Container(
+        height: 92,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: _line)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 18),
+          const Spacer(),
+          Text(value, style: TextStyle(color: _ink, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(label, style: TextStyle(color: _muted, fontSize: 11)),
+        ]),
+      );
+
+  Widget _mobileAction(IconData icon, String label, VoidCallback? onTap) => SizedBox(
+        width: 70,
+        child: LedgerProPressable(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Column(children: [
+            Container(width: 44, height: 44, decoration: BoxDecoration(color: _surface, border: Border.all(color: _line), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: _green, size: 20)),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
+
+  Widget _mobileSectionHeader(String title, String action, {VoidCallback? onTap}) => Row(
+        children: [
+          Expanded(child: Text(title, style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w700))),
+          GestureDetector(onTap: onTap, child: Text(action, style: TextStyle(color: _green, fontSize: 11, fontWeight: FontWeight.w700))),
+        ],
+      );
+
+  double _overdueAmount(List<Customer> customers) {
+    final today = DateTime.now();
+    final latestByCustomer = <String, DateTime>{};
+    for (final entry in _ledgerEntries) {
+      final id = entry['customer_id']?.toString();
+      final date = DateTime.tryParse(
+        entry['transaction_date']?.toString() ?? '',
+      )?.toLocal();
+      if (id == null || date == null) continue;
+      final current = latestByCustomer[id];
+      if (current == null || date.isAfter(current)) latestByCustomer[id] = date;
+    }
+    return customers.fold<double>(0, (total, customer) {
+      final balance = TransactionService.getCustomerBalance(customer.id);
+      final last = latestByCustomer[customer.id];
+      final overdue =
+          balance > 0 &&
+          last != null &&
+          DateTime(
+            last.year,
+            last.month,
+            last.day,
+          ).isBefore(DateTime(today.year, today.month, today.day));
+      return total + (overdue ? balance : 0);
+    });
+  }
+
   Widget _panel({required Widget child}) => Container(
     decoration: BoxDecoration(
       color: _surface,
@@ -593,20 +896,26 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   );
 
   Widget _quickAction(IconData icon, String label, VoidCallback? onPressed) {
-    return SizedBox(
-      height: 44,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18, color: _green),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _ink,
-          backgroundColor: _surface,
-          side: BorderSide(color: _line),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return LedgerProPressable(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 44,
+        child: IgnorePointer(
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18, color: _green),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _ink,
+              backgroundColor: _surface,
+              side: BorderSide(color: _line),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
         ),
       ),
     );
@@ -657,7 +966,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _panelHeader(
-          'Payments Overview',
+          'Payments Overview • $_period',
           action: 'View All',
           onAction: widget.onOpenPayments,
         ),
@@ -849,12 +1158,20 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  '+${_money(t.amountReceived)}',
+                  '+${_money(t.actualAmountReceived)}',
                   style: TextStyle(
                     color: _green,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  t.isBounced
+                      ? Icons.error_outline_rounded
+                      : Icons.verified_rounded,
+                  size: 13,
+                  color: t.isBounced ? _red : _green,
                 ),
                 const SizedBox(width: 7),
                 SizedBox(
@@ -898,23 +1215,27 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             final locationSet = routeLocations
                 .map((location) => location.trim().toLowerCase())
                 .toSet();
-            final planned = customers
-                .where(
-                  (customer) => locationSet.contains(
-                    customer.location.trim().toLowerCase(),
-                  ),
-                )
-                .length;
+            final assignedIds = activity.assignedCustomerIds.isNotEmpty
+                ? activity.assignedCustomerIds
+                : customers
+                    .where((customer) => locationSet.contains(
+                          customer.location.trim().toLowerCase(),
+                        ))
+                    .map((customer) => customer.id)
+                    .toSet();
+            final assignedCustomers = customers
+                .where((customer) => assignedIds.contains(customer.id))
+                .toList();
+            final planned = assignedCustomers.length;
             final visited = activity.visitedCustomerCount;
             final todayPayments =
                 _todaySalesmanPayments[activity.salesmanId] ??
                 _SalesmanTodayPayments();
-            final pending = customers
-                .where(
-                  (customer) => locationSet.contains(
-                    customer.location.trim().toLowerCase(),
-                  ),
-                )
+            // Payment activity must be limited to this salesman’s current
+            // assignment. Historical payments from other routes should not
+            // inflate today’s route-level paid indicator.
+            final routePayments = todayPayments.forCustomers(assignedIds);
+            final pending = assignedCustomers
                 .fold<double>(
                   0,
                   (total, customer) =>
@@ -985,13 +1306,46 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'Received today: ${_money(todayPayments.received)}  •  Yet to receive: ${_money(pending)}',
+                          'Received today: ${_money(routePayments.received)}  •  Yet to receive: ${_money(pending)}',
                           style: TextStyle(color: _muted, fontSize: 9),
                         ),
-                        if (todayPayments.paidCustomers.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 4,
+                          children: [
+                            _activityChip(
+                              'Paid ${routePayments.paidCustomers.length}',
+                              _green,
+                            ),
+                            _activityChip(
+                              'Pending ${math.max(0, planned - visited)}',
+                              _orange,
+                            ),
+                            _activityChip(
+                              'Skipped ${math.max(0, planned - visited)}',
+                              _red,
+                            ),
+                          ],
+                        ),
+                        if (planned > visited) ...[
                           const SizedBox(height: 3),
                           Text(
-                            'Paid: ${todayPayments.paidCustomers.join(', ')}',
+                            '${planned - visited} customer${planned - visited == 1 ? '' : 's'} not visited yet',
+                            style: TextStyle(color: _orange, fontSize: 9),
+                          ),
+                        ],
+                        if (visited > 0 && routePayments.received == 0) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Visits recorded with no collection yet',
+                            style: TextStyle(color: _muted, fontSize: 9),
+                          ),
+                        ],
+                        if (routePayments.paidCustomers.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Paid: ${routePayments.paidCustomers.join(', ')}',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(color: _green, fontSize: 9),
@@ -1031,6 +1385,22 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       ],
     );
   }
+
+  Widget _activityChip(String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 8.5,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 
   Widget _locationWiseDues(Map<String, double> locations) {
     final entries = locations.entries.take(4).toList();
@@ -1165,10 +1535,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 }
 
 class _OwnerReceivableHero extends StatelessWidget {
-  const _OwnerReceivableHero({required this.value, required this.customers});
+  const _OwnerReceivableHero({
+    required this.value,
+    required this.customers,
+    required this.overdue,
+  });
 
   final String value;
   final int customers;
+  final String overdue;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1237,6 +1612,15 @@ class _OwnerReceivableHero extends StatelessWidget {
             Text(
               'Across $customers customers',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Overdue: $overdue',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -1335,7 +1719,21 @@ class _MetricColors {
 
 class _SalesmanTodayPayments {
   double received = 0;
+  final Set<String> paymentIds = <String>{};
   final Set<String> paidCustomers = <String>{};
+  final Map<String, double> receivedByCustomer = <String, double>{};
+  final Map<String, String> customerNames = <String, String>{};
+
+  _SalesmanTodayPayments forCustomers(Set<String> customerIds) {
+    final filtered = _SalesmanTodayPayments();
+    for (final id in customerIds) {
+      final amount = receivedByCustomer[id];
+      if (amount != null) filtered.received += amount;
+      final name = customerNames[id];
+      if (name != null) filtered.paidCustomers.add(name);
+    }
+    return filtered;
+  }
 }
 
 class _DayTotals {

@@ -14,7 +14,8 @@ import '../../services/customer_service.dart';
 
 import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
-import '../../services/payment_receipt_service.dart';
+import '../../services/business_date_service.dart';
+import '../../services/duplicate_transaction_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Customer customer;
@@ -65,9 +66,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   bool _isSaving = false;
 
-  bool _sendWhatsAppReceipt = false;
-
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = BusinessDateService.selectedDate.value;
 
   @override
   void initState() {
@@ -364,6 +363,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
+    final possibleDuplicate =
+        await DuplicateTransactionService.findPossibleDuplicate(
+      customerId: widget.customer.id,
+      entryType: 'payment',
+      amount: received,
+      transactionDate: _selectedDate,
+      paymentMethod: _paymentMethod,
+    );
+    if (possibleDuplicate != null && mounted) {
+      final saveAnyway = await _confirmPossibleDuplicate(
+        possibleDuplicate,
+        received,
+      );
+      if (saveAnyway != true) return;
+    }
+
+    if (received >= 50000 || discount > 10000) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Review payment'),
+          content: Text(
+            'Please confirm ${CurrencyFormatter.rupees(received)} will be recorded for ${widget.customer.businessName}.\n\n'
+            'Settlement: ${CurrencyFormatter.rupees(amount)}\n'
+            'Discount: ${CurrencyFormatter.rupees(discount)}\n'
+            'Method: ${_paymentMethodLabel(_paymentMethod)}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Go back'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm and save'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     var methodNote = _paymentMethodNoteController.text.trim();
     if (_splitPayment) {
       final usedMethods = _paymentParts.map((part) => part.method).toSet();
@@ -466,21 +507,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         return;
       }
 
-      var whatsappResult = '';
-      if (_sendWhatsAppReceipt) {
-        try {
-          await PaymentReceiptService.sendWhatsAppReceipt(
-            customerId: widget.customer.id,
-            payment: savedPayment,
-          );
-          whatsappResult = ' WhatsApp receipt sent.';
-        } catch (error) {
-          debugPrint('WhatsApp payment receipt failed: $error');
-          whatsappResult =
-              ' WhatsApp receipt could not be sent. Check the Cloud API setup.';
-        }
-      }
-
       await CustomerService.loadCustomers();
 
       await TransactionService.loadTransactions();
@@ -491,7 +517,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       _showMessage(
         'Payment saved. ${CurrencyFormatter.rupees(received)} received.'
-        '$whatsappResult',
+        ' WhatsApp receipt delivery is queued automatically when enabled.',
       );
 
       Navigator.pop(context, true);
@@ -511,6 +537,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     }
   }
+
+  Future<bool?> _confirmPossibleDuplicate(
+    DuplicateTransactionCandidate candidate,
+    double amount,
+  ) => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Possible duplicate payment'),
+      content: Text(
+        'A payment of ${CurrencyFormatter.rupees(amount)} for this customer was recorded near this time.\n\n'
+        'Existing entry: ${candidate.transactionDate?.toLocal().toString() ?? 'Unknown date'}'
+        '${candidate.paymentMethod == null ? '' : '\nMethod: ${_paymentMethodLabel(candidate.paymentMethod!)}'}',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Go back')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save anyway')),
+      ],
+    ),
+  );
 
   Future<PaymentTransaction?> _savePaymentWithDiscount(
     PaymentTransaction transaction,
@@ -593,6 +638,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
         signature: transaction.signature,
 
         signaturePath: inserted['signature_path'] as String?,
+
+        transactionType: 'payment_received',
       );
 
       TransactionService.transactions.insert(0, savedTransaction);
@@ -835,7 +882,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: Column(
                       children: [
                         Text(
-                          'Current Amount Due',
+                          _currentBalance < 0
+                              ? 'Customer Advance'
+                              : 'Current Amount Due',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -853,7 +902,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 ),
                               )
                             : Text(
-                                '${CurrencyFormatter.rupees(_currentBalance)}',
+                                CurrencyFormatter.rupees(_currentBalance.abs()),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 31,
@@ -1188,25 +1237,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _sendWhatsAppReceipt,
-                    onChanged: _isSaving || !hasCustomerPhone
-                        ? null
-                        : (value) => setState(
-                            () => _sendWhatsAppReceipt = value ?? false,
-                          ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text(
-                      'Send receipt to WhatsApp automatically',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                  if (hasCustomerPhone)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'If WhatsApp receipts are enabled and this customer has opted in, the receipt is queued automatically after saving.',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
-                    subtitle: Text(
-                      hasCustomerPhone
-                          ? 'Requires Cloud API setup. Only select this if the customer agreed to receive WhatsApp messages.'
-                          : 'Add a customer phone number to enable this.',
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,

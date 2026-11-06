@@ -10,6 +10,7 @@ import '../../services/customer_service.dart';
 import '../../models/transaction.dart';
 
 import '../payments/payment_screen.dart';
+import '../../services/business_date_service.dart';
 
 import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
@@ -64,7 +65,10 @@ class _SalesmanCustomerDetailsScreenState
   }
 
   Future<void> _loadSaleHistory() async {
-    final entries = await TransactionService.getCustomerLedger(_customer.id);
+    final entries = await TransactionService.getCustomerLedger(
+      _customer.id,
+      openingBalance: _customer.openingBalance,
+    );
     try {
       final names = await LedgerUserNameService.loadNames(
         entries.map((entry) => entry['user_id']?.toString()),
@@ -253,6 +257,10 @@ class _SalesmanCustomerDetailsScreenState
         ? ''
         : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+    final discount = (entry['discount'] as num?)?.toDouble() ?? 0;
+    final amountReceived = entry['is_bounced'] == true
+        ? 0.0
+        : (entry['amount_received'] as num?)?.toDouble() ?? (amount - discount);
     final isRefusal = type == 'refusal';
     final isReturn = type == 'return' || type == 'sales_return';
     final isSale = type == 'purchase';
@@ -291,7 +299,7 @@ class _SalesmanCustomerDetailsScreenState
         trailing: Text(
           isRefusal
               ? '—'
-              : '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(amount)}',
+              : '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             color: isRefusal ? color : (isSale ? Colors.red : Colors.green),
@@ -322,7 +330,7 @@ class _SalesmanCustomerDetailsScreenState
   Future<void> _recordSalesReturn(double currentBalance) async {
     final amountController = TextEditingController();
     final notesController = TextEditingController();
-    var selectedDate = DateTime.now();
+    var selectedDate = BusinessDateService.selectedDate.value;
     var isSaving = false;
 
     final saved = await showDialog<bool>(
@@ -469,12 +477,9 @@ class _SalesmanCustomerDetailsScreenState
     // handled today so the customer moves from Pending to Visited even when
     // no payment was collected.
     try {
-      final visitPosition =
-          await SalesmanVisitService.captureLocationIfAlreadyAllowed();
       await SalesmanVisitService.recordStatus(
         customerId: _customer.id,
         status: 'paid',
-        capturedPosition: visitPosition,
         note: 'Sales return recorded',
       );
     } catch (error) {
@@ -500,20 +505,31 @@ class _SalesmanCustomerDetailsScreenState
         valueListenable: TransactionService.dataVersion,
 
         builder: (context, _, _) {
-          final balance = TransactionService.getCurrentBalance(
+          final cachedBalance = TransactionService.getCurrentBalance(
             customerId: _customer.id,
 
             openingBalance: _customer.openingBalance,
           );
+          // Customer history is rebuilt chronologically from every visible
+          // sale, payment, and return. Use that final ledger balance for the
+          // amount-due card so it cannot disagree with the history cards or a
+          // stale aggregate balance snapshot.
+          final balance = _ledgerEntries.isNotEmpty
+              ? ((_ledgerEntries.first['balance_after'] as num?)?.toDouble() ??
+                    cachedBalance)
+              : cachedBalance;
 
           final payments = TransactionService.getCustomerTransactions(
             _customer.id,
           );
 
-          final totalPaid = payments.fold(
+          final effectivePayments = payments
+              .where((payment) => !payment.isBounced)
+              .toList(growable: false);
+          final totalPaid = effectivePayments.fold(
             0.0,
 
-            (sum, payment) => sum + payment.amount,
+            (sum, payment) => sum + payment.actualAmountReceived,
           );
 
           return RefreshIndicator(
@@ -750,13 +766,10 @@ class _SalesmanCustomerDetailsScreenState
                               ),
                             );
                             if (paymentSaved == true) {
-                              final visitPosition =
-                                  await SalesmanVisitService.captureLocationIfAlreadyAllowed();
                               try {
                                 await SalesmanVisitService.recordStatus(
                                   customerId: _customer.id,
                                   status: 'paid',
-                                  capturedPosition: visitPosition,
                                 );
                               } catch (error) {
                                 debugPrint(
@@ -878,7 +891,7 @@ class _SalesmanCustomerDetailsScreenState
 
                         title: 'Payments',
 
-                        value: payments.length.toString(),
+                        value: effectivePayments.length.toString(),
                       ),
                     ),
                   ],
@@ -1000,7 +1013,7 @@ class _SalesmanCustomerDetailsScreenState
                                     'Discount: ${CurrencyFormatter.rupees(discount)}',
                                   ),
                                 Text(
-                                  'Balance: ${CurrencyFormatter.rupees(balanceBefore)} → ${CurrencyFormatter.rupees(balanceAfter)}',
+                                  'Balance: ${CurrencyFormatter.balanceAfter(balanceBefore)} → ${CurrencyFormatter.balanceAfter(balanceAfter)}',
                                 ),
                                 Text('Recorded by: $recordedBy'),
                                 if (notes.isNotEmpty) ...[
@@ -1114,9 +1127,19 @@ class _SalesmanCustomerDetailsScreenState
                       ),
                     )
                   else
-                    ...payments.map(
-                      (payment) => _PaymentCard(transaction: payment),
-                    ),
+                    ...payments.map((payment) {
+                      final ledgerEntry = _ledgerEntries.firstWhere(
+                        (entry) => entry['id']?.toString() == payment.id,
+                        orElse: () => <String, dynamic>{},
+                      );
+                      return _PaymentCard(
+                        transaction: payment,
+                        previousBalanceOverride:
+                            (ledgerEntry['balance_before'] as num?)?.toDouble(),
+                        remainingBalanceOverride:
+                            (ledgerEntry['balance_after'] as num?)?.toDouble(),
+                      );
+                    }),
                 ],
 
                 if (_historyFilter == 'Payment Refused') ...[
@@ -1261,7 +1284,7 @@ class _SalesmanCustomerDetailsScreenState
                                 'Returned amount: ${CurrencyFormatter.rupees(amount)}',
                               ),
                               Text(
-                                'Balance: ${CurrencyFormatter.rupees(balanceBefore)} → ${CurrencyFormatter.rupees(balanceAfter)}',
+                                'Balance: ${CurrencyFormatter.balanceAfter(balanceBefore)} → ${CurrencyFormatter.balanceAfter(balanceAfter)}',
                               ),
                               Text('Recorded by: ${_recordedBy(entry)}'),
                               if (notes.isNotEmpty) ...[
@@ -1622,8 +1645,14 @@ class _InfoCard extends StatelessWidget {
 
 class _PaymentCard extends StatefulWidget {
   final PaymentTransaction transaction;
+  final double? previousBalanceOverride;
+  final double? remainingBalanceOverride;
 
-  const _PaymentCard({required this.transaction});
+  const _PaymentCard({
+    required this.transaction,
+    this.previousBalanceOverride,
+    this.remainingBalanceOverride,
+  });
 
   @override
   State<_PaymentCard> createState() => _PaymentCardState();
@@ -1673,6 +1702,10 @@ class _PaymentCardState extends State<_PaymentCard> {
   @override
   Widget build(BuildContext context) {
     final payment = widget.transaction;
+    final previousBalance =
+        widget.previousBalanceOverride ?? payment.previousBalance;
+    final remainingBalance =
+        widget.remainingBalanceOverride ?? payment.remainingBalance;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1689,7 +1722,7 @@ class _PaymentCardState extends State<_PaymentCard> {
         ),
 
         title: Text(
-          '+ ${CurrencyFormatter.rupees(payment.amount)}',
+          '+ ${CurrencyFormatter.rupees(payment.actualAmountReceived)}',
 
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
@@ -1723,7 +1756,7 @@ class _PaymentCardState extends State<_PaymentCard> {
                 child: _BalanceItem(
                   label: 'Previous',
 
-                  value: CurrencyFormatter.rupees(payment.previousBalance),
+                  value: CurrencyFormatter.rupees(previousBalance),
                 ),
               ),
 
@@ -1731,7 +1764,7 @@ class _PaymentCardState extends State<_PaymentCard> {
                 child: _BalanceItem(
                   label: 'Remaining',
 
-                  value: CurrencyFormatter.rupees(payment.remainingBalance),
+                  value: CurrencyFormatter.balanceAfter(remainingBalance),
                 ),
               ),
             ],
@@ -1742,6 +1775,29 @@ class _PaymentCardState extends State<_PaymentCard> {
           _BalanceItem(
             label: 'Payment method',
             value: _displayPaymentMethod(payment.paymentMethod),
+          ),
+
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: _BalanceItem(
+                  label: 'Reference',
+                  value: payment.reference,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.cloud_done_outlined,
+                size: 18,
+                color: Colors.green,
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'Server confirmed',
+                style: TextStyle(color: Colors.green, fontSize: 12),
+              ),
+            ],
           ),
 
           if (payment.paymentMethodNote.trim().isNotEmpty) ...[

@@ -247,8 +247,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           customer.phone.contains(query);
       final status = todaysCustomerStatuses[customer.id];
       final matchesStatus = switch (customerStatusFilter) {
-        'Pending' => status == null,
-        'Visited' => status != null,
+        'Pending' => !_isVisitCompleted(status),
+        'Visited' => _isVisitCompleted(status),
         _ => true,
       };
       return matchesSearch && matchesStatus;
@@ -259,8 +259,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     return routeCustomers.where((customer) {
       final status = todaysCustomerStatuses[customer.id];
       return switch (filter) {
-        'Pending' => status == null,
-        'Visited' => status != null,
+        'Pending' => !_isVisitCompleted(status),
+        'Visited' => _isVisitCompleted(status),
         _ => true,
       };
     }).length;
@@ -272,6 +272,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     if (status == 'rejected') return 'Refused today';
     return 'Pending';
   }
+
+  bool _isVisitCompleted(String? status) =>
+      status == 'paid' || status == 'rejected';
 
   double _pendingCollection(List<Customer> customers) {
     return customers.fold<double>(0, (total, customer) {
@@ -385,15 +388,21 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     );
 
     if (result == true) {
-      final position =
-          await SalesmanVisitService.captureLocationIfAlreadyAllowed();
       try {
-        await SalesmanVisitService.recordStatus(
+        final locationSaved = await SalesmanVisitService.recordStatus(
           customerId: customer.id,
           status: 'paid',
-          capturedPosition: position,
         );
         todaysCustomerStatuses[customer.id] = 'paid';
+        if (!locationSaved && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Payment saved. Turn on location and allow access to add this customer to the map.',
+              ),
+            ),
+          );
+        }
       } catch (error) {
         debugPrint('Could not record payment visit status: $error');
       }
@@ -427,10 +436,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
   Future<void> _showPaymentQr() async {
     List<String> upiIds = <String>[];
+    var netBankingQr = '';
     try {
       final row = await supabase
           .from('payment_settings')
-          .select('upi_id')
+          .select('upi_id, net_banking_qr')
           .eq('id', 1)
           .maybeSingle();
       upiIds = (row?['upi_id']?.toString() ?? '')
@@ -438,9 +448,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           .map((value) => value.trim())
           .where((value) => value.isNotEmpty)
           .toList();
+      netBankingQr = row?['net_banking_qr']?.toString().trim() ?? '';
     } catch (_) {}
     if (!mounted) return;
-    if (upiIds.isEmpty) {
+    if (upiIds.isEmpty && netBankingQr.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -450,27 +461,43 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       );
       return;
     }
-    var upi = upiIds.first;
-    if (upiIds.length > 1) {
+    var upi = upiIds.isEmpty ? '' : upiIds.first;
+    var payload = upi.isEmpty
+        ? netBankingQr
+        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
+    var qrLabel = upi.isEmpty ? 'Net banking' : upi;
+    if (upiIds.length > 1 || (upiIds.isNotEmpty && netBankingQr.isNotEmpty)) {
       final selected = await showDialog<String>(
         context: context,
         builder: (dialogContext) => SimpleDialog(
           title: const Text('Choose payment account'),
-          children: upiIds
-              .map(
-                (id) => SimpleDialogOption(
-                  onPressed: () => Navigator.pop(dialogContext, id),
-                  child: Text(id),
-                ),
-              )
-              .toList(),
+          children: [
+            ...upiIds.map(
+              (id) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(dialogContext, id),
+                child: Text(id),
+              ),
+            ),
+            if (netBankingQr.isNotEmpty)
+              SimpleDialogOption(
+                onPressed: () =>
+                    Navigator.pop(dialogContext, '__net_banking__'),
+                child: const Text('Net banking'),
+              ),
+          ],
         ),
       );
       if (selected == null) return;
-      upi = selected;
+      if (selected == '__net_banking__') {
+        payload = netBankingQr;
+        qrLabel = 'Net banking';
+      } else {
+        upi = selected;
+        payload =
+            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
+        qrLabel = upi;
+      }
     }
-    final payload =
-        'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -495,7 +522,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(upi, style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(qrLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
           ],
         ),
         actions: [
@@ -568,6 +595,15 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         .length;
     final collectedToday = TransactionService.getCollectedToday();
     final pendingCollection = _pendingCollection(route);
+    final recentPayments = TransactionService.transactions
+        .where(
+          (transaction) =>
+              transaction.transactionType == 'payment_received' &&
+              !transaction.isBounced &&
+              transaction.actualAmountReceived > 0,
+        )
+        .take(4)
+        .toList(growable: false);
     final routeLabel = selectedRouteLocations.isEmpty
         ? 'No route assigned'
         : selectedRouteName ?? 'Route name unavailable';
@@ -797,7 +833,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               ),
             ],
           ),
-          if (TransactionService.transactions.isEmpty)
+          if (recentPayments.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Center(
@@ -811,16 +847,14 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               ),
             )
           else
-            ...TransactionService.transactions
-                .take(4)
-                .map(
-                  (transaction) => _PaymentPreviewCard(
-                    customerName: transaction.customerName,
-                    amount: transaction.amount,
-                    date: _formatDate(transaction.transactionDate),
-                    onTap: _openPayments,
-                  ),
-                ),
+            ...recentPayments.map(
+              (transaction) => _PaymentPreviewCard(
+                customerName: transaction.customerName,
+                amount: transaction.actualAmountReceived,
+                date: _formatDate(transaction.transactionDate),
+                onTap: _openPayments,
+              ),
+            ),
         ],
       ),
     );
@@ -1582,7 +1616,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                     const SizedBox(height: 3),
 
                     Text(
-                      'Salesman account',
+                      'Marketing Executive account',
 
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1734,13 +1768,13 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   String _getGreeting() {
-    final hour = DateTime.now().hour;
+    final hour = DateTime.now().toLocal().hour;
 
     if (hour < 12) {
       return 'Good morning';
     }
 
-    if (hour < 17) {
+    if (hour < 18) {
       return 'Good afternoon';
     }
 
@@ -1963,45 +1997,50 @@ class _SalesmanStatusCard extends StatelessWidget {
     final displayColor = isDark
         ? Color.lerp(color, Colors.white, 0.32)!
         : color;
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: isDark ? colors.surfaceContainerHigh : background,
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        height: 68,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark ? colors.surfaceContainerHigh : background,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 17,
-                    height: 1,
-                    color: displayColor,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 17,
+                      height: 1,
+                      color: displayColor,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(icon, color: displayColor, size: 21),
-        ],
+            Icon(icon, color: displayColor, size: 21),
+          ],
+        ),
       ),
     );
   }
@@ -2703,65 +2742,68 @@ class _PaymentPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 9),
-
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Material(
         color: Theme.of(context).colorScheme.surface,
-
         borderRadius: BorderRadius.circular(16),
-
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-      ),
-
-      child: ListTile(
-        onTap: onTap,
-
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-
-            borderRadius: BorderRadius.circular(12),
-          ),
-
-          child: Icon(
-            Icons.payments_outlined,
-
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
+        child: ListTile(
+          onTap: onTap,
 
-        title: Text(
-          customerName,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 4,
+          ),
 
-          maxLines: 1,
+          leading: Container(
+            padding: const EdgeInsets.all(10),
 
-          overflow: TextOverflow.ellipsis,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
 
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+              borderRadius: BorderRadius.circular(12),
+            ),
 
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 3),
+            child: Icon(
+              Icons.payments_outlined,
 
-          child: Text(date),
-        ),
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
 
-        trailing: Text(
-          '+ ₹${amount.toStringAsFixed(2)}',
+          title: Text(
+            customerName,
 
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
+            maxLines: 1,
 
-            color: Colors.green.shade700,
+            overflow: TextOverflow.ellipsis,
+
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+
+            child: Text(date),
+          ),
+
+          trailing: Text(
+            '+ ₹${amount.toStringAsFixed(2)}',
+
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+
+              color: Colors.green.shade700,
+            ),
           ),
         ),
       ),

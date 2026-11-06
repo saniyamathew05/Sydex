@@ -23,6 +23,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
 
   bool _allowPaymentNotes = true;
   final _upiController = TextEditingController();
+  final _netBankingQrController = TextEditingController();
   String? _companyId;
 
   @override
@@ -53,6 +54,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
 
           _allowPaymentNotes = response['allow_payment_notes'] ?? true;
           _upiController.text = response['upi_id'] ?? '';
+          _netBankingQrController.text = response['net_banking_qr'] ?? '';
         });
       }
     } catch (error) {
@@ -71,6 +73,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
   @override
   void dispose() {
     _upiController.dispose();
+    _netBankingQrController.dispose();
     super.dispose();
   }
 
@@ -90,6 +93,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
         'require_signature': _requireSignature,
         'allow_payment_notes': _allowPaymentNotes,
         'upi_id': _upiController.text.trim(),
+        'net_banking_qr': _netBankingQrController.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
       };
       // Update first so saving an existing company row does not depend on an
@@ -114,7 +118,8 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     } catch (error) {
       debugPrint('Could not save payment settings: $error');
       if (mounted) {
-        final detail = error.toString().toLowerCase().contains('row-level') ||
+        final detail =
+            error.toString().toLowerCase().contains('row-level') ||
                 error.toString().contains('42501')
             ? ' Check that this account is an owner in the linked business.'
             : '';
@@ -133,10 +138,9 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     if (_supabase.auth.currentUser == null) {
       throw StateError('Please sign in again.');
     }
-    final role = (await _supabase.rpc('get_my_role'))
-        .toString()
-        .trim()
-        .toLowerCase();
+    final role = (await _supabase.rpc(
+      'get_my_role',
+    )).toString().trim().toLowerCase();
     if (role != 'owner') {
       throw StateError('Only a business owner can change payment settings.');
     }
@@ -180,6 +184,23 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                       labelText: 'Business UPI ID',
                       hintText: 'yourbusiness@upi',
                       prefixIcon: Icon(Icons.alternate_email_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _PaymentSettingCard(
+                  icon: Icons.account_balance_outlined,
+                  title: 'Net banking QR',
+                  subtitle:
+                      'Paste the secure bank payment link or QR payload for the marketing executive to display.',
+                  child: TextField(
+                    controller: _netBankingQrController,
+                    maxLines: 2,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Net banking QR link or payload',
+                      hintText: 'https://bank.example/pay/…',
+                      prefixIcon: Icon(Icons.link_rounded),
                     ),
                   ),
                 ),

@@ -178,9 +178,7 @@ class PaymentReceiptService {
       y += 56;
     }
 
-    final received = payment.amountReceived > 0
-        ? payment.amountReceived
-        : payment.amount - payment.discount;
+    final received = payment.actualAmountReceived;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(64, y, 712, 100),
