@@ -1386,6 +1386,17 @@ class _LoginScreenState extends State<LoginScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _goBack() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -1514,6 +1525,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Row(
                     children: [
+                      IconButton(
+                        tooltip: 'Back',
+                        onPressed: isLoading ? null : _goBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const SizedBox(width: 4),
                       Container(
                         width: 36,
                         height: 36,
