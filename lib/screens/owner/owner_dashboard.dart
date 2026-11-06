@@ -261,20 +261,12 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   List<_DayTotals> _chartDays() {
     final now = DateTime.now();
-    final count = switch (_period) {
-      'Today' => 1,
-      '7 days' => 7,
-      '30 days' => 30,
-      'Custom' => _selectedRange().duration.inDays.clamp(1, 31).toInt(),
-      'This week' => 7,
-      'This month' => DateTime(now.year, now.month + 1, 0).day,
-      _ => 7,
-    };
-    final start = _period == 'Custom'
-        ? _selectedRange().start
-        : DateTime(now.year, now.month, now.day).subtract(
-            Duration(days: _period == 'This month' ? now.day - 1 : count - 1),
-          );
+    // The overview always gives a clear month-to-date picture.  The page
+    // period remains available for the summary cards and transaction lists.
+    // Future days are intentionally excluded so a row of zeroes is not read
+    // as a projection or a missing collection.
+    final count = now.day;
+    final start = DateTime(now.year, now.month);
     final result = <_DayTotals>[];
     for (var i = 0; i < count; i++) {
       final day = start.add(Duration(days: i));
@@ -1105,7 +1097,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Collections by day • $_period',
+          'Daily collections • ${days.isEmpty ? '' : '${_month(days.first.date.month)} ${days.first.date.year}'}',
           style: TextStyle(color: _muted, fontSize: 10),
         ),
         const SizedBox(height: 14),
@@ -1132,7 +1124,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 150,
+          height: 176,
           child: hasCollections
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1166,47 +1158,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       child: Column(
                         children: [
                           Expanded(
-                            child: CustomPaint(
-                              painter: _GridPainter(),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: List.generate(days.length, (index) {
-                                  final day = days[index];
-                                  final height = (day.received / maxReceived)
-                                      .clamp(0.035, 1.0)
-                                      .toDouble();
-                                  return Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: days.length > 14 ? 2 : 4,
-                                      ),
-                                      child: Tooltip(
-                                        message:
-                                            '${day.date.day} ${_month(day.date.month)}: ${_money(day.received)} collected',
-                                        child: Align(
-                                          alignment: Alignment.bottomCenter,
-                                          child: FractionallySizedBox(
-                                            heightFactor: height,
-                                            widthFactor: .72,
-                                            alignment: Alignment.bottomCenter,
-                                            child: AnimatedContainer(
-                                              duration: const Duration(
-                                                milliseconds: 220,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: _green,
-                                                borderRadius:
-                                                    const BorderRadius.vertical(
-                                                      top: Radius.circular(5),
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }),
+                            child: RepaintBoundary(
+                              child: CustomPaint(
+                                painter: _DailyCollectionLinePainter(
+                                  values: days
+                                      .map((day) => day.received)
+                                      .toList(growable: false),
+                                  lineColor: _green,
+                                  gridColor: _line,
+                                ),
                               ),
                             ),
                           ),
@@ -1220,7 +1180,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                   child: Center(
                                     child: Text(
                                       labelIndexes.contains(index)
-                                          ? '${days[index].date.day} ${_month(days[index].date.month)}'
+                                          ? days[index].date.day.toString()
                                           : '',
                                       maxLines: 1,
                                       style: TextStyle(
@@ -1924,18 +1884,77 @@ class _DayTotals {
   final double pending;
 }
 
-class _GridPainter extends CustomPainter {
+class _DailyCollectionLinePainter extends CustomPainter {
+  const _DailyCollectionLinePainter({
+    required this.values,
+    required this.lineColor,
+    required this.gridColor,
+  });
+
+  final List<double> values;
+  final Color lineColor;
+  final Color gridColor;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFEEF0F8)
+    if (values.isEmpty || size.isEmpty) return;
+    final gridPaint = Paint()
+      ..color = gridColor.withValues(alpha: .65)
       ..strokeWidth = 1;
     for (var i = 0; i < 4; i++) {
       final y = size.height * i / 3;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final maxValue = values.fold<double>(1, math.max);
+    final step = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    final points = List<Offset>.generate(values.length, (index) {
+      final progress = (values[index] / maxValue).clamp(0.0, 1.0);
+      return Offset(index * step, size.height - progress * size.height);
+    });
+    final linePath = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var index = 1; index < points.length; index++) {
+      final previous = points[index - 1];
+      final point = points[index];
+      final midpoint = (previous.dx + point.dx) / 2;
+      linePath.cubicTo(
+        midpoint,
+        previous.dy,
+        midpoint,
+        point.dy,
+        point.dx,
+        point.dy,
+      );
+    }
+
+    final fillPath = Path.from(linePath)
+      ..lineTo(points.last.dx, size.height)
+      ..lineTo(points.first.dx, size.height)
+      ..close();
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..color = lineColor.withValues(alpha: .12)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    final dotPaint = Paint()..color = lineColor;
+    for (final point in points) {
+      canvas.drawCircle(point, 2.5, dotPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DailyCollectionLinePainter oldDelegate) =>
+      oldDelegate.values != values ||
+      oldDelegate.lineColor != lineColor ||
+      oldDelegate.gridColor != gridColor;
 }
