@@ -191,49 +191,50 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       }
       final payments = response;
 
-      // Include refused visits as red, zero-amount payment-history events.
-      if (_assignedCustomerIds.isNotEmpty) {
-        try {
-          final refusals = await _supabase
-              .from('salesman_customer_daily_status')
-              .select(
-                'id, customer_id, status_date, created_at, note, entered_by',
-              )
-              .eq('status', 'rejected')
-              .inFilter('customer_id', _assignedCustomerIds.toList());
-          final customerById = {
-            for (final customer in CustomerService.customers)
-              customer.id: customer,
-          };
-          payments.addAll(
-            (refusals as List).map((row) {
-              final customer = customerById[row['customer_id']?.toString()];
-              return <String, dynamic>{
-                'id': 'refusal-${row['id']}',
-                'entry_type': 'refusal',
-                'customer_id': row['customer_id'],
-                'transaction_date':
-                    row['created_at']?.toString() ??
-                    '${row['status_date']}T00:00:00',
-                'created_at': row['created_at'] ?? row['status_date'],
-                'amount': 0,
-                'amount_received': 0,
-                'payment_method': 'refused',
-                'payment_method_note': row['note']?.toString() ?? '',
-                'notes': row['note']?.toString() ?? 'Customer refused payment',
-                'user_id': row['entered_by'],
-                'customers': customer == null
-                    ? null
-                    : {
-                        'business_name': customer.businessName,
-                        'location': customer.location,
-                      },
-              };
-            }),
-          );
-        } catch (error) {
-          debugPrint('Could not load refused payment history: $error');
-        }
+      // Include every team refusal as a red, zero-amount history event. This
+      // intentionally is not limited to today's assigned route: the selected
+      // date filter is a team history filter and must show every refusal made
+      // on that date.
+      try {
+        final refusals = await _supabase
+            .from('salesman_customer_daily_status')
+            .select(
+              'id, customer_id, status_date, created_at, note, entered_by',
+            )
+            .eq('status', 'rejected');
+        final customerById = {
+          for (final customer in CustomerService.customers)
+            customer.id: customer,
+        };
+        payments.addAll(
+          (refusals as List).map((row) {
+            final customer = customerById[row['customer_id']?.toString()];
+            return <String, dynamic>{
+              'id': 'refusal-${row['id']}',
+              'entry_type': 'refusal',
+              'customer_id': row['customer_id'],
+              // Status date is the business date chosen by the executive.
+              // Use it instead of created_at so date filtering remains exact
+              // for late syncs and entries saved around midnight.
+              'transaction_date': '${row['status_date']}T12:00:00',
+              'created_at': row['created_at'] ?? row['status_date'],
+              'amount': 0,
+              'amount_received': 0,
+              'payment_method': 'refused',
+              'payment_method_note': row['note']?.toString() ?? '',
+              'notes': row['note']?.toString() ?? 'Customer refused payment',
+              'user_id': row['entered_by'],
+              'customers': customer == null
+                  ? null
+                  : {
+                      'business_name': customer.businessName,
+                      'location': customer.location,
+                    },
+            };
+          }),
+        );
+      } catch (error) {
+        debugPrint('Could not load refused payment history: $error');
       }
 
       // Resolve only the receiver names needed for these visible payment rows.
