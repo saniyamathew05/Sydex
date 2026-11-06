@@ -727,6 +727,140 @@ class _OwnerRouteManagementScreenState
     );
   }
 
+  Future<void> _selectRouteLocations() async {
+    final eligible = CustomerService.customers
+        .where(
+          (customer) =>
+              TransactionService.getCustomerBalance(customer.id) > 0 &&
+              customer.location.trim().isNotEmpty,
+        )
+        .toList();
+    final customersByLocation = <String, List<Customer>>{};
+    for (final customer in eligible) {
+      final location = customer.location.trim();
+      customersByLocation.putIfAbsent(location, () => []).add(customer);
+    }
+    final locations = customersByLocation.keys.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final initiallySelected = _locationsForSelectedCustomers()
+        .map((location) => location.toLowerCase())
+        .toSet();
+    final selectedLocations = <String>{
+      for (final location in locations)
+        if (initiallySelected.contains(location.toLowerCase())) location,
+    };
+    var searchQuery = '';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final query = searchQuery.trim().toLowerCase();
+          final filteredLocations = locations
+              .where((location) => location.toLowerCase().contains(query))
+              .toList();
+          return AlertDialog(
+            title: Text(
+              selectedLocations.isEmpty
+                  ? 'Choose route locations'
+                  : '${selectedLocations.length} locations selected',
+            ),
+            insetPadding: const EdgeInsets.all(16),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 560,
+                maxHeight: MediaQuery.sizeOf(context).height * .62,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'All customers with a pending balance in the selected locations will be added to this route.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Search locations',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => searchQuery = value),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: locations.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No customer locations with pending balances found.',
+                            ),
+                          )
+                        : filteredLocations.isEmpty
+                        ? const Center(
+                            child: Text('No matching locations found.'),
+                          )
+                        : ListView.builder(
+                            itemCount: filteredLocations.length,
+                            itemBuilder: (context, index) {
+                              final location = filteredLocations[index];
+                              final count =
+                                  customersByLocation[location]!.length;
+                              return CheckboxListTile(
+                                value: selectedLocations.contains(location),
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(location),
+                                subtitle: Text(
+                                  '$count customer${count == 1 ? '' : 's'} with a pending balance',
+                                ),
+                                onChanged: (checked) => setDialogState(() {
+                                  if (checked == true) {
+                                    selectedLocations.add(location);
+                                  } else {
+                                    selectedLocations.remove(location);
+                                  }
+                                }),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: selectedLocations.isEmpty
+                    ? null
+                    : () => setDialogState(selectedLocations.clear),
+                child: const Text('Clear'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final selectedIds = <String>{
+                    for (final location in selectedLocations)
+                      ...customersByLocation[location]!.map(
+                        (customer) => customer.id,
+                      ),
+                  };
+                  setState(() => _selectedCustomerIds = selectedIds);
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Use locations'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _assignForToday() async {
     final route = _selectedRoute;
     final salesmanIds = _selectedSalesmanIds.toList();
@@ -1701,18 +1835,28 @@ class _OwnerRouteManagementScreenState
                                 : '${_selectedCustomerIds.length} customers selected',
                           ),
                           subtitle: const Text(
-                            'Customers with a pending balance are available to select.',
+                            'Choose individual customers or add every customer in selected locations.',
                           ),
-                          trailing: OutlinedButton(
-                            onPressed: _selectedRoute == null
-                                ? null
-                                : _selectRouteCustomers,
-                            child: Text(
-                              _selectedCustomerIds.isEmpty
-                                  ? 'Choose'
-                                  : 'Change',
+                        ),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _selectedRoute == null
+                                  ? null
+                                  : _selectRouteCustomers,
+                              icon: const Icon(Icons.people_alt_outlined),
+                              label: const Text('Choose customers'),
                             ),
-                          ),
+                            OutlinedButton.icon(
+                              onPressed: _selectedRoute == null
+                                  ? null
+                                  : _selectRouteLocations,
+                              icon: const Icon(Icons.location_on_outlined),
+                              label: const Text('Select by location'),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         Wrap(
