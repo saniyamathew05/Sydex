@@ -507,7 +507,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     var upi = upiIds.isEmpty ? '' : upiIds.first;
     var payload = upi.isEmpty
         ? netBankingQr
-        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('LedgerPro')}';
+        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Horizon')}';
     var qrLabel = upi.isEmpty ? 'Net banking' : upi;
     if (upiIds.length > 1 || (upiIds.isNotEmpty && netBankingQr.isNotEmpty)) {
       final selected = await showDialog<String>(
@@ -537,7 +537,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       } else {
         upi = selected;
         payload =
-            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('LedgerPro')}';
+            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Horizon')}';
         qrLabel = upi;
       }
     }
@@ -583,7 +583,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             ],
             const SizedBox(height: 6),
             Text(
-              'Confirm the payment before recording it in LedgerPro.',
+              'Confirm the payment before recording it in Horizon.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -1722,13 +1722,13 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
                 title: 'About',
 
-                subtitle: 'Business Payment App',
+                subtitle: 'Horizon',
 
                 onTap: () {
                   showAboutDialog(
                     context: context,
 
-                    applicationName: 'Business Payment App',
+                    applicationName: 'Horizon',
 
                     applicationVersion: '1.0.0',
 
@@ -1794,7 +1794,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
         Center(
           child: Text(
-            'Business Payment App',
+            'Horizon',
 
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1917,7 +1917,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       _buildMoreTab(),
     ];
     final titles = [
-      'LedgerPro',
+      'Horizon',
       "Today's Customers",
       'Payments Received',
       'More',
@@ -1955,7 +1955,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'LedgerPro',
+                            'Horizon',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,

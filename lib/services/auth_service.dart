@@ -3,9 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  static const _oauthAttemptKey = 'ledgerpro_google_oauth_attempt_at';
-  static const _nativeOAuthRedirectUri =
-      'io.ledgerpro.ledgerpro://login-callback';
+  static const _oauthAttemptKey = 'horizon_google_oauth_attempt_at';
+  static const _nativeOAuthRedirectUri = 'io.horizon.app://login-callback';
   static const _oauthAttemptLifetime = Duration(minutes: 10);
 
   static final SupabaseClient _supabase = Supabase.instance.client;

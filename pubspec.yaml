@@ -1,5 +1,5 @@
-name: business_payment_app
-description: "A new Flutter project."
+name: horizon
+description: "Horizon business ledger and payment collection app."
 publish_to: 'none'
 version: 1.0.0+1
 

@@ -8,8 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeController {
   ThemeController._();
 
-  static const String _preferenceKey = 'ledgerpro_theme_mode';
-  static const String _accentPreferenceKey = 'ledgerpro_accent_color';
+  static const String _preferenceKey = 'horizon_theme_mode';
+  static const String _accentPreferenceKey = 'horizon_accent_color';
+  static const String _legacyPreferenceKey = 'ledgerpro_theme_mode';
+  static const String _legacyAccentPreferenceKey = 'ledgerpro_accent_color';
 
   static const Map<String, Color> accentChoices = <String, Color>{
     'Forest': Color(0xFF075C42),
@@ -30,7 +32,9 @@ class ThemeController {
 
   static Future<void> loadTheme() async {
     final preferences = await SharedPreferences.getInstance();
-    final saved = preferences.getString(_preferenceKey);
+    final saved =
+        preferences.getString(_preferenceKey) ??
+        preferences.getString(_legacyPreferenceKey);
 
     themeMode.value = switch (saved) {
       'light' => ThemeMode.light,
@@ -39,8 +43,16 @@ class ThemeController {
       // Do not force Light mode on first launch. Follow the device instead.
       _ => ThemeMode.system,
     };
-    final savedAccent = preferences.getString(_accentPreferenceKey);
+    final savedAccent =
+        preferences.getString(_accentPreferenceKey) ??
+        preferences.getString(_legacyAccentPreferenceKey);
     accentColor.value = accentChoices[savedAccent] ?? accentChoices['Forest']!;
+    if (saved != null) {
+      await preferences.setString(_preferenceKey, saved);
+    }
+    if (savedAccent != null) {
+      await preferences.setString(_accentPreferenceKey, savedAccent);
+    }
   }
 
   static Future<void> setThemeMode(ThemeMode mode) async {

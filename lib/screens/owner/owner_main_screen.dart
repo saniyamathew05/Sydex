@@ -336,7 +336,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: Row(
                 children: [
-                  _LedgerProDesktopSidebar(
+                  _HorizonDesktopSidebar(
                     userName: widget.userName,
                     selectedIndex: _selectedIndex,
                     onSelected: (index) =>
@@ -403,8 +403,8 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   }
 }
 
-// Responsive desktop navigation, inspired by the supplied LedgerPro reference.
-class _LedgerProDesktopSidebar extends StatelessWidget {
+// Responsive desktop navigation, inspired by the supplied Horizon reference.
+class _HorizonDesktopSidebar extends StatelessWidget {
   final String userName;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -413,7 +413,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
   final VoidCallback onSalesmen;
   final VoidCallback onRouteMap;
 
-  const _LedgerProDesktopSidebar({
+  const _HorizonDesktopSidebar({
     required this.userName,
     required this.selectedIndex,
     required this.onSelected,
@@ -463,7 +463,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'LedgerPro',
+                        'Horizon',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,

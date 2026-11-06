@@ -13,7 +13,7 @@ import 'services/theme_controller.dart';
 
 import 'services/auth_service.dart';
 import 'services/business_date_service.dart';
-import 'theme/ledgerpro_tokens.dart';
+import 'theme/horizon_tokens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,7 +115,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         builder: (context, accent, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
 
-          title: 'LedgerPro',
+          title: 'Horizon',
 
           themeMode: themeMode,
 
@@ -143,15 +143,15 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
     );
     final onPrimaryContainer = Color.lerp(primary, Colors.black, .32)!;
 
-    const background = LedgerProTokens.background;
+    const background = HorizonTokens.background;
 
     const surface = Color(0xFFFFFFFF);
 
-    const border = LedgerProTokens.border;
+    const border = HorizonTokens.border;
 
-    const textPrimary = LedgerProTokens.text;
+    const textPrimary = HorizonTokens.text;
 
-    const textSecondary = LedgerProTokens.muted;
+    const textSecondary = HorizonTokens.muted;
 
     final colorScheme = ColorScheme.light(
       primary: primary,
@@ -206,7 +206,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       colorScheme: colorScheme,
 
-      textTheme: LedgerProTokens.textTheme(
+      textTheme: HorizonTokens.textTheme(
         ThemeData.light().textTheme,
       ).apply(bodyColor: textPrimary, displayColor: textPrimary),
 
@@ -275,7 +275,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         surfaceTintColor: Colors.transparent,
 
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusCard),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusCard),
 
           side: const BorderSide(color: border),
         ),
@@ -295,31 +295,31 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
 
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: BorderSide(color: primary, width: 2),
         ),
 
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFDC2626)),
         ),
 
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
         ),
@@ -350,7 +350,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -368,7 +368,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           side: const BorderSide(color: border),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -480,9 +480,9 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
     final secondary = Color.lerp(accent, Colors.white, .25)!;
 
-    const background = LedgerProTokens.navy;
+    const background = HorizonTokens.navy;
 
-    const surface = LedgerProTokens.navySoft;
+    const surface = HorizonTokens.navySoft;
 
     final primaryContainer = Color.alphaBlend(
       accent.withValues(alpha: .34),
@@ -548,7 +548,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       colorScheme: colorScheme,
 
-      textTheme: LedgerProTokens.textTheme(
+      textTheme: HorizonTokens.textTheme(
         ThemeData.dark().textTheme,
       ).apply(bodyColor: textPrimary, displayColor: textPrimary),
 
@@ -617,7 +617,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         surfaceTintColor: Colors.transparent,
 
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusCard),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusCard),
 
           side: const BorderSide(color: border),
         ),
@@ -637,31 +637,31 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         ),
 
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: border),
         ),
 
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: BorderSide(color: primary, width: 2),
         ),
 
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFF87171)),
         ),
 
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
 
           borderSide: const BorderSide(color: Color(0xFFF87171), width: 2),
         ),
@@ -692,7 +692,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LedgerProTokens.radiusSmall),
+            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
           ),
 
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
@@ -1035,7 +1035,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             const Text(
-              'LedgerPro',
+              'Horizon',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 22,
@@ -2175,7 +2175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'LedgerPro',
+                        'Horizon',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -2391,7 +2391,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                           ),
                           SizedBox(height: 14),
                           Text(
-                            'Welcome to LedgerPro',
+                            'Welcome to Horizon',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,

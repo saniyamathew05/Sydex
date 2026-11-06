@@ -1,4 +1,4 @@
-/// Currency formatting for LedgerPro, including Indian digit grouping for INR.
+/// Currency formatting for Horizon, including Indian digit grouping for INR.
 class CurrencyFormatter {
   CurrencyFormatter._();
 

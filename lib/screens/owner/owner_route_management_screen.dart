@@ -2293,7 +2293,7 @@ class _OwnerRouteManagementScreenState
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.ledgerpro.business_payment_app',
+                    userAgentPackageName: 'com.horizon.horizon',
                   ),
                   if (points.isNotEmpty)
                     MarkerLayer(

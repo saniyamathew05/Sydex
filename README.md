@@ -1,6 +1,6 @@
-# business_payment_app
+# Horizon
 
-A new Flutter project.
+Horizon is a business ledger and payment collection application for owners and field teams.
 
 ## Getting Started
 

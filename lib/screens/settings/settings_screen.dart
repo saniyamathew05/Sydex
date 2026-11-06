@@ -172,7 +172,9 @@ class SettingsScreen extends StatelessWidget {
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: ThemeController.accentChoices.entries.map((entry) {
+                      children: ThemeController.accentChoices.entries.map((
+                        entry,
+                      ) {
                         final isSelected = entry.value.value == selected.value;
                         return Tooltip(
                           message: entry.key,
@@ -194,8 +196,11 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                               ),
                               child: isSelected
-                                  ? const Icon(Icons.check_rounded,
-                                      color: Colors.white, size: 18)
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    )
                                   : null,
                             ),
                           ),
@@ -385,7 +390,7 @@ class SettingsScreen extends StatelessWidget {
 
             title: const Text('About'),
 
-            subtitle: const Text('Business Payment App'),
+            subtitle: const Text('Horizon'),
 
             trailing: const Icon(Icons.chevron_right),
 

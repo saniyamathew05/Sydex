@@ -11,9 +11,9 @@ import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
 import '../../services/supabase_pagination.dart';
 import '../../services/notification_read_store.dart';
-import '../../widgets/ledgerpro_motion.dart';
+import '../../widgets/horizon_motion.dart';
 
-/// Owner overview built around the supplied LedgerPro desktop reference.
+/// Owner overview built around the supplied Horizon desktop reference.
 /// All financial/customer figures are read from the existing services.
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({
@@ -762,7 +762,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'LedgerPro',
+                      'Horizon',
                       style: TextStyle(
                         color: _ink,
                         fontSize: 17,
@@ -920,7 +920,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Widget _mobileAction(IconData icon, String label, VoidCallback? onTap) =>
       SizedBox(
         width: 70,
-        child: LedgerProPressable(
+        child: HorizonPressable(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Column(
@@ -1018,7 +1018,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   );
 
   Widget _quickAction(IconData icon, String label, VoidCallback? onPressed) {
-    return LedgerProPressable(
+    return HorizonPressable(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(

@@ -10,9 +10,9 @@ import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 import '../payments/payment_screen.dart';
 import '../purchases/add_purchase_screen.dart';
-import '../../widgets/ledgerpro_motion.dart';
+import '../../widgets/horizon_motion.dart';
 
-/// LedgerPro customer directory styled to match the supplied reference mockup.
+/// Horizon customer directory styled to match the supplied reference mockup.
 /// Keeps the existing CustomerService and TransactionService data flow.
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -80,12 +80,16 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
+    final searches =
+        prefs.getStringList('horizon_recent_customer_searches') ??
+        prefs.getStringList('ledgerpro_recent_customer_searches') ??
+        <String>[];
+    if (!prefs.containsKey('horizon_recent_customer_searches') &&
+        searches.isNotEmpty) {
+      await prefs.setStringList('horizon_recent_customer_searches', searches);
+    }
     if (!mounted) return;
-    setState(
-      () => _recentSearches =
-          prefs.getStringList('ledgerpro_recent_customer_searches') ??
-          <String>[],
-    );
+    setState(() => _recentSearches = searches);
   }
 
   Future<void> _rememberSearch(String value) async {
@@ -99,7 +103,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     ].take(5).toList();
     setState(() => _recentSearches = next);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('ledgerpro_recent_customer_searches', next);
+    await prefs.setStringList('horizon_recent_customer_searches', next);
   }
 
   Future<void> _loadData() async {
@@ -592,7 +596,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                         TransactionService.getCustomerBalance(
                                           customer.id,
                                         );
-                                    return LedgerProFadeSlide(
+                                    return HorizonFadeSlide(
                                       delay: Duration(
                                         milliseconds: (index.clamp(0, 8)) * 18,
                                       ),

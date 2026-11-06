@@ -11,7 +11,7 @@
 
 namespace {
 
-constexpr wchar_t kLedgerProUrlScheme[] = L"io.ledgerpro.ledgerpro";
+constexpr wchar_t kHorizonUrlScheme[] = L"io.horizon.app";
 
 void SetRegistryString(HKEY key, const wchar_t* name, const std::wstring& value) {
   RegSetValueExW(
@@ -23,14 +23,14 @@ void SetRegistryString(HKEY key, const wchar_t* name, const std::wstring& value)
       static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
 }
 
-void RegisterLedgerProUrlProtocol() {
+void RegisterHorizonUrlProtocol() {
   wchar_t executable_path[MAX_PATH] = {};
   if (GetModuleFileNameW(nullptr, executable_path, MAX_PATH) == 0) {
     return;
   }
 
   const std::wstring key_path =
-      std::wstring(L"Software\\Classes\\") + kLedgerProUrlScheme;
+      std::wstring(L"Software\\Classes\\") + kHorizonUrlScheme;
   HKEY protocol_key = nullptr;
   if (RegCreateKeyExW(
           HKEY_CURRENT_USER,
@@ -45,7 +45,7 @@ void RegisterLedgerProUrlProtocol() {
     return;
   }
 
-  SetRegistryString(protocol_key, nullptr, L"URL:LedgerPro OAuth protocol");
+  SetRegistryString(protocol_key, nullptr, L"URL:Horizon OAuth protocol");
   SetRegistryString(protocol_key, L"URL Protocol", L"");
 
   HKEY command_key = nullptr;
@@ -71,7 +71,7 @@ void RegisterLedgerProUrlProtocol() {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  RegisterLedgerProUrlProtocol();
+  RegisterHorizonUrlProtocol();
   if (SendAppLinkToInstance()) {
     return EXIT_SUCCESS;
   }
@@ -96,7 +96,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"business_payment_app", origin, size)) {
+  if (!window.Create(L"Horizon", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

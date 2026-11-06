@@ -1,4 +1,4 @@
-package com.example.business_payment_app
+package com.horizon.app
 
 import io.flutter.embedding.android.FlutterActivity
 

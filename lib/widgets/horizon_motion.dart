@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class LedgerProMotion {
+class HorizonMotion {
   static const quick = Duration(milliseconds: 110);
   static const standard = Duration(milliseconds: 180);
   static const navigation = Duration(milliseconds: 260);
@@ -10,8 +10,8 @@ class LedgerProMotion {
   static const emphasizedCurve = Curves.easeInOutCubic;
 }
 
-class LedgerProFadeSlide extends StatelessWidget {
-  const LedgerProFadeSlide({
+class HorizonFadeSlide extends StatelessWidget {
+  const HorizonFadeSlide({
     super.key,
     required this.child,
     this.delay = Duration.zero,
@@ -25,8 +25,8 @@ class LedgerProFadeSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
     tween: Tween(begin: 0, end: 1),
-    duration: LedgerProMotion.navigation + delay,
-    curve: LedgerProMotion.curve,
+    duration: HorizonMotion.navigation + delay,
+    curve: HorizonMotion.curve,
     builder: (context, value, child) => Opacity(
       opacity: value,
       child: Transform.translate(
@@ -41,8 +41,8 @@ class LedgerProFadeSlide extends StatelessWidget {
   );
 }
 
-class LedgerProPressable extends StatefulWidget {
-  const LedgerProPressable({
+class HorizonPressable extends StatefulWidget {
+  const HorizonPressable({
     super.key,
     required this.child,
     required this.onTap,
@@ -54,10 +54,10 @@ class LedgerProPressable extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<LedgerProPressable> createState() => _LedgerProPressableState();
+  State<HorizonPressable> createState() => _HorizonPressableState();
 }
 
-class _LedgerProPressableState extends State<LedgerProPressable> {
+class _HorizonPressableState extends State<HorizonPressable> {
   bool _pressed = false;
 
   @override
@@ -80,8 +80,8 @@ class _LedgerProPressableState extends State<LedgerProPressable> {
           },
     child: AnimatedScale(
       scale: _pressed ? .985 : 1,
-      duration: LedgerProMotion.quick,
-      curve: LedgerProMotion.curve,
+      duration: HorizonMotion.quick,
+      curve: HorizonMotion.curve,
       child: ClipRRect(borderRadius: widget.borderRadius, child: widget.child),
     ),
   );

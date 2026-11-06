@@ -1,7 +1,7 @@
-# LedgerPro --- Complete App Requirements & Project Specification
+# Horizon --- Complete App Requirements & Project Specification
 
 **Document purpose:** This is the consolidated product and
-implementation brief for the LedgerPro app (`business_payment_app`),
+implementation brief for the Horizon app (`horizon`),
 based on requirements and decisions discussed so far. Use it as the
 source of truth when changing the app, reviewing code, planning
 features, or handing work to another developer.
@@ -14,7 +14,7 @@ item is already implemented or tested.
 
 ## 1. Product overview
 
-LedgerPro is a digital customer-ledger and sales/payment management
+Horizon is a digital customer-ledger and sales/payment management
 application for a business with more than 1,000 customers. It replaces
 paper customer cards/ledgers used by a salesperson during customer
 visits. A salesperson needs to identify a customer, see the outstanding
@@ -591,7 +591,7 @@ The app should be usable on phones and PCs.
 
 ## 18. Technical project context
 
--   Flutter application folder/project name: `business_payment_app`
+-   Flutter application folder/project name: `horizon`
 -   Main development machine: MacBook Air with Apple M4
 -   Main implementation language: Dart / Flutter
 -   Backend: Supabase

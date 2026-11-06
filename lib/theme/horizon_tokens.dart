@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// LedgerPro visual tokens based on the supplied dashboard reference.
+/// Horizon visual tokens based on the supplied dashboard reference.
 /// Use these constants for new screens so the brand stays consistent.
-abstract final class LedgerProTokens {
+abstract final class HorizonTokens {
   static const navy = Color(0xFF064632);
   static const navySoft = Color(0xFF075C42);
   static const green = Color(0xFF075C42);
@@ -27,30 +27,30 @@ abstract final class LedgerProTokens {
   static const spacing = <double>[4, 8, 12, 16, 20, 24, 32, 40, 48];
 
   static TextTheme textTheme(TextTheme base) => base.copyWith(
-        displaySmall: base.displaySmall?.copyWith(
-          fontSize: 32,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.8,
-          height: 1.15,
-        ),
-        headlineSmall: base.headlineSmall?.copyWith(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.4,
-        ),
-        titleLarge: base.titleLarge?.copyWith(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
-        titleMedium: base.titleMedium?.copyWith(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
-        bodyMedium: base.bodyMedium?.copyWith(fontSize: 14, height: 1.35),
-        labelMedium: base.labelMedium?.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
-        ),
-      );
+    displaySmall: base.displaySmall?.copyWith(
+      fontSize: 32,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.8,
+      height: 1.15,
+    ),
+    headlineSmall: base.headlineSmall?.copyWith(
+      fontSize: 24,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.4,
+    ),
+    titleLarge: base.titleLarge?.copyWith(
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+    ),
+    titleMedium: base.titleMedium?.copyWith(
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+    ),
+    bodyMedium: base.bodyMedium?.copyWith(fontSize: 14, height: 1.35),
+    labelMedium: base.labelMedium?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.1,
+    ),
+  );
 }
