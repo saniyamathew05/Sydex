@@ -18,6 +18,7 @@ import 'signature_settings_screen.dart';
 
 import 'sync_status_screen.dart';
 import 'two_factor_auth_screen.dart';
+import 'tutorial_screen.dart';
 
 import 'user_management_screen.dart';
 
@@ -380,6 +381,17 @@ class SettingsScreen extends StatelessWidget {
           ],
 
           const _SettingsSectionTitle(title: 'APP'),
+
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('App tutorial'),
+            subtitle: const Text('Review how to use Horizon'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => TutorialScreen(role: role)),
+            ),
+          ),
 
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
