@@ -34,30 +34,33 @@ class _HorizonGuideScreenState extends State<HorizonGuideScreen> {
   Future<void> _load() async {
     final completed = await HorizonGuideProgress.completedLessons();
     final recent = await HorizonGuideProgress.recentLessons();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _completed = completed;
         _recent = recent;
       });
+    }
   }
 
   Future<void> _open(_GuideLesson lesson) async {
     setState(() => _selectedId = lesson.id);
     await HorizonGuideProgress.markOpened(lesson.id);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _recent.remove(lesson.id);
         _recent.insert(0, lesson.id);
       });
+    }
   }
 
   Future<void> _toggle(_GuideLesson lesson) async {
     final done = !_completed.contains(lesson.id);
     await HorizonGuideProgress.setLessonCompleted(lesson.id, done);
-    if (mounted)
+    if (mounted) {
       setState(
         () => done ? _completed.add(lesson.id) : _completed.remove(lesson.id),
       );
+    }
   }
 
   @override
@@ -260,6 +263,13 @@ class _LessonContent extends StatelessWidget {
       const SizedBox(height: 12),
       Text(lesson.description),
       const SizedBox(height: 20),
+      _HorizonDemoPreview(lessonId: lesson.id),
+      const SizedBox(height: 6),
+      Text(
+        'Demo Horizon screen — example data only',
+        style: Theme.of(context).textTheme.labelSmall,
+      ),
+      const SizedBox(height: 20),
       const Text(
         'Before you begin',
         style: TextStyle(fontWeight: FontWeight.w800),
@@ -324,6 +334,140 @@ class _ContinueLearning extends StatelessWidget {
               ),
             ],
           );
+  }
+}
+
+/// A privacy-safe visual reference for every lesson. It deliberately mirrors
+/// Horizon's layout without ever rendering records from the signed-in account.
+class _HorizonDemoPreview extends StatelessWidget {
+  const _HorizonDemoPreview({required this.lessonId});
+  final String lessonId;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final title = switch (lessonId) {
+      'dashboard' => 'Dashboard',
+      'customers' => 'Customers',
+      'payment' => 'Receive payment',
+      'route' => 'Places & routes',
+      'visit' => "Today's customers",
+      'reports' => 'Reports',
+      _ => 'Horizon',
+    };
+    final lines = switch (lessonId) {
+      'payment' => const [
+        'Sample Customer',
+        'Amount received',
+        'Payment method',
+      ],
+      'route' => const [
+        'North District',
+        '12 customers selected',
+        'Assign to executive',
+      ],
+      'visit' => const ['Sample Customer A', 'Not visited', 'Record visit'],
+      'customers' => const [
+        'Sample Customer A',
+        'West District',
+        'Balance: 1,250.00',
+      ],
+      'reports' => const ['Collections', 'Outstanding', 'Export report'],
+      'dashboard' => const [
+        'Total receivable',
+        "Today's collections",
+        'Payment overview',
+      ],
+      _ => const ['Customers', 'Payments', 'Settings'],
+    };
+    return Container(
+      height: 188,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.menu, size: 17, color: colors.primary),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const Spacer(),
+              Icon(Icons.more_horiz, color: colors.onSurfaceVariant),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (lessonId == 'dashboard' || lessonId == 'reports')
+            Row(
+              children: List.generate(
+                3,
+                (index) => Expanded(
+                  child: Container(
+                    height: 44,
+                    margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      index == 0
+                          ? '1,250'
+                          : index == 1
+                          ? '480'
+                          : '24',
+                      style: TextStyle(
+                        color: colors.onPrimaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            ...lines.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Container(
+                  height: 27,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  alignment: Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    line,
+                    style: TextStyle(fontSize: 10, color: colors.onSurface),
+                  ),
+                ),
+              ),
+            ),
+          const Spacer(),
+          Container(
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colors.primary,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Text(
+              lessonId == 'payment' ? 'Save payment' : 'Continue',
+              style: TextStyle(
+                color: colors.onPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
