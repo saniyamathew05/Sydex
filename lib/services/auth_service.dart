@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'currency_formatter.dart';
+
 class AuthService {
   static const _oauthAttemptKey = 'horizon_google_oauth_attempt_at';
   // Keep the original registered callback during the Horizon rename. The
@@ -115,12 +117,20 @@ class AuthService {
     required String ownerName,
     required String email,
     required String password,
+    required String market,
+    required String currencyCode,
   }) async {
     final response = await _supabase.auth.signUp(
       email: email,
       password: password,
       emailRedirectTo: _webRedirectUri,
-      data: {'name': ownerName, 'role': 'owner', 'company_name': companyName},
+      data: {
+        'name': ownerName,
+        'role': 'owner',
+        'company_name': companyName,
+        'market': market,
+        'currency_code': currencyCode,
+      },
     );
     if (response.user == null || response.session == null) return response;
     await completeCompanyRegistration(response.user!);
@@ -139,6 +149,12 @@ class AuthService {
   /// Creates the company/profile after email confirmation when Supabase does
   /// not issue a session during sign-up. Safe to call repeatedly after login.
   static Future<void> completeCompanyRegistration(User user) async {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final currencyCode = metadata['currency_code']?.toString().trim();
+    if (currencyCode != null && currencyCode.isNotEmpty) {
+      await CurrencyFormatter.setCurrencyCode(currencyCode);
+    }
+
     final profile = await _supabase
         .from('profiles')
         .select('id')
@@ -146,7 +162,6 @@ class AuthService {
         .maybeSingle();
     if (profile != null) return;
 
-    final metadata = user.userMetadata ?? const <String, dynamic>{};
     final companyName = metadata['company_name']?.toString().trim();
     final ownerName = metadata['name']?.toString().trim();
     if (companyName == null ||

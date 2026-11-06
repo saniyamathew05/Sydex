@@ -13,6 +13,7 @@ import 'services/theme_controller.dart';
 
 import 'services/auth_service.dart';
 import 'services/business_date_service.dart';
+import 'services/currency_formatter.dart';
 import 'theme/horizon_tokens.dart';
 
 Future<void> main() async {
@@ -51,6 +52,7 @@ Future<void> main() async {
   }
 
   await ThemeController.loadTheme();
+  await CurrencyFormatter.load();
   await BusinessDateService.load();
 
   runApp(const BusinessPaymentApp());
@@ -2258,6 +2260,16 @@ class RegisterCompanyScreen extends StatefulWidget {
 }
 
 class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
+  static const _marketCurrencies = <String, String>{
+    'India': 'INR',
+    'United States': 'USD',
+    'United Kingdom': 'GBP',
+    'European Union': 'EUR',
+    'United Arab Emirates': 'AED',
+    'Singapore': 'SGD',
+    'Australia': 'AUD',
+    'Canada': 'CAD',
+  };
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _company;
   late final TextEditingController _owner;
@@ -2266,6 +2278,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
   bool _loading = false;
   bool _obscure = true;
   String? _confirmationMessage;
+  String _selectedMarket = 'India';
 
   @override
   void initState() {
@@ -2293,6 +2306,11 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
         ownerName: _owner.text.trim(),
         email: _email.text.trim(),
         password: _password.text,
+        market: _selectedMarket,
+        currencyCode: _marketCurrencies[_selectedMarket]!,
+      );
+      await CurrencyFormatter.setCurrencyCode(
+        _marketCurrencies[_selectedMarket]!,
       );
       if (!mounted) return;
       if (response.session == null || response.user == null) {
@@ -2445,6 +2463,28 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       ),
                       validator: (v) =>
                           v!.trim().isEmpty ? 'Enter company name' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: _selectedMarket,
+                      decoration: _decoration(
+                        'Business location',
+                        Icons.public_outlined,
+                      ),
+                      items: _marketCurrencies.entries
+                          .map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text('${entry.key} (${entry.value})'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              if (value != null)
+                                setState(() => _selectedMarket = value);
+                            },
                     ),
                     const SizedBox(height: 10),
                     TextFormField(

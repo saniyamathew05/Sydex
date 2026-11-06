@@ -1,6 +1,26 @@
-/// Currency formatting for Horizon, including Indian digit grouping for INR.
+// Currency formatting for Horizon. The selected business currency is applied
+// consistently to every amount shown in the application.
+import 'package:shared_preferences/shared_preferences.dart';
+
 class CurrencyFormatter {
   CurrencyFormatter._();
+
+  static const _preferenceKey = 'horizon_currency_code';
+  static String _activeCurrencyCode = 'INR';
+
+  static Future<void> load() async {
+    final preferences = await SharedPreferences.getInstance();
+    _activeCurrencyCode =
+        preferences.getString(_preferenceKey)?.trim().toUpperCase() ?? 'INR';
+  }
+
+  static Future<void> setCurrencyCode(String code) async {
+    _activeCurrencyCode = code.trim().toUpperCase();
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_preferenceKey, _activeCurrencyCode);
+  }
+
+  static String get activeCurrencyCode => _activeCurrencyCode;
 
   static const Map<String, int> _decimalDigits = {
     'BIF': 0,
@@ -45,11 +65,11 @@ class CurrencyFormatter {
 
   static String format(
     num value, {
-    String currencyCode = 'INR',
+    String? currencyCode,
     int? decimals,
     bool showSymbol = true,
   }) {
-    final code = currencyCode.trim().toUpperCase();
+    final code = (currencyCode ?? _activeCurrencyCode).trim().toUpperCase();
     final digits = (decimals ?? _decimalDigits[code] ?? 2).clamp(0, 6);
     final fixed = value.abs().toStringAsFixed(digits).split('.');
     final integer = code == 'INR'
@@ -63,7 +83,7 @@ class CurrencyFormatter {
   }
 
   static String rupees(num value, {int decimals = 2}) =>
-      format(value, currencyCode: 'INR', decimals: decimals);
+      format(value, decimals: decimals);
 
   static String customerBalance(num balance) => balance < 0
       ? 'Owed to customer: ${rupees(balance.abs())}'
