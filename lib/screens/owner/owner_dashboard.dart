@@ -54,7 +54,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _navy => Theme.of(context).colorScheme.onSurface;
   Color get _green => Theme.of(context).colorScheme.primary;
-  Color get _greenLight => Theme.of(context).colorScheme.primaryContainer;
   Color get _line => Theme.of(context).colorScheme.outlineVariant;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
   Color get _surface => Theme.of(context).colorScheme.surface;
@@ -1080,142 +1079,220 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   );
 
   Widget _paymentsChart(List<_DayTotals> days) {
-    final maxValue = days.fold<double>(
-      1,
-      (max, d) => math.max(max, math.max(d.received, d.pending)).toDouble(),
+    final receivedTotal = days.fold<double>(
+      0,
+      (total, day) => total + day.received,
     );
+    final outstanding = days.isEmpty ? 0.0 : days.last.pending;
+    final maxReceived = days.fold<double>(
+      1,
+      (max, day) => math.max(max, day.received).toDouble(),
+    );
+    final hasCollections = receivedTotal > 0;
+    final labelIndexes = <int>{
+      if (days.isNotEmpty) 0,
+      if (days.length > 2) days.length ~/ 2,
+      if (days.length > 1) days.length - 1,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _panelHeader(
-          'Payments Overview • $_period',
+          'Payments Overview',
           action: 'View All',
           onAction: widget.onOpenPayments,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        Text(
+          'Collections by day • $_period',
+          style: TextStyle(color: _muted, fontSize: 10),
+        ),
+        const SizedBox(height: 14),
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _legend(_green, 'Received'),
-            const SizedBox(width: 12),
-            _legend(_greenLight, 'Pending'),
+            Expanded(
+              child: _chartMetric(
+                icon: Icons.south_west_rounded,
+                label: 'Collected',
+                value: _money(receivedTotal),
+                color: _green,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _chartMetric(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'Outstanding',
+                value: _money(outstanding),
+                color: _muted,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 16),
         SizedBox(
-          height: 132,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 27,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+          height: 150,
+          child: hasCollections
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      _axis(maxValue),
-                      style: TextStyle(fontSize: 8, color: _muted),
-                    ),
-                    Text(
-                      _axis(maxValue * .66),
-                      style: TextStyle(fontSize: 8, color: _muted),
-                    ),
-                    Text(
-                      _axis(maxValue * .33),
-                      style: TextStyle(fontSize: 8, color: _muted),
-                    ),
-                    Text('0', style: TextStyle(fontSize: 8, color: _muted)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: CustomPaint(
-                        painter: _GridPainter(),
-                        child: Row(
+                    SizedBox(
+                      width: 34,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 22),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.end,
-                          children: days.map((d) {
-                            final receivedHeight = (d.received / maxValue)
-                                .clamp(0.0, 1.0)
-                                .toDouble();
-                            final pendingHeight = (d.pending / maxValue)
-                                .clamp(0.0, 1.0)
-                                .toDouble();
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Expanded(
-                                      child: FractionallySizedBox(
-                                        heightFactor: receivedHeight,
-                                        alignment: Alignment.bottomCenter,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: _green,
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(3),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: FractionallySizedBox(
-                                        heightFactor: pendingHeight,
-                                        alignment: Alignment.bottomCenter,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: _greenLight.withValues(
-                                              alpha: .72,
-                                            ),
-                                            borderRadius:
-                                                const BorderRadius.vertical(
-                                                  top: Radius.circular(3),
-                                                ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
+                          children: [
+                            Text(
+                              _axis(maxReceived),
+                              style: TextStyle(fontSize: 8, color: _muted),
+                            ),
+                            Text(
+                              _axis(maxReceived * .5),
+                              style: TextStyle(fontSize: 8, color: _muted),
+                            ),
+                            Text(
+                              '0',
+                              style: TextStyle(fontSize: 8, color: _muted),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: days.map((d) {
-                        return Expanded(
-                          child: Center(
-                            child: Text(
-                              '${d.date.day} ${_month(d.date.month)}',
-                              maxLines: 1,
-                              style: TextStyle(fontSize: 8, color: _muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: CustomPaint(
+                              painter: _GridPainter(),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: List.generate(days.length, (index) {
+                                  final day = days[index];
+                                  final height = (day.received / maxReceived)
+                                      .clamp(0.035, 1.0)
+                                      .toDouble();
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: days.length > 14 ? 2 : 4,
+                                      ),
+                                      child: Tooltip(
+                                        message:
+                                            '${day.date.day} ${_month(day.date.month)}: ${_money(day.received)} collected',
+                                        child: Align(
+                                          alignment: Alignment.bottomCenter,
+                                          child: FractionallySizedBox(
+                                            heightFactor: height,
+                                            widthFactor: .72,
+                                            alignment: Alignment.bottomCenter,
+                                            child: AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 220,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: _green,
+                                                borderRadius:
+                                                    const BorderRadius.vertical(
+                                                      top: Radius.circular(5),
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
                             ),
                           ),
-                        );
-                      }).toList(),
+                          const SizedBox(height: 7),
+                          SizedBox(
+                            height: 15,
+                            child: Row(
+                              children: List.generate(
+                                days.length,
+                                (index) => Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      labelIndexes.contains(index)
+                                          ? '${days[index].date.day} ${_month(days[index].date.month)}'
+                                          : '',
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: _muted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+                )
+              : Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.payments_outlined, color: _muted, size: 24),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No payments recorded in this period',
+                        style: TextStyle(color: _muted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _chartMetric({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) => Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 17, color: color),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: _muted, fontSize: 9)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
 
   String _axis(double value) {
     if (value >= 100000) return '${(value / 1000).round()}K';
@@ -1602,22 +1679,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       ],
     );
   }
-
-  Widget _legend(Color color, String label) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-      const SizedBox(width: 5),
-      Text(label, style: TextStyle(color: _muted, fontSize: 9.5)),
-    ],
-  );
 
   String _relativeTime(DateTime date) {
     final difference = DateTime.now().difference(date);
