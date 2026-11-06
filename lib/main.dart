@@ -1009,7 +1009,11 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final accent = ThemeController.accentColor.value;
+    final heroColor = Color.lerp(accent, Colors.black, .30)!;
+    const actionSurface = Color(0xFFFAFAF7);
+    const actionText = Color(0xFF17251E);
+    const actionMuted = Color(0xFF65736B);
     final size = MediaQuery.sizeOf(context);
     final isWide = size.width >= 760;
     final isCompactPhone = !isWide && size.height < 720;
@@ -1064,7 +1068,7 @@ class WelcomeScreen extends StatelessWidget {
         ),
         if (isWide) ...[
           const SizedBox(height: 26),
-          _WelcomeFeatureCarousel(accent: colors.primary),
+          _WelcomeFeatureCarousel(accent: accent),
           const Spacer(),
         ] else ...[
           const SizedBox(height: 18),
@@ -1073,12 +1077,12 @@ class WelcomeScreen extends StatelessWidget {
       ],
     );
     final hero = Container(
-      color: Color.lerp(colors.primary, Colors.black, .28),
+      color: heroColor,
       padding: EdgeInsets.fromLTRB(28, isWide ? 36 : 24, 28, isWide ? 30 : 20),
       child: heroContent,
     );
     final actions = Container(
-      color: colors.surface,
+      color: actionSurface,
       padding: EdgeInsets.fromLTRB(28, isWide ? 32 : 20, 28, isWide ? 28 : 18),
       child: Center(
         child: ConstrainedBox(
@@ -1092,7 +1096,7 @@ class WelcomeScreen extends StatelessWidget {
                     ? 'Every payment. Every customer. In one place.'
                     : 'Keep your business moving.',
                 style: TextStyle(
-                  color: colors.onSurface,
+                  color: actionText,
                   fontSize: isWide ? 27 : 23,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
@@ -1101,13 +1105,17 @@ class WelcomeScreen extends StatelessWidget {
               SizedBox(height: isWide ? 12 : 8),
               Text(
                 'Manage customer balances, record collections, and keep your business moving.',
-                style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
+                style: const TextStyle(color: actionMuted, height: 1.45),
               ),
               SizedBox(height: isWide ? 28 : 18),
               SizedBox(
                 width: double.infinity,
                 height: isWide ? 50 : 48,
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () => _openRegistration(context),
                   child: const Text('Get Started'),
                 ),
@@ -1117,6 +1125,10 @@ class WelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: isWide ? 50 : 48,
                 child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent.withValues(alpha: .48)),
+                  ),
                   onPressed: () => _openSignIn(context),
                   child: const Text('Sign In'),
                 ),
@@ -1125,7 +1137,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Marketing Executive accounts are created and assigned by the business owner.',
                 style: TextStyle(
-                  color: colors.onSurfaceVariant,
+                  color: actionMuted,
                   fontSize: isWide ? 12 : 11,
                   height: 1.35,
                 ),
