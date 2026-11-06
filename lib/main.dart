@@ -940,15 +940,281 @@ class _AuthGateState extends State<AuthGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return LoginScreen(initialError: errorMessage);
+    return WelcomeScreen(initialError: errorMessage);
   }
 }
 
 // ============================================================
 
-// LOGIN SCREEN
+// WELCOME + AUTHENTICATION
 
 // ============================================================
+
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key, this.initialError});
+
+  final String? initialError;
+
+  void _openSignIn(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(initialError: initialError),
+      ),
+    );
+  }
+
+  void _openRegistration(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const RegisterCompanyScreen(),
+        transitionDuration: const Duration(milliseconds: 260),
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
+            SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                      .chain(CurveTween(curve: Curves.easeOutCubic))
+                      .animate(animation),
+              child: child,
+            ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.sizeOf(context).width >= 760;
+    final hero = Container(
+      color: Color.lerp(colors.primary, Colors.black, .28),
+      padding: const EdgeInsets.fromLTRB(28, 36, 28, 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'LedgerPro',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          const Text(
+            'Your business.\nBeautifully balanced.',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              height: 1.08,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'A clear view of collections, balances, and customers.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .78),
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 26),
+          _WelcomeLedgerPreview(accent: colors.primary),
+          const Spacer(),
+        ],
+      ),
+    );
+    final actions = Container(
+      color: colors.surface,
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Every payment. Every customer. In one place.',
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 27,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Manage customer balances, record collections, and keep your business moving.',
+                style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  onPressed: () => _openRegistration(context),
+                  child: const Text('Get Started'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: () => _openSignIn(context),
+                  child: const Text('Sign In'),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Marketing Executive accounts are created and assigned by the business owner.',
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Scaffold(
+      body: SafeArea(
+        child: isWide
+            ? Row(
+                children: [
+                  Expanded(child: hero),
+                  Expanded(child: actions),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(flex: 6, child: hero),
+                  Expanded(flex: 5, child: actions),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _WelcomeLedgerPreview extends StatelessWidget {
+  const _WelcomeLedgerPreview({required this.accent});
+  final Color accent;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MONTHLY OVERVIEW',
+          style: TextStyle(
+            color: Colors.black.withValues(alpha: .52),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _PreviewValue(
+                label: 'Outstanding',
+                value: '₹ 1,24,500',
+                color: Colors.black,
+              ),
+            ),
+            Expanded(
+              child: _PreviewValue(
+                label: 'Collected',
+                value: '₹ 82,300',
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(
+            8,
+            (index) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Container(
+                  height: 14.0 + (index % 4) * 10,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: .22 + (index % 3) * .14),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(height: 1, color: Colors.black12),
+        const SizedBox(height: 10),
+        const Text(
+          'Ledger preview · illustrative only',
+          style: TextStyle(color: Colors.black54, fontSize: 11),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PreviewValue extends StatelessWidget {
+  const _PreviewValue({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+  final String label;
+  final String value;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(color: Colors.black54, fontSize: 10)),
+      const SizedBox(height: 3),
+      Text(
+        value,
+        style: TextStyle(
+          color: color,
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
+}
 
 class LoginScreen extends StatefulWidget {
   final String? initialError;
@@ -1065,6 +1331,30 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showError('Enter your email address first.');
+      return;
+    }
+    try {
+      await AuthService.requestPasswordReset(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset instructions have been sent.'),
+          ),
+        );
+      }
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError(
+        'Could not send password reset instructions. Please try again.',
+      );
+    }
+  }
+
   Future<void> registerCompany() async {
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
@@ -1172,7 +1462,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 22),
 
                         const Text(
-                          'Business Payment',
+                          'Welcome back',
 
                           style: TextStyle(
                             fontSize: 30,
@@ -1186,7 +1476,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 7),
 
                         Text(
-                          'Sign in to continue',
+                          'Sign in to continue to LedgerPro.',
 
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
@@ -1235,7 +1525,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 keyboardType: TextInputType.emailAddress,
 
                                 decoration: const InputDecoration(
-                                  labelText: 'Email',
+                                  labelText: 'Email address',
 
                                   prefixIcon: Icon(Icons.email_outlined),
                                 ),
@@ -1291,13 +1581,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                             strokeWidth: 2.2,
                                           ),
                                         )
-                                      : const Text('Login'),
+                                      : const Text('Sign In'),
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: isLoading ? null : _forgotPassword,
+                                  child: const Text('Forgot password?'),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
                               TextButton(
                                 onPressed: isLoading ? null : registerCompany,
-                                child: const Text('Register a new company'),
+                                child: const Text('Create a business account'),
                               ),
                             ],
                           ),
@@ -1495,8 +1792,11 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF063D28), Color(0xFF0B6A43)],
+                        gradient: LinearGradient(
+                          colors: [
+                            Color.lerp(colors.primary, Colors.black, .22)!,
+                            colors.primary,
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(24),
                       ),

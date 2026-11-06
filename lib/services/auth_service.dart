@@ -48,6 +48,13 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 
+  static Future<void> requestPasswordReset(String email) {
+    return _supabase.auth.resetPasswordForEmail(
+      email,
+      redirectTo: _webRedirectUri,
+    );
+  }
+
   static Future<AuthResponse> registerCompany({
     required String companyName,
     required String ownerName,
@@ -58,11 +65,7 @@ class AuthService {
       email: email,
       password: password,
       emailRedirectTo: _webRedirectUri,
-      data: {
-        'name': ownerName,
-        'role': 'owner',
-        'company_name': companyName,
-      },
+      data: {'name': ownerName, 'role': 'owner', 'company_name': companyName},
     );
     if (response.user == null || response.session == null) return response;
     await completeCompanyRegistration(response.user!);
@@ -88,8 +91,10 @@ class AuthService {
     final metadata = user.userMetadata ?? const <String, dynamic>{};
     final companyName = metadata['company_name']?.toString().trim();
     final ownerName = metadata['name']?.toString().trim();
-    if (companyName == null || companyName.isEmpty ||
-        ownerName == null || ownerName.isEmpty) {
+    if (companyName == null ||
+        companyName.isEmpty ||
+        ownerName == null ||
+        ownerName.isEmpty) {
       return;
     }
 
