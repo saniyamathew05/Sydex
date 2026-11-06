@@ -581,10 +581,9 @@ class _OwnerRouteManagementScreenState
               b.businessName.toLowerCase(),
             ),
           );
-    // Each time the picker opens, start a fresh selection. This prevents an
-    // old location-based assignment from silently carrying dozens of IDs into
-    // the new customer-only route.
-    final selected = <String>{};
+    // Start with the current route selection so individual customer choices
+    // can be added to customers already included through locations.
+    final selected = Set<String>.from(_selectedCustomerIds);
     var searchQuery = '';
     await showDialog<void>(
       context: context,
@@ -742,13 +741,10 @@ class _OwnerRouteManagementScreenState
     }
     final locations = customersByLocation.keys.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    final initiallySelected = _locationsForSelectedCustomers()
-        .map((location) => location.toLowerCase())
-        .toSet();
-    final selectedLocations = <String>{
-      for (final location in locations)
-        if (initiallySelected.contains(location.toLowerCase())) location,
-    };
+    // Location additions are intentionally fresh. Existing selected customers
+    // may represent only part of a location, so preselecting that location
+    // would accidentally add every customer in it.
+    final selectedLocations = <String>{};
     var searchQuery = '';
 
     await showDialog<void>(
@@ -849,7 +845,15 @@ class _OwnerRouteManagementScreenState
                         (customer) => customer.id,
                       ),
                   };
-                  setState(() => _selectedCustomerIds = selectedIds);
+                  // Location selection is additive: owners can include all
+                  // customers in selected areas, then add specific customers
+                  // from any other area through the customer picker.
+                  setState(
+                    () => _selectedCustomerIds = {
+                      ..._selectedCustomerIds,
+                      ...selectedIds,
+                    },
+                  );
                   Navigator.pop(dialogContext);
                 },
                 child: const Text('Use locations'),
@@ -1835,7 +1839,7 @@ class _OwnerRouteManagementScreenState
                                 : '${_selectedCustomerIds.length} customers selected',
                           ),
                           subtitle: const Text(
-                            'Choose individual customers or add every customer in selected locations.',
+                            'Build the route by mixing full locations with individual customers.',
                           ),
                         ),
                         Wrap(
@@ -1847,14 +1851,14 @@ class _OwnerRouteManagementScreenState
                                   ? null
                                   : _selectRouteCustomers,
                               icon: const Icon(Icons.people_alt_outlined),
-                              label: const Text('Choose customers'),
+                              label: const Text('Add customers'),
                             ),
                             OutlinedButton.icon(
                               onPressed: _selectedRoute == null
                                   ? null
                                   : _selectRouteLocations,
                               icon: const Icon(Icons.location_on_outlined),
-                              label: const Text('Select by location'),
+                              label: const Text('Add locations'),
                             ),
                           ],
                         ),
