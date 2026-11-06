@@ -1340,7 +1340,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                 color: Colors.black.withValues(alpha: .52),
               ),
             ),
-            const SizedBox(height: 9),
+            const SizedBox(height: 6),
             Row(
               children: [
                 _paymentMethod(Icons.payments_outlined, 'Cash', '24,500'),
@@ -1494,7 +1494,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                       color: Colors.black54,
                     ),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 4),
                   const Text(
                     'Payment QR',
                     style: TextStyle(
@@ -1522,7 +1522,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
 
   Widget _paymentMethod(IconData icon, String label, String value) => Expanded(
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: widget.accent.withValues(alpha: .09),
         borderRadius: BorderRadius.circular(9),
@@ -1540,7 +1540,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
           Text(
             label,
             style: const TextStyle(fontSize: 9, color: Colors.black54),
