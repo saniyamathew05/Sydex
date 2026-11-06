@@ -251,7 +251,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
             icon: Icons.payments_rounded,
 
-            iconColor: const Color(0xFF0B5D3B),
+            iconColor: Theme.of(context).colorScheme.primary,
 
             backgroundColor: const Color(0xFFE8F5EB),
           ),

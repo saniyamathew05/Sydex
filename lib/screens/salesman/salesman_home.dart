@@ -1121,7 +1121,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                                     style: TextStyle(
                                       color: isDark
                                           ? const Color(0xFFDDF3E5)
-                                          : const Color(0xFF0B5D3B),
+                                          : colors.primary,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w800,
                                     ),

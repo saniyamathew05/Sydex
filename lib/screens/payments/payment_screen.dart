@@ -365,12 +365,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     final possibleDuplicate =
         await DuplicateTransactionService.findPossibleDuplicate(
-      customerId: widget.customer.id,
-      entryType: 'payment',
-      amount: received,
-      transactionDate: _selectedDate,
-      paymentMethod: _paymentMethod,
-    );
+          customerId: widget.customer.id,
+          entryType: 'payment',
+          amount: received,
+          transactionDate: _selectedDate,
+          paymentMethod: _paymentMethod,
+        );
     if (possibleDuplicate != null && mounted) {
       final saveAnyway = await _confirmPossibleDuplicate(
         possibleDuplicate,
@@ -551,8 +551,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         '${candidate.paymentMethod == null ? '' : '\nMethod: ${_paymentMethodLabel(candidate.paymentMethod!)}'}',
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Go back')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save anyway')),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Go back'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Save anyway'),
+        ),
       ],
     ),
   );
@@ -706,8 +712,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final received = _amountReceived;
     final remaining = _remainingBalance;
-    const emerald = Color(0xFF0B5D3B);
-    const emeraldLight = Color(0xFF149A5A);
+    final emerald = colors.primary;
+    final emeraldLight = colors.secondary;
 
     final fieldFill = isDark
         ? const Color(0xFF071B12)
@@ -750,7 +756,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: emerald, width: 1.5),
+          borderSide: BorderSide(color: emerald, width: 1.5),
         ),
       );
     }
@@ -762,7 +768,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'Record Payment',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        backgroundColor: const Color(0xFF063D28),
+        backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
       ),
@@ -810,7 +816,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             widget.customer.businessName.isNotEmpty
                                 ? widget.customer.businessName[0].toUpperCase()
                                 : '?',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: emerald,
                               fontSize: 21,
                               fontWeight: FontWeight.w800,
@@ -928,7 +934,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       hintText: '0.00',
                       suffixIcon: TextButton(
                         onPressed: _setFullBalance,
-                        child: const Text(
+                        child: Text(
                           'FULL',
                           style: TextStyle(
                             color: emerald,
@@ -1195,7 +1201,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Required',
                         style: TextStyle(
                           color: emerald,

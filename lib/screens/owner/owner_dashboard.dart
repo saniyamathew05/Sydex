@@ -53,8 +53,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _navy => Theme.of(context).colorScheme.onSurface;
-  static const _green = Color(0xFF0B5D3B);
-  static const _greenLight = Color(0xFF8DCB9F);
+  Color get _green => Theme.of(context).colorScheme.primary;
+  Color get _greenLight => Theme.of(context).colorScheme.primaryContainer;
   Color get _line => Theme.of(context).colorScheme.outlineVariant;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
   Color get _surface => Theme.of(context).colorScheme.surface;
@@ -750,16 +750,29 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   color: _green,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.account_balance_wallet_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('LedgerPro', style: TextStyle(color: _ink, fontSize: 17, fontWeight: FontWeight.w800)),
-                    Text('Business overview', style: TextStyle(color: _muted, fontSize: 11)),
+                    Text(
+                      'LedgerPro',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Business overview',
+                      style: TextStyle(color: _muted, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
@@ -784,33 +797,79 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _mobileMetric('Collected today', _money(periodReceived), Icons.download_rounded, _green, const Color(0xFFE5F4E8))),
+              Expanded(
+                child: _mobileMetric(
+                  'Collected today',
+                  _money(periodReceived),
+                  Icons.download_rounded,
+                  _green,
+                  const Color(0xFFE5F4E8),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _mobileMetric('New purchases', _money(periodPurchases), Icons.shopping_cart_outlined, _orange, const Color(0xFFFFF0DE))),
+              Expanded(
+                child: _mobileMetric(
+                  'New purchases',
+                  _money(periodPurchases),
+                  Icons.shopping_cart_outlined,
+                  _orange,
+                  const Color(0xFFFFF0DE),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          Text('Quick actions', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            'Quick actions',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _mobileAction(Icons.person_add_alt_1_rounded, 'Customer', widget.onAddCustomer),
-              _mobileAction(Icons.payments_outlined, 'Payment', widget.onOpenPayments),
-              _mobileAction(Icons.shopping_cart_outlined, 'Purchase', widget.onRecordPurchase),
+              _mobileAction(
+                Icons.person_add_alt_1_rounded,
+                'Customer',
+                widget.onAddCustomer,
+              ),
+              _mobileAction(
+                Icons.payments_outlined,
+                'Payment',
+                widget.onOpenPayments,
+              ),
+              _mobileAction(
+                Icons.shopping_cart_outlined,
+                'Purchase',
+                widget.onRecordPurchase,
+              ),
               _mobileAction(Icons.route_rounded, 'Route', widget.onOpenRoute),
             ],
           ),
           const SizedBox(height: 20),
-          _mobileSectionHeader('Payments overview', '$_period · $paymentCount payments'),
+          _mobileSectionHeader(
+            'Payments overview',
+            '$_period · $paymentCount payments',
+          ),
           const SizedBox(height: 8),
           _panel(child: _paymentsChart(days)),
           const SizedBox(height: 18),
-          _mobileSectionHeader('Recent payments', 'View all', onTap: widget.onOpenPayments),
+          _mobileSectionHeader(
+            'Recent payments',
+            'View all',
+            onTap: widget.onOpenPayments,
+          ),
           const SizedBox(height: 8),
           _panel(child: _recentPayments(recent)),
           const SizedBox(height: 18),
-          _mobileSectionHeader('Salesman activity', 'View map', onTap: widget.onOpenVisitAudit),
+          _mobileSectionHeader(
+            'Salesman activity',
+            'View map',
+            onTap: widget.onOpenVisitAudit,
+          ),
           const SizedBox(height: 8),
           _panel(child: _salesmanActivity(_todaySalesmanActivity, customers)),
           const SizedBox(height: 18),
@@ -826,37 +885,100 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _mobileMetric(String label, String value, IconData icon, Color color, Color bg) => Container(
-        height: 92,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: _line)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: color, size: 18),
-          const Spacer(),
-          Text(value, style: TextStyle(color: _ink, fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(label, style: TextStyle(color: _muted, fontSize: 11)),
-        ]),
-      );
+  Widget _mobileMetric(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+    Color bg,
+  ) => Container(
+    height: 92,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: _line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 18),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            color: _ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(label, style: TextStyle(color: _muted, fontSize: 11)),
+      ],
+    ),
+  );
 
-  Widget _mobileAction(IconData icon, String label, VoidCallback? onTap) => SizedBox(
+  Widget _mobileAction(IconData icon, String label, VoidCallback? onTap) =>
+      SizedBox(
         width: 70,
         child: LedgerProPressable(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: Column(children: [
-            Container(width: 44, height: 44, decoration: BoxDecoration(color: _surface, border: Border.all(color: _line), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: _green, size: 20)),
-            const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600)),
-          ]),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _surface,
+                  border: Border.all(color: _line),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: _green, size: 20),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 
-  Widget _mobileSectionHeader(String title, String action, {VoidCallback? onTap}) => Row(
-        children: [
-          Expanded(child: Text(title, style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w700))),
-          GestureDetector(onTap: onTap, child: Text(action, style: TextStyle(color: _green, fontSize: 11, fontWeight: FontWeight.w700))),
-        ],
-      );
+  Widget _mobileSectionHeader(
+    String title,
+    String action, {
+    VoidCallback? onTap,
+  }) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: TextStyle(
+            color: _ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      GestureDetector(
+        onTap: onTap,
+        child: Text(
+          action,
+          style: TextStyle(
+            color: _green,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ],
+  );
 
   double _overdueAmount(List<Customer> customers) {
     final today = DateTime.now();
@@ -1036,7 +1158,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                         heightFactor: receivedHeight,
                                         alignment: Alignment.bottomCenter,
                                         child: Container(
-                                          decoration: const BoxDecoration(
+                                          decoration: BoxDecoration(
                                             color: _green,
                                             borderRadius: BorderRadius.vertical(
                                               top: Radius.circular(3),
@@ -1218,11 +1340,13 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             final assignedIds = activity.assignedCustomerIds.isNotEmpty
                 ? activity.assignedCustomerIds
                 : customers
-                    .where((customer) => locationSet.contains(
+                      .where(
+                        (customer) => locationSet.contains(
                           customer.location.trim().toLowerCase(),
-                        ))
-                    .map((customer) => customer.id)
-                    .toSet();
+                        ),
+                      )
+                      .map((customer) => customer.id)
+                      .toSet();
             final assignedCustomers = customers
                 .where((customer) => assignedIds.contains(customer.id))
                 .toList();
@@ -1235,16 +1359,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             // assignment. Historical payments from other routes should not
             // inflate today’s route-level paid indicator.
             final routePayments = todayPayments.forCustomers(assignedIds);
-            final pending = assignedCustomers
-                .fold<double>(
-                  0,
-                  (total, customer) =>
-                      total +
-                      math.max(
-                        0,
-                        TransactionService.getCustomerBalance(customer.id),
-                      ),
-                );
+            final pending = assignedCustomers.fold<double>(
+              0,
+              (total, customer) =>
+                  total +
+                  math.max(
+                    0,
+                    TransactionService.getCustomerBalance(customer.id),
+                  ),
+            );
             final progress = planned == 0
                 ? 0.0
                 : (visited / planned).clamp(0.0, 1.0).toDouble();
@@ -1270,7 +1393,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       activity.salesmanName.trim().isEmpty
                           ? 'S'
                           : activity.salesmanName.trim()[0].toUpperCase(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _green,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -1363,7 +1486,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                     context,
                                   ).colorScheme.surfaceContainerHighest
                                 : const Color(0xFFECEBFA),
-                            valueColor: const AlwaysStoppedAnimation(_green),
+                            valueColor: AlwaysStoppedAnimation(_green),
                           ),
                         ),
                       ],
@@ -1405,7 +1528,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Widget _locationWiseDues(Map<String, double> locations) {
     final entries = locations.entries.take(4).toList();
     final maxDue = entries.isEmpty ? 1.0 : entries.first.value;
-    const colors = [_green, Color(0xFFFF6269), Color(0xFFFFBC43), _blue];
+    final colors = [_green, Color(0xFFFF6269), Color(0xFFFFBC43), _blue];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1546,87 +1669,90 @@ class _OwnerReceivableHero extends StatelessWidget {
   final String overdue;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF073D28), Color(0xFF0B6A43)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Stack(
-      children: [
-        Positioned(
-          right: -8,
-          top: -12,
-          child: Icon(Icons.eco_rounded, size: 104, color: Colors.white12),
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color.lerp(primary, Colors.black, .26)!, primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                SizedBox(width: 9),
-                Text(
-                  'Total receivable',
-                  style: TextStyle(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -8,
+            top: -12,
+            child: Icon(Icons.eco_rounded, size: 104, color: Colors.white12),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
                     color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    size: 20,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                  SizedBox(width: 9),
+                  Text(
+                    'Total receivable',
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                const Icon(
-                  Icons.visibility_outlined,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Across $customers customers',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Overdue: $overdue',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                ],
               ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Icon(
+                    Icons.visibility_outlined,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Across $customers customers',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Overdue: $overdue',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {
@@ -1667,9 +1793,7 @@ class _MetricCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: color == _MetricColors.green
-                      ? _OwnerDashboardState._green
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: color,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1711,10 +1835,6 @@ class _MetricCard extends StatelessWidget {
       ],
     ),
   );
-}
-
-class _MetricColors {
-  static const green = Color(0xFF0B5D3B);
 }
 
 class _SalesmanTodayPayments {

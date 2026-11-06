@@ -35,8 +35,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
   String? _selectedGroupId;
   Set<String> _selectedGroupCustomerIds = const {};
 
-  static const _green = Color(0xFF0B5D3B);
-  static const _greenBright = Color(0xFF149A5A);
+  Color get _green => Theme.of(context).colorScheme.primary;
+  Color get _greenBright => Theme.of(context).colorScheme.secondary;
   Color get _page => Theme.of(context).scaffoldBackgroundColor;
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
@@ -81,13 +81,22 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() => _recentSearches = prefs.getStringList('ledgerpro_recent_customer_searches') ?? <String>[]);
+    setState(
+      () => _recentSearches =
+          prefs.getStringList('ledgerpro_recent_customer_searches') ??
+          <String>[],
+    );
   }
 
   Future<void> _rememberSearch(String value) async {
     final query = value.trim();
     if (query.length < 2) return;
-    final next = <String>[query, ..._recentSearches.where((item) => item.toLowerCase() != query.toLowerCase())].take(5).toList();
+    final next = <String>[
+      query,
+      ..._recentSearches.where(
+        (item) => item.toLowerCase() != query.toLowerCase(),
+      ),
+    ].take(5).toList();
     setState(() => _recentSearches = next);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ledgerpro_recent_customer_searches', next);
@@ -129,7 +138,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
           _selectedLocation == 'All' ||
           customer.location.trim().toLowerCase() ==
               _selectedLocation.toLowerCase();
-      final matchesGroup = _selectedGroupId == null ||
+      final matchesGroup =
+          _selectedGroupId == null ||
           _selectedGroupCustomerIds.contains(customer.id);
       final balance = TransactionService.getCustomerBalance(customer.id);
       final matchesBalance =
@@ -324,50 +334,61 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         TextField(
                           controller: _searchController,
                           onSubmitted: _rememberSearch,
-                      style: TextStyle(color: foreground, fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Search by name, phone or location...',
-                        hintStyle: TextStyle(color: _muted, fontSize: 13),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          color: _muted,
-                          size: 21,
+                          style: TextStyle(color: foreground, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Search by name, phone or location...',
+                            hintStyle: TextStyle(color: _muted, fontSize: 13),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: _muted,
+                              size: 21,
+                            ),
+                            suffixIcon: _searchQuery.isEmpty
+                                ? null
+                                : IconButton(
+                                    onPressed: _searchController.clear,
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                            filled: true,
+                            fillColor: surface,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 14,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _border),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _green, width: 1.4),
+                            ),
+                          ),
                         ),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: _searchController.clear,
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                        filled: true,
-                        fillColor: surface,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 14,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _green, width: 1.4),
-                        ),
-                      ),
-                        ),
-                        if (_searchQuery.isEmpty && _recentSearches.isNotEmpty) ...[
+                        if (_searchQuery.isEmpty &&
+                            _recentSearches.isNotEmpty) ...[
                           const SizedBox(height: 7),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Wrap(
                               spacing: 6,
-                              children: _recentSearches.map((query) => ActionChip(
-                                label: Text(query, style: const TextStyle(fontSize: 11)),
-                                onPressed: () {
-                                  _searchController.text = query;
-                                  _searchController.selection = TextSelection.collapsed(offset: query.length);
-                                },
-                              )).toList(),
+                              children: _recentSearches
+                                  .map(
+                                    (query) => ActionChip(
+                                      label: Text(
+                                        query,
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      onPressed: () {
+                                        _searchController.text = query;
+                                        _searchController.selection =
+                                            TextSelection.collapsed(
+                                              offset: query.length,
+                                            );
+                                      },
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
                         ],
@@ -433,28 +454,34 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
                     child: Column(
                       children: [
-                        Row(children: [
-                        Expanded(
-                          child:
-                              _filterDropdown('Balance', _balanceFilter, const [
-                                'All customers',
-                                'Outstanding balance',
-                                'Zero balance',
-                                'Customer credit',
-                              ], (v) => setState(() => _balanceFilter = v)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _filterDropdown(
+                                'Balance',
+                                _balanceFilter,
+                                const [
+                                  'All customers',
+                                  'Outstanding balance',
+                                  'Zero balance',
+                                  'Customer credit',
+                                ],
+                                (v) => setState(() => _balanceFilter = v),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _filterDropdown('Sort', _sort, const [
+                                'Customer name A–Z',
+                                'Customer name Z–A',
+                                'Highest outstanding balance',
+                                'Lowest outstanding balance',
+                                'Most recent payment',
+                                'Oldest payment',
+                              ], (v) => setState(() => _sort = v)),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _filterDropdown('Sort', _sort, const [
-                            'Customer name A–Z',
-                            'Customer name Z–A',
-                            'Highest outstanding balance',
-                            'Lowest outstanding balance',
-                            'Most recent payment',
-                            'Oldest payment',
-                          ], (v) => setState(() => _sort = v)),
-                        ),
-                        ]),
                         if (_groups.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String?>(
@@ -469,10 +496,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 value: null,
                                 child: Text('All customer groups'),
                               ),
-                              ..._groups.map((group) => DropdownMenuItem<String?>(
-                                    value: group.id,
-                                    child: Text(group.name),
-                                  )),
+                              ..._groups.map(
+                                (group) => DropdownMenuItem<String?>(
+                                  value: group.id,
+                                  child: Text(group.name),
+                                ),
+                              ),
                             ],
                             onChanged: _selectGroup,
                           ),

@@ -28,7 +28,6 @@ import 'owner_dashboard.dart';
 import 'salesman_visit_audit_screen.dart';
 import 'owner_route_management_screen.dart';
 import 'owner_notifications_screen.dart';
-import '../../theme/ledgerpro_tokens.dart';
 
 class OwnerMainScreen extends StatefulWidget {
   final String userName;
@@ -201,11 +200,9 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
 
-    final colors = ColorScheme.fromSeed(
-      seedColor: LedgerProTokens.green,
-
-      brightness: baseTheme.brightness,
-    );
+    // The MaterialApp owns the active brand accent. Reusing it here keeps
+    // every owner page in sync with the saved business appearance.
+    final colors = baseTheme.colorScheme;
 
     final polishedTheme = baseTheme.copyWith(
       colorScheme: colors,

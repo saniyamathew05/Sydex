@@ -397,7 +397,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
 
-        indicatorColor: const Color(0xFFDDF3E5),
+        indicatorColor: primaryContainer,
 
         elevation: 0,
 
@@ -739,7 +739,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
 
-        indicatorColor: const Color(0xFF145336),
+        indicatorColor: primaryContainer,
 
         elevation: 0,
 
