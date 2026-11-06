@@ -17,6 +17,7 @@ import 'profile_screen.dart';
 import 'signature_settings_screen.dart';
 
 import 'sync_status_screen.dart';
+import 'two_factor_auth_screen.dart';
 
 import 'user_management_screen.dart';
 
@@ -213,6 +214,21 @@ class SettingsScreen extends StatelessWidget {
             ),
 
           const Divider(),
+
+          const _SettingsSectionTitle(title: 'SECURITY'),
+
+          ListTile(
+            leading: const Icon(Icons.security_outlined),
+            title: const Text('Two-factor authentication'),
+            subtitle: const Text(
+              'Use an authenticator app for a second sign-in check',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TwoFactorAuthScreen()),
+            ),
+          ),
 
           if (isOwner) ...[
             const _SettingsSectionTitle(title: 'BUSINESS'),
