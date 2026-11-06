@@ -1010,7 +1010,9 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isWide = MediaQuery.sizeOf(context).width >= 760;
+    final size = MediaQuery.sizeOf(context);
+    final isWide = size.width >= 760;
+    final isCompactPhone = !isWide && size.height < 720;
     final heroContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: isWide
@@ -1042,12 +1044,12 @@ class WelcomeScreen extends StatelessWidget {
             ),
           ],
         ),
-        if (isWide) const Spacer() else const SizedBox(height: 28),
+        if (isWide) const Spacer() else const SizedBox(height: 20),
         const Text(
           'Your business.\nBeautifully balanced.',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 32,
+            fontSize: 30,
             height: 1.08,
             fontWeight: FontWeight.w800,
           ),
@@ -1060,19 +1062,24 @@ class WelcomeScreen extends StatelessWidget {
             fontSize: 15,
           ),
         ),
-        const SizedBox(height: 26),
-        _WelcomeFeatureCarousel(accent: colors.primary),
-        if (isWide) const Spacer() else const SizedBox(height: 16),
+        if (isWide) ...[
+          const SizedBox(height: 26),
+          _WelcomeFeatureCarousel(accent: colors.primary),
+          const Spacer(),
+        ] else ...[
+          const SizedBox(height: 18),
+          _MobileWelcomeBenefits(compact: isCompactPhone),
+        ],
       ],
     );
     final hero = Container(
       color: Color.lerp(colors.primary, Colors.black, .28),
-      padding: const EdgeInsets.fromLTRB(28, 36, 28, 30),
-      child: isWide ? heroContent : SingleChildScrollView(child: heroContent),
+      padding: EdgeInsets.fromLTRB(28, isWide ? 36 : 24, 28, isWide ? 30 : 20),
+      child: heroContent,
     );
     final actions = Container(
       color: colors.surface,
-      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      padding: EdgeInsets.fromLTRB(28, isWide ? 32 : 20, 28, isWide ? 28 : 18),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -1081,43 +1088,45 @@ class WelcomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Every payment. Every customer. In one place.',
+                isWide
+                    ? 'Every payment. Every customer. In one place.'
+                    : 'Keep your business moving.',
                 style: TextStyle(
                   color: colors.onSurface,
-                  fontSize: 27,
+                  fontSize: isWide ? 27 : 23,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: isWide ? 12 : 8),
               Text(
                 'Manage customer balances, record collections, and keep your business moving.',
                 style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: isWide ? 28 : 18),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: isWide ? 50 : 48,
                 child: FilledButton(
                   onPressed: () => _openRegistration(context),
                   child: const Text('Get Started'),
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: isWide ? 10 : 8),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: isWide ? 50 : 48,
                 child: OutlinedButton(
                   onPressed: () => _openSignIn(context),
                   child: const Text('Sign In'),
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: isWide ? 18 : 12),
               Text(
                 'Marketing Executive accounts are created and assigned by the business owner.',
                 style: TextStyle(
                   color: colors.onSurfaceVariant,
-                  fontSize: 12,
+                  fontSize: isWide ? 12 : 11,
                   height: 1.35,
                 ),
               ),
@@ -1142,6 +1151,55 @@ class WelcomeScreen extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+class _MobileWelcomeBenefits extends StatelessWidget {
+  const _MobileWelcomeBenefits({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (Icons.people_alt_outlined, 'Customers'),
+      (Icons.payments_outlined, 'Collections'),
+      (Icons.receipt_long_outlined, 'Ledger'),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items
+          .map(
+            (item) => Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 9 : 11,
+                vertical: compact ? 6 : 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .13),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: .16)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(item.$1, size: 15, color: Colors.white),
+                  const SizedBox(width: 6),
+                  Text(
+                    item.$2,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -2087,10 +2145,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final pageContent = ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 430),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2141,8 +2198,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
+            );
+            final needsScroll =
+                constraints.maxHeight < 680 ||
+                MediaQuery.viewInsetsOf(context).bottom > 0;
+            return needsScroll
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: pageContent,
+                  )
+                : Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: pageContent,
+                    ),
+                  );
+          },
         ),
       ),
     );
