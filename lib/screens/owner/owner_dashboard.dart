@@ -261,11 +261,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   List<_DayTotals> _chartDays() {
     final now = DateTime.now();
-    // The overview always gives a clear month-to-date picture.  The page
-    // period remains available for the summary cards and transaction lists.
-    // Future days are intentionally excluded so a row of zeroes is not read
-    // as a projection or a missing collection.
-    final count = now.day;
+    // Render every calendar day in the current month so the overview remains
+    // a stable monthly graph even when there are no collections yet.
+    final count = DateTime(now.year, now.month + 1, 0).day;
     final start = DateTime(now.year, now.month);
     final result = <_DayTotals>[];
     for (var i = 0; i < count; i++) {
@@ -1080,7 +1078,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       1,
       (max, day) => math.max(max, day.received).toDouble(),
     );
-    final hasCollections = receivedTotal > 0;
     final labelIndexes = <int>{
       if (days.isNotEmpty) 0,
       if (days.length > 2) days.length ~/ 2,
@@ -1125,92 +1122,72 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         const SizedBox(height: 16),
         SizedBox(
           height: 176,
-          child: hasCollections
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 34,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 22),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              _axis(maxReceived),
-                              style: TextStyle(fontSize: 8, color: _muted),
-                            ),
-                            Text(
-                              _axis(maxReceived * .5),
-                              style: TextStyle(fontSize: 8, color: _muted),
-                            ),
-                            Text(
-                              '0',
-                              style: TextStyle(fontSize: 8, color: _muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: RepaintBoundary(
-                              child: CustomPaint(
-                                painter: _DailyCollectionLinePainter(
-                                  values: days
-                                      .map((day) => day.received)
-                                      .toList(growable: false),
-                                  lineColor: _green,
-                                  gridColor: _line,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 7),
-                          SizedBox(
-                            height: 15,
-                            child: Row(
-                              children: List.generate(
-                                days.length,
-                                (index) => Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      labelIndexes.contains(index)
-                                          ? days[index].date.day.toString()
-                                          : '',
-                                      maxLines: 1,
-                                      style: TextStyle(
-                                        fontSize: 8,
-                                        color: _muted,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : Center(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 34,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 22),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Icon(Icons.payments_outlined, color: _muted, size: 24),
-                      const SizedBox(height: 8),
                       Text(
-                        'No payments recorded in this period',
-                        style: TextStyle(color: _muted, fontSize: 11),
+                        _axis(maxReceived),
+                        style: TextStyle(fontSize: 8, color: _muted),
                       ),
+                      Text(
+                        _axis(maxReceived * .5),
+                        style: TextStyle(fontSize: 8, color: _muted),
+                      ),
+                      Text('0', style: TextStyle(fontSize: 8, color: _muted)),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _DailyCollectionLinePainter(
+                            values: days
+                                .map((day) => day.received)
+                                .toList(growable: false),
+                            lineColor: _green,
+                            gridColor: _line,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    SizedBox(
+                      height: 15,
+                      child: Row(
+                        children: List.generate(
+                          days.length,
+                          (index) => Expanded(
+                            child: Center(
+                              child: Text(
+                                labelIndexes.contains(index)
+                                    ? days[index].date.day.toString()
+                                    : '',
+                                maxLines: 1,
+                                style: TextStyle(fontSize: 8, color: _muted),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
