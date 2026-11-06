@@ -16,6 +16,7 @@ import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
+import '../../services/payment_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Customer customer;
@@ -65,6 +66,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _isLoadingBalance = true;
 
   bool _isSaving = false;
+  String? _paymentRequestKey;
+  String? _paymentRequestSignaturePath;
 
   DateTime _selectedDate = BusinessDateService.selectedDate.value;
 
@@ -458,14 +461,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _isSaving = true;
     });
 
+    // Keep this key until the server confirms success. If a request times out,
+    // the same submission can be retried without creating a second payment.
+    _paymentRequestKey ??= PaymentService.createPaymentRequestKey();
+
     String? signaturePath;
 
     try {
-      signaturePath = await _uploadSignature();
+      signaturePath = _paymentRequestSignaturePath ?? await _uploadSignature();
 
       if (signaturePath == null) {
         return;
       }
+      _paymentRequestSignaturePath ??= signaturePath;
 
       final temporaryTransaction = PaymentTransaction(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -502,8 +510,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
       if (savedPayment == null) {
-        await _deleteUploadedSignature(signaturePath);
-
+        // Do not delete the signature here. The network result may be unknown
+        // even when the server committed the payment. Keeping both this path
+        // and the request key lets the next save attempt resolve safely.
         return;
       }
 
@@ -520,12 +529,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ' WhatsApp receipt delivery is queued automatically when enabled.',
       );
 
+      _paymentRequestKey = null;
+      _paymentRequestSignaturePath = null;
+
       Navigator.pop(context, true);
     } catch (error) {
-      if (signaturePath != null) {
-        await _deleteUploadedSignature(signaturePath);
-      }
-
       if (mounted) {
         _showMessage('Could not save the payment.', isError: true);
       }
@@ -580,7 +588,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
 
       final response = await Supabase.instance.client.rpc(
-        'record_payment_with_phone_time',
+        'record_payment_idempotent',
 
         params: {
           'p_customer_id': transaction.customerId,
@@ -604,6 +612,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'p_entered_at': (transaction.createdAt ?? DateTime.now())
               .toUtc()
               .toIso8601String(),
+          'p_idempotency_key': _paymentRequestKey,
         },
       );
 
@@ -677,18 +686,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
 
       return null;
-    }
-  }
-
-  Future<void> _deleteUploadedSignature(String path) async {
-    try {
-      await Supabase.instance.client.storage.from('payment-signatures').remove([
-        path,
-      ]);
-    } catch (_) {
-      // Do not replace the original payment error
-
-      // with a signature cleanup error.
     }
   }
 

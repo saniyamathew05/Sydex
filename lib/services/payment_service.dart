@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +7,13 @@ import '../models/transaction.dart';
 
 class PaymentService {
   static final SupabaseClient _supabase = Supabase.instance.client;
+
+  /// One key belongs to one user action and must be retained when retrying the
+  /// same request. The server enforces uniqueness within the active company.
+  static String createPaymentRequestKey() {
+    final random = Random.secure();
+    return 'pay-${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 32).toRadixString(16)}';
+  }
 
   /// Ensures the supplied customer is a real customer record before writing.
   static Future<void> _validateCustomer(String customerId) async {
@@ -49,6 +57,7 @@ class PaymentService {
     required DateTime transactionDate,
     String paymentMethod = 'cash',
     String paymentMethodNote = '',
+    String? idempotencyKey,
   }) async {
     final user = _supabase.auth.currentUser;
 
@@ -84,7 +93,7 @@ class PaymentService {
     // local timezone.
     final enteredAt = DateTime.now();
     final response = await _supabase.rpc(
-      'record_payment_with_phone_time',
+      'record_payment_idempotent',
       params: {
         'p_customer_id': customerId.trim(),
         'p_amount': amount,
@@ -97,6 +106,7 @@ class PaymentService {
             ? null
             : paymentMethodNote.trim(),
         'p_entered_at': enteredAt.toUtc().toIso8601String(),
+        'p_idempotency_key': idempotencyKey ?? createPaymentRequestKey(),
       },
     );
 
