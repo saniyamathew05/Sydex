@@ -62,6 +62,10 @@ class _LedgerProPressableState extends State<LedgerProPressable> {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
+    // Some pressable controls deliberately ignore their visual child so that
+    // this wrapper owns the interaction. Opaque hit testing keeps the entire
+    // control tappable in that case.
+    behavior: HitTestBehavior.opaque,
     onTapDown: widget.onTap == null
         ? null
         : (_) => setState(() => _pressed = true),
