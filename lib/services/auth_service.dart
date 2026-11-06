@@ -4,7 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   static const _oauthAttemptKey = 'horizon_google_oauth_attempt_at';
-  static const _nativeOAuthRedirectUri = 'io.horizon.app://login-callback';
+  // Keep the original registered callback during the Horizon rename. The
+  // visible app name and native package IDs are Horizon; this URI only returns
+  // the secure OAuth response to the installed app.
+  static const _nativeOAuthRedirectUri =
+      'io.ledgerpro.ledgerpro://login-callback';
   static const _oauthAttemptLifetime = Duration(minutes: 10);
 
   static final SupabaseClient _supabase = Supabase.instance.client;

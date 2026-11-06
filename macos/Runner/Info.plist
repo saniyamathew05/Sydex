@@ -10,6 +10,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>io.horizon.app</string>
+			<string>io.ledgerpro.ledgerpro</string>
 			</array>
 		</dict>
 	</array>
