@@ -176,6 +176,8 @@ class TransactionService {
 
             receivedBy: receivedBy,
 
+            enteredBy: userId,
+
             paymentMethod: row['payment_method']?.toString() ?? 'cash',
 
             paymentMethodNote: row['payment_method_note']?.toString() ?? '',
@@ -396,6 +398,8 @@ class TransactionService {
           signaturePath: savedTransaction.signaturePath,
 
           receivedBy: receivedBy,
+
+          enteredBy: _supabase.auth.currentUser?.id,
 
           paymentMethod: savedTransaction.paymentMethod,
 

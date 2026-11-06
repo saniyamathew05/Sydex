@@ -1,17 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr/qr.dart';
 
 import '../../models/customer.dart';
+import '../../models/transaction.dart';
 
 import '../payments/payment_screen.dart';
 
 import 'salesman_customer_screen.dart';
 
 import 'salesman_payments_screen.dart';
+import 'salesman_visit_screen.dart';
 
 import '../../services/customer_service.dart';
 
@@ -200,9 +203,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     for (final transaction in TransactionService.transactions) {
       final date = transaction.transactionDate.toLocal();
       final transactionDay = DateTime(date.year, date.month, date.day);
-      if (transactionDay == today) {
-        // Keep explicit daily outcomes (especially a refusal) authoritative;
-        // payment history only supplies a fallback where no status exists.
+      if (transactionDay == today && _isCurrentUsersPayment(transaction)) {
+        // Keep an explicit visit outcome authoritative. A payment saved by
+        // another executive must never alter this executive's route progress.
         todaysCustomerStatuses.putIfAbsent(
           transaction.customerId,
           () => 'paid',
@@ -223,16 +226,12 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     final customersById = {
       for (final customer in CustomerService.customers) customer.id: customer,
     };
+    // The owner-selected assignment is the source of truth. A customer
+    // stays on today's route even when their balance is zero or they have not
+    // yet been visited, so the assigned count and route order remain stable.
     return selectedRouteCustomerIds
         .map((id) => customersById[id])
         .whereType<Customer>()
-        .where(
-          (customer) =>
-              (TransactionService.customerBalances[customer.id] ??
-                      customer.openingBalance) >
-                  0 ||
-              todaysCustomerStatuses.containsKey(customer.id),
-        )
         .toList(growable: false);
   }
 
@@ -276,6 +275,46 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   bool _isVisitCompleted(String? status) =>
       status == 'paid' || status == 'rejected';
 
+  bool _isToday(DateTime value) {
+    final local = value.toLocal();
+    final now = DateTime.now();
+    return local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+  }
+
+  bool _isCurrentUsersPayment(PaymentTransaction transaction) {
+    final userId = supabase.auth.currentUser?.id;
+    // Legacy rows can lack an entry user. They remain visible rather than
+    // disappearing, while new rows are scoped to the collector who saved them.
+    return transaction.enteredBy == null || transaction.enteredBy == userId;
+  }
+
+  double _collectedToday() => TransactionService.transactions
+      .where(
+        (transaction) =>
+            transaction.transactionType == 'payment_received' &&
+            !transaction.isBounced &&
+            transaction.actualAmountReceived > 0 &&
+            _isToday(transaction.transactionDate) &&
+            _isCurrentUsersPayment(transaction),
+      )
+      .fold<double>(
+        0,
+        (sum, transaction) => sum + transaction.actualAmountReceived,
+      );
+
+  int _paymentsToday() => TransactionService.transactions
+      .where(
+        (transaction) =>
+            transaction.transactionType == 'payment_received' &&
+            !transaction.isBounced &&
+            transaction.actualAmountReceived > 0 &&
+            _isToday(transaction.transactionDate) &&
+            _isCurrentUsersPayment(transaction),
+      )
+      .length;
+
   double _pendingCollection(List<Customer> customers) {
     return customers.fold<double>(0, (total, customer) {
       final balance = TransactionService.getCustomerBalance(customer.id);
@@ -317,7 +356,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load assigned route: $error')),
+        const SnackBar(
+          content: Text('Could not load the assigned route. Please try again.'),
+        ),
       );
     }
   }
@@ -356,7 +397,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load assigned route: $error')),
+        const SnackBar(
+          content: Text('Could not load the assigned route. Please try again.'),
+        ),
       );
     }
   }
@@ -368,6 +411,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     } catch (error) {
       debugPrint('Could not refresh customer visit status: $error');
     }
+    if (!mounted) return;
 
     await Navigator.push(
       context,
@@ -464,7 +508,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     var upi = upiIds.isEmpty ? '' : upiIds.first;
     var payload = upi.isEmpty
         ? netBankingQr
-        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
+        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('LedgerPro')}';
     var qrLabel = upi.isEmpty ? 'Net banking' : upi;
     if (upiIds.length > 1 || (upiIds.isNotEmpty && netBankingQr.isNotEmpty)) {
       final selected = await showDialog<String>(
@@ -487,14 +531,14 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           ],
         ),
       );
-      if (selected == null) return;
+      if (selected == null || !mounted) return;
       if (selected == '__net_banking__') {
         payload = netBankingQr;
         qrLabel = 'Net banking';
       } else {
         upi = selected;
         payload =
-            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent(widget.userName)}';
+            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('LedgerPro')}';
         qrLabel = upi;
       }
     }
@@ -523,6 +567,30 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             ),
             const SizedBox(height: 12),
             Text(qrLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
+            if (upi.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: upi));
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('UPI ID copied.')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: const Text('Copy UPI ID'),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              'Confirm the payment before recording it in LedgerPro.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -582,7 +650,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final route = routeCustomers;
     final visited = route
-        .where((c) => todaysCustomerStatuses.containsKey(c.id))
+        .where((c) => _isVisitCompleted(todaysCustomerStatuses[c.id]))
         .length;
     final paid = route
         .where((c) => todaysCustomerStatuses[c.id] == 'paid')
@@ -591,24 +659,27 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         .where((c) => todaysCustomerStatuses[c.id] == 'rejected')
         .length;
     final pending = route
-        .where((c) => !todaysCustomerStatuses.containsKey(c.id))
+        .where((c) => !_isVisitCompleted(todaysCustomerStatuses[c.id]))
         .length;
-    final collectedToday = TransactionService.getCollectedToday();
+    final collectedToday = _collectedToday();
+    final paymentCount = _paymentsToday();
     final pendingCollection = _pendingCollection(route);
     final recentPayments = TransactionService.transactions
         .where(
           (transaction) =>
               transaction.transactionType == 'payment_received' &&
               !transaction.isBounced &&
-              transaction.actualAmountReceived > 0,
+              transaction.actualAmountReceived > 0 &&
+              _isToday(transaction.transactionDate) &&
+              _isCurrentUsersPayment(transaction),
         )
         .take(4)
         .toList(growable: false);
     final routeLabel = selectedRouteLocations.isEmpty
         ? 'No route assigned'
         : selectedRouteName ?? 'Route name unavailable';
-    const green = Color(0xFF0B5D3B);
-    const emerald = Color(0xFF0B5D3B);
+    final green = colors.primary;
+    final emerald = colors.primary;
     final ink = Theme.of(context).colorScheme.onSurface;
 
     return RefreshIndicator(
@@ -624,7 +695,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Good morning,',
+                      '${_getGreeting()},',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -736,7 +807,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               Expanded(
                 child: _SalesmanStatusCard(
                   icon: Icons.account_balance_wallet_rounded,
-                  label: 'Collected today',
+                  label: '$paymentCount payments today',
                   value: CurrencyFormatter.rupees(collectedToday),
                   color: emerald,
                   background: isDark
@@ -826,7 +897,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               ),
               TextButton(
                 onPressed: _openPayments,
-                child: const Text(
+                child: Text(
                   'View all',
                   style: TextStyle(color: green, fontSize: 12),
                 ),
@@ -861,7 +932,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Widget _buildCustomersTab() {
-    const green = Color(0xFF0B5D3B);
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = colors.onSurface;
@@ -935,7 +1005,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(13),
-                  borderSide: const BorderSide(color: green, width: 1.2),
+                  borderSide: BorderSide(color: colors.primary, width: 1.2),
                 ),
               ),
             ),
@@ -961,10 +1031,14 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                           horizontal: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: selected ? green : colors.surfaceContainerHigh,
+                          color: selected
+                              ? colors.primary
+                              : colors.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: selected ? green : colors.outlineVariant,
+                            color: selected
+                                ? colors.primary
+                                : colors.outlineVariant,
                           ),
                         ),
                         child: Center(
@@ -1812,164 +1886,214 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     super.dispose();
   }
 
+  Future<void> _openRouteWorkspace() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SalesmanVisitScreen()));
+    if (mounted) await _loadData();
+  }
+
+  int get _navigationIndex => switch (selectedIndex) {
+    0 => 0,
+    1 => 1,
+    2 => 3,
+    _ => 4,
+  };
+
+  void _selectNavigation(int index) {
+    if (index == 2) {
+      _openRouteWorkspace();
+      return;
+    }
+    setState(() => selectedIndex = index < 2 ? index : index - 1);
+  }
+
+  Widget _navigationRail(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return NavigationRail(
+      selectedIndex: _navigationIndex,
+      onDestinationSelected: _selectNavigation,
+      labelType: NavigationRailLabelType.all,
+      backgroundColor: colors.surface,
+      leading: Padding(
+        padding: const EdgeInsets.only(top: 12, bottom: 16),
+        child: IconButton.filledTonal(
+          tooltip: 'Receive payment by QR',
+          onPressed: _showPaymentQr,
+          icon: const Icon(Icons.qr_code_2_rounded),
+        ),
+      ),
+      destinations: const [
+        NavigationRailDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home_rounded),
+          label: Text('Home'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.people_outline_rounded),
+          selectedIcon: Icon(Icons.people_rounded),
+          label: Text('Customers'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.route_outlined),
+          selectedIcon: Icon(Icons.route_rounded),
+          label: Text('Route'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.payments_outlined),
+          selectedIcon: Icon(Icons.payments_rounded),
+          label: Text('Payments'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.person_outline_rounded),
+          selectedIcon: Icon(Icons.person_rounded),
+          label: Text('More'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final pages = [
       _buildHomeTab(),
       _buildCustomersTab(),
       const SalesmanPaymentsScreen(),
       _buildMoreTab(),
     ];
-
     final titles = [
       'LedgerPro',
       "Today's Customers",
       'Payments Received',
-      'Profile',
+      'More',
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF063D28),
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: selectedIndex == 0
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0B5D3B),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Colors.white,
-                      size: 17,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useRail = constraints.maxWidth >= 720;
+        final content = Scaffold(
+          appBar: AppBar(
+            backgroundColor: colors.surface,
+            foregroundColor: colors.onSurface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            title: selectedIndex == 0
+                ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'LedgerPro',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: colors.onPrimary,
+                          size: 18,
                         ),
                       ),
-                      Text(
-                        'Business Ledger',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
-                        ),
+                      const SizedBox(width: 9),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'LedgerPro',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Collection workspace',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
+                  )
+                : Text(
+                    titles[selectedIndex],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                    ),
                   ),
-                ],
-              )
-            : Text(
-                titles[selectedIndex],
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
+            actions: [
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: isLoading ? null : _loadData,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+              if (useRail)
+                IconButton(
+                  tooltip: 'Today\'s route',
+                  onPressed: _openRouteWorkspace,
+                  icon: const Icon(Icons.route_rounded),
                 ),
-              ),
-
-        actions: [
-          if (selectedIndex == 0)
-            IconButton(
-              tooltip: 'Refresh',
-
-              onPressed: _loadData,
-
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-
-          const SizedBox(width: 4),
-        ],
-      ),
-
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : IndexedStack(index: selectedIndex, children: pages),
-
-      bottomNavigationBar: Stack(
-        alignment: Alignment.topCenter,
-        clipBehavior: Clip.none,
-        children: [
-          NavigationBar(
-            indicatorColor: const Color(0xFFDDF3E5),
-            selectedIndex: selectedIndex >= 2
-                ? selectedIndex + 1
-                : selectedIndex,
-
-            onDestinationSelected: (index) {
-              if (index == 2) {
-                _showPaymentQr();
-                return;
-              }
-              setState(() => selectedIndex = index > 2 ? index - 1 : index);
-            },
-
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-
-                selectedIcon: Icon(Icons.home_rounded),
-
-                label: 'Home',
-              ),
-
-              NavigationDestination(
-                icon: Icon(Icons.people_outline_rounded),
-
-                selectedIcon: Icon(Icons.people_rounded),
-
-                label: 'Customers',
-              ),
-
-              NavigationDestination(
-                icon: SizedBox.shrink(),
-                selectedIcon: SizedBox.shrink(),
-                label: '',
-              ),
-
-              NavigationDestination(
-                icon: Icon(Icons.payments_outlined),
-
-                selectedIcon: Icon(Icons.payments_rounded),
-
-                label: 'Payments',
-              ),
-
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
+              const SizedBox(width: 4),
             ],
           ),
-          Positioned(
-            top: -18,
-            child: FloatingActionButton(
-              heroTag: 'salesman-qr',
-              backgroundColor: const Color(0xFF0B5D3B),
-              foregroundColor: Colors.white,
-              onPressed: _showPaymentQr,
-              child: const Icon(Icons.qr_code_2_rounded, size: 28),
-            ),
-          ),
-        ],
-      ),
+          body: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : IndexedStack(index: selectedIndex, children: pages),
+          floatingActionButton: useRail
+              ? null
+              : FloatingActionButton(
+                  heroTag: 'salesman-qr',
+                  tooltip: 'Receive payment by QR',
+                  onPressed: _showPaymentQr,
+                  child: const Icon(Icons.qr_code_2_rounded),
+                ),
+          bottomNavigationBar: useRail
+              ? null
+              : NavigationBar(
+                  selectedIndex: _navigationIndex,
+                  onDestinationSelected: _selectNavigation,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.people_outline_rounded),
+                      selectedIcon: Icon(Icons.people_rounded),
+                      label: 'Customers',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.route_outlined),
+                      selectedIcon: Icon(Icons.route_rounded),
+                      label: 'Route',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.payments_outlined),
+                      selectedIcon: Icon(Icons.payments_rounded),
+                      label: 'Payments',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.more_horiz_rounded),
+                      selectedIcon: Icon(Icons.more_rounded),
+                      label: 'More',
+                    ),
+                  ],
+                ),
+        );
+        if (!useRail) return content;
+        return Row(
+          children: [
+            _navigationRail(context),
+            VerticalDivider(width: 1, color: colors.outlineVariant),
+            Expanded(child: content),
+          ],
+        );
+      },
     );
   }
 }

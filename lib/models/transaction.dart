@@ -24,6 +24,9 @@ class PaymentTransaction {
   /// Name of the person who collected the payment, when applicable.
   final String receivedBy;
 
+  /// Authenticated user who saved this payment, when available.
+  final String? enteredBy;
+
   /// Examples: 'cash', 'cheque', 'net_banking', or 'gpay'.
   final String paymentMethod;
 
@@ -55,6 +58,7 @@ class PaymentTransaction {
     required this.signature,
     this.signaturePath,
     this.receivedBy = 'Unknown',
+    this.enteredBy,
     this.paymentMethod = 'cash',
     this.paymentMethodNote = '',
     this.isBounced = false,

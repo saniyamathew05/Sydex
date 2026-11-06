@@ -46,16 +46,11 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
     final customersById = {
       for (final customer in _customers) customer.id: customer,
     };
+    // Retain the complete owner assignment in its saved order. Visit work is
+    // independent of whether a customer currently has an outstanding balance.
     return _routeCustomerIds
         .map((id) => customersById[id])
         .whereType<Customer>()
-        .where(
-          (customer) =>
-              (TransactionService.customerBalances[customer.id] ??
-                      customer.openingBalance) >
-                  0 ||
-              _statuses.containsKey(customer.id),
-        )
         .toList(growable: false);
   }
 
@@ -164,7 +159,11 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final completed = _routeCustomers
-        .where((customer) => _statuses.containsKey(customer.id))
+        .where(
+          (customer) =>
+              _statuses[customer.id] == 'paid' ||
+              _statuses[customer.id] == 'rejected',
+        )
         .length;
     final total = _routeCustomers.length;
 
