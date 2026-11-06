@@ -136,6 +136,11 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
   ThemeData _buildLightTheme(Color primary) {
     final secondary = primary.withValues(alpha: .88);
+    final primaryContainer = Color.alphaBlend(
+      primary.withValues(alpha: .14),
+      Colors.white,
+    );
+    final onPrimaryContainer = Color.lerp(primary, Colors.black, .32)!;
 
     const background = LedgerProTokens.background;
 
@@ -152,17 +157,17 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       onPrimary: Colors.white,
 
-      primaryContainer: const Color(0xFFDDF3E5),
+      primaryContainer: primaryContainer,
 
-      onPrimaryContainer: const Color(0xFF06452C),
+      onPrimaryContainer: onPrimaryContainer,
 
       secondary: secondary,
 
       onSecondary: Colors.white,
 
-      secondaryContainer: const Color(0xFFDDF3E5),
+      secondaryContainer: primaryContainer,
 
-      onSecondaryContainer: const Color(0xFF06452C),
+      onSecondaryContainer: onPrimaryContainer,
 
       surface: surface,
 
@@ -478,6 +483,11 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
     const surface = LedgerProTokens.navySoft;
 
+    final primaryContainer = Color.alphaBlend(
+      accent.withValues(alpha: .34),
+      surface,
+    );
+
     const border = Color(0xFF345245);
 
     const textPrimary = Color(0xFFF3F7F4);
@@ -489,7 +499,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       onPrimary: const Color(0xFF063D28),
 
-      primaryContainer: const Color(0xFF145336),
+      primaryContainer: primaryContainer,
 
       onPrimaryContainer: const Color(0xFFDDF3E5),
 
@@ -497,7 +507,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       onSecondary: const Color(0xFF063D28),
 
-      secondaryContainer: const Color(0xFF145336),
+      secondaryContainer: primaryContainer,
 
       onSecondaryContainer: const Color(0xFFDDF3E5),
 

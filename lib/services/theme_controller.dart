@@ -21,10 +21,12 @@ class ThemeController {
 
   // Use the device setting for a fresh install unless the user has explicitly
   // selected Light or Dark mode before.
-  static final ValueNotifier<ThemeMode> themeMode =
-      ValueNotifier<ThemeMode>(ThemeMode.system);
-  static final ValueNotifier<Color> accentColor =
-      ValueNotifier<Color>(accentChoices['Forest']!);
+  static final ValueNotifier<ThemeMode> themeMode = ValueNotifier<ThemeMode>(
+    ThemeMode.system,
+  );
+  static final ValueNotifier<Color> accentColor = ValueNotifier<Color>(
+    accentChoices['Forest']!,
+  );
 
   static Future<void> loadTheme() async {
     final preferences = await SharedPreferences.getInstance();
@@ -57,9 +59,11 @@ class ThemeController {
   static Future<void> setAccent(String name) async {
     final color = accentChoices[name];
     if (color == null) return;
+    // Notify first so the entire MaterialApp repaints as soon as the user
+    // taps an accent. Persistence must not delay visual feedback.
+    accentColor.value = color;
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_accentPreferenceKey, name);
-    accentColor.value = color;
   }
 
   static String get accentName => accentChoices.entries

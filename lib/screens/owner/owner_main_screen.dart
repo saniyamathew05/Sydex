@@ -426,16 +426,19 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
     required this.onRouteMap,
   });
 
-  static const _background = Color(0xFF063D28);
-  static const _green = Color(0xFF2D713F);
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final sidebarWidth = (screenWidth * 0.14).clamp(160.0, 220.0);
+    final colors = Theme.of(context).colorScheme;
+    final background = Color.lerp(colors.primary, Colors.black, .38)!;
+    final muted = Color.alphaBlend(
+      Colors.white.withValues(alpha: .72),
+      background,
+    );
     return Container(
       width: sidebarWidth,
-      color: _background,
+      color: background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -448,7 +451,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: _green,
+                    color: colors.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -458,7 +461,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 9),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -472,10 +475,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                       ),
                       Text(
                         'Business Ledger',
-                        style: TextStyle(
-                          color: Color(0xFFB9D6C0),
-                          fontSize: 10,
-                        ),
+                        style: TextStyle(color: muted, fontSize: 10),
                       ),
                     ],
                   ),
@@ -484,10 +484,11 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 34),
-          _item(Icons.home_rounded, 'Home', 0),
-          _item(Icons.people_alt_outlined, 'Customers', 1),
-          _item(Icons.payments_outlined, 'Payments', 2),
+          _item(context, Icons.home_rounded, 'Home', 0),
+          _item(context, Icons.people_alt_outlined, 'Customers', 1),
+          _item(context, Icons.payments_outlined, 'Payments', 2),
           _item(
+            context,
             Icons.shopping_cart_outlined,
             'Sales',
             -1,
@@ -496,20 +497,28 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
             ),
           ),
           _item(
+            context,
             Icons.location_on_outlined,
             'Routes & Areas',
             -1,
             onTap: onPlaces,
           ),
           _item(
+            context,
             Icons.person_outline_rounded,
             'Marketing Executive',
             -1,
             onTap: onSalesmen,
           ),
-          _item(Icons.bar_chart_rounded, 'Reports', 3),
-          _item(Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
-          _item(Icons.settings_outlined, 'Settings', -1, onTap: onSettings),
+          _item(context, Icons.bar_chart_rounded, 'Reports', 3),
+          _item(context, Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
+          _item(
+            context,
+            Icons.settings_outlined,
+            'Settings',
+            -1,
+            onTap: onSettings,
+          ),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
@@ -517,7 +526,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: _green,
+                  backgroundColor: colors.primary,
                   child: Text(
                     userName.isEmpty ? 'O' : userName[0].toUpperCase(),
                     style: const TextStyle(
@@ -542,12 +551,9 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Owner',
-                        style: TextStyle(
-                          color: Color(0xFFB9D6C0),
-                          fontSize: 10,
-                        ),
+                        style: TextStyle(color: muted, fontSize: 10),
                       ),
                     ],
                   ),
@@ -560,12 +566,24 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
     );
   }
 
-  Widget _item(IconData icon, String label, int index, {VoidCallback? onTap}) {
+  Widget _item(
+    BuildContext context,
+    IconData icon,
+    String label,
+    int index, {
+    VoidCallback? onTap,
+  }) {
     final active = selectedIndex == index;
+    final colors = Theme.of(context).colorScheme;
+    final background = Color.lerp(colors.primary, Colors.black, .38)!;
+    final muted = Color.alphaBlend(
+      Colors.white.withValues(alpha: .82),
+      background,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       child: Material(
-        color: active ? _green : Colors.transparent,
+        color: active ? colors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -574,11 +592,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color: active ? Colors.white : const Color(0xFFD9E9DD),
-                ),
+                Icon(icon, size: 17, color: active ? Colors.white : muted),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -586,7 +600,7 @@ class _LedgerProDesktopSidebar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? Colors.white : const Color(0xFFD9E9DD),
+                      color: active ? Colors.white : muted,
                     ),
                   ),
                 ),
