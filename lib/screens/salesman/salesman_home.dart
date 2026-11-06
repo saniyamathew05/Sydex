@@ -14,7 +14,6 @@ import '../payments/payment_screen.dart';
 import 'salesman_customer_screen.dart';
 
 import 'salesman_payments_screen.dart';
-import 'salesman_visit_screen.dart';
 
 import '../../services/customer_service.dart';
 
@@ -675,9 +674,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         )
         .take(4)
         .toList(growable: false);
-    final routeLabel = selectedRouteLocations.isEmpty
-        ? 'No route assigned'
-        : selectedRouteName ?? 'Route name unavailable';
     final green = colors.primary;
     final emerald = colors.primary;
     final ink = Theme.of(context).colorScheme.onSurface;
@@ -716,92 +712,21 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: _loadData,
-                icon: Icon(Icons.notifications_none_rounded, color: ink),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: colors.primaryContainer,
+                foregroundColor: colors.onPrimaryContainer,
+                child: Text(
+                  _getInitials(widget.userName),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF063D28), Color(0xFF0B6A43)],
-              ),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.white),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        routeLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Colors.white.withValues(alpha: .8),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${selectedRouteLocations.length} locations · ${route.length} customers',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: .82),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  '$visited / ${route.length} visited',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(9),
-                  child: LinearProgressIndicator(
-                    value: route.isEmpty ? 0 : visited / route.length,
-                    minHeight: 8,
-                    backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF65E66B),
-                    ),
-                  ),
-                ),
-                if (selectedRouteLocations.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    selectedRouteLocations.join(', '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .72),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -863,25 +788,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
               '$noPayment refused today · $paid payments recorded',
               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
             ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: _startRoute,
-              child: const Text(
-                'Start Route',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-            ),
-          ),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -1886,23 +1792,16 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     super.dispose();
   }
 
-  Future<void> _openRouteWorkspace() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SalesmanVisitScreen()));
-    if (mounted) await _loadData();
-  }
-
-  int get _navigationIndex => switch (selectedIndex) {
+  int get _phoneNavigationIndex => switch (selectedIndex) {
     0 => 0,
     1 => 1,
     2 => 3,
     _ => 4,
   };
 
-  void _selectNavigation(int index) {
+  void _selectPhoneNavigation(int index) {
     if (index == 2) {
-      _openRouteWorkspace();
+      _showPaymentQr();
       return;
     }
     setState(() => selectedIndex = index < 2 ? index : index - 1);
@@ -1911,8 +1810,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   Widget _navigationRail(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return NavigationRail(
-      selectedIndex: _navigationIndex,
-      onDestinationSelected: _selectNavigation,
+      selectedIndex: selectedIndex,
+      onDestinationSelected: (index) => setState(() => selectedIndex = index),
       labelType: NavigationRailLabelType.all,
       backgroundColor: colors.surface,
       leading: Padding(
@@ -1933,11 +1832,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           icon: Icon(Icons.people_outline_rounded),
           selectedIcon: Icon(Icons.people_rounded),
           label: Text('Customers'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.route_outlined),
-          selectedIcon: Icon(Icons.route_rounded),
-          label: Text('Route'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.payments_outlined),
@@ -2031,56 +1925,57 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                 onPressed: isLoading ? null : _loadData,
                 icon: const Icon(Icons.refresh_rounded),
               ),
-              if (useRail)
-                IconButton(
-                  tooltip: 'Today\'s route',
-                  onPressed: _openRouteWorkspace,
-                  icon: const Icon(Icons.route_rounded),
-                ),
               const SizedBox(width: 4),
             ],
           ),
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
               : IndexedStack(index: selectedIndex, children: pages),
-          floatingActionButton: useRail
-              ? null
-              : FloatingActionButton(
-                  heroTag: 'salesman-qr',
-                  tooltip: 'Receive payment by QR',
-                  onPressed: _showPaymentQr,
-                  child: const Icon(Icons.qr_code_2_rounded),
-                ),
           bottomNavigationBar: useRail
               ? null
-              : NavigationBar(
-                  selectedIndex: _navigationIndex,
-                  onDestinationSelected: _selectNavigation,
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: 'Home',
+              : Stack(
+                  alignment: Alignment.topCenter,
+                  clipBehavior: Clip.none,
+                  children: [
+                    NavigationBar(
+                      selectedIndex: _phoneNavigationIndex,
+                      onDestinationSelected: _selectPhoneNavigation,
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.home_outlined),
+                          selectedIcon: Icon(Icons.home_rounded),
+                          label: 'Home',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.people_outline_rounded),
+                          selectedIcon: Icon(Icons.people_rounded),
+                          label: 'Customers',
+                        ),
+                        NavigationDestination(
+                          icon: SizedBox.shrink(),
+                          selectedIcon: SizedBox.shrink(),
+                          label: '',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.payments_outlined),
+                          selectedIcon: Icon(Icons.payments_rounded),
+                          label: 'Payments',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.more_horiz_rounded),
+                          selectedIcon: Icon(Icons.more_rounded),
+                          label: 'More',
+                        ),
+                      ],
                     ),
-                    NavigationDestination(
-                      icon: Icon(Icons.people_outline_rounded),
-                      selectedIcon: Icon(Icons.people_rounded),
-                      label: 'Customers',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.route_outlined),
-                      selectedIcon: Icon(Icons.route_rounded),
-                      label: 'Route',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.payments_outlined),
-                      selectedIcon: Icon(Icons.payments_rounded),
-                      label: 'Payments',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.more_horiz_rounded),
-                      selectedIcon: Icon(Icons.more_rounded),
-                      label: 'More',
+                    Positioned(
+                      top: -18,
+                      child: FloatingActionButton(
+                        heroTag: 'salesman-qr',
+                        tooltip: 'Receive payment by QR',
+                        onPressed: _showPaymentQr,
+                        child: const Icon(Icons.qr_code_2_rounded),
+                      ),
                     ),
                   ],
                 ),
