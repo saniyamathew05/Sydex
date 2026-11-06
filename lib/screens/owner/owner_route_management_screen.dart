@@ -905,18 +905,9 @@ class _OwnerRouteManagementScreenState
             },
           )
           .toList();
-      // Reassigning a route starts a fresh visit run for today. Clear any
-      // outcomes from an earlier route run so customers do not appear visited
-      // before this assignment is worked.
-      for (final salesmanId in salesmanIds) {
-        try {
-          await _client
-              .from('salesman_customer_daily_status')
-              .delete()
-              .eq('entered_by', salesmanId)
-              .eq('status_date', dateKey);
-        } catch (_) {}
-      }
+      // Updating an active route must never erase a salesman's work already
+      // recorded today. Paid/visited and refused outcomes remain tied to the
+      // business date, even when the owner changes the remaining route.
       // Upsert in place so an RLS or network error cannot delete the prior
       // assignment before the replacement is saved.
       await _client
