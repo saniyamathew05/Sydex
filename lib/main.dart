@@ -1143,6 +1143,16 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
+enum _WelcomePreview {
+  balances,
+  collections,
+  purchases,
+  routes,
+  ledger,
+  reports,
+  qr,
+}
+
 class _WelcomeFeatureCarousel extends StatefulWidget {
   const _WelcomeFeatureCarousel({required this.accent});
   final Color accent;
@@ -1158,30 +1168,55 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
   int _current = 0;
 
   static const _features =
-      <({IconData icon, String title, String description, String value})>[
+      <
+        ({
+          IconData icon,
+          String title,
+          String description,
+          _WelcomePreview preview,
+        })
+      >[
         (
-          icon: Icons.account_balance_wallet_outlined,
-          title: 'Customer balances',
-          description: 'Keep every outstanding amount clear.',
-          value: '₹ 1,24,500',
+          icon: Icons.people_alt_outlined,
+          title: 'Customers',
+          description: 'Balances and customer details in one view.',
+          preview: _WelcomePreview.balances,
         ),
         (
           icon: Icons.payments_outlined,
-          title: 'Fast collections',
+          title: 'Collections',
           description: 'Record cash, cheque, and online payments.',
-          value: '₹ 82,300',
+          preview: _WelcomePreview.collections,
+        ),
+        (
+          icon: Icons.shopping_cart_outlined,
+          title: 'Purchases',
+          description: 'Add purchases and update customer dues.',
+          preview: _WelcomePreview.purchases,
         ),
         (
           icon: Icons.route_outlined,
-          title: 'Customer visits',
-          description: 'Organize assigned customers for the day.',
-          value: '24 customers',
+          title: 'Routes & visits',
+          description: 'Assign customers and track field visits.',
+          preview: _WelcomePreview.routes,
         ),
         (
           icon: Icons.receipt_long_outlined,
-          title: 'Clear records',
-          description: 'Keep receipts and payment history together.',
-          value: '128 entries',
+          title: 'Payment ledger',
+          description: 'Keep every receipt and history together.',
+          preview: _WelcomePreview.ledger,
+        ),
+        (
+          icon: Icons.assessment_outlined,
+          title: 'Business reports',
+          description: 'Review collections, dues, and team activity.',
+          preview: _WelcomePreview.reports,
+        ),
+        (
+          icon: Icons.qr_code_2_rounded,
+          title: 'QR payments',
+          description: 'Share a business QR for quick collections.',
+          preview: _WelcomePreview.qr,
         ),
       ];
 
@@ -1205,6 +1240,383 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
     _controller.dispose();
     super.dispose();
   }
+
+  Widget _previewFor(_WelcomePreview preview) {
+    switch (preview) {
+      case _WelcomePreview.balances:
+        return Column(
+          children: const [
+            _FeatureCustomerRow(name: 'Surya Traders', amount: '₹ 18,450'),
+            _FeatureCustomerRow(name: 'Archana Stores', amount: '₹ 6,240'),
+            _FeatureCustomerRow(
+              name: 'KB Traders',
+              amount: '₹ 0',
+              cleared: true,
+            ),
+          ],
+        );
+      case _WelcomePreview.collections:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'TODAY’S COLLECTIONS',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: Colors.black.withValues(alpha: .52),
+              ),
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                _paymentMethod(Icons.payments_outlined, 'Cash', '₹ 24,500'),
+                const SizedBox(width: 8),
+                _paymentMethod(
+                  Icons.account_balance_outlined,
+                  'Online',
+                  '₹ 18,200',
+                ),
+                const SizedBox(width: 8),
+                _paymentMethod(Icons.description_outlined, 'Cheque', '₹ 7,800'),
+              ],
+            ),
+            const Spacer(),
+            _statusPill(Icons.check_circle_outline, '12 payments recorded'),
+          ],
+        );
+      case _WelcomePreview.purchases:
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: .035),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'NEW PURCHASE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Surya Traders',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              const Divider(height: 16),
+              _purchaseLine('Paint supplies', '₹ 8,400'),
+              const SizedBox(height: 6),
+              _purchaseLine('Discount', '− ₹ 400', muted: true),
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Total  ₹ 8,000',
+                  style: TextStyle(
+                    color: widget.accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      case _WelcomePreview.routes:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'TODAY’S ROUTE',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _routeStop('Kollam', true),
+            _routeStop('Kottarakkara', true),
+            _routeStop('Chadayamangalam', false),
+            const Spacer(),
+            Text(
+              '2 of 3 customers visited',
+              style: TextStyle(
+                color: widget.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        );
+      case _WelcomePreview.ledger:
+        return Column(
+          children: [
+            _ledgerRow(
+              Icons.add_circle_outline,
+              'Payment received',
+              '+ ₹ 4,000',
+              true,
+            ),
+            const Divider(height: 16),
+            _ledgerRow(
+              Icons.shopping_bag_outlined,
+              'Purchase recorded',
+              '₹ 2,500',
+              false,
+            ),
+            const Divider(height: 16),
+            _ledgerRow(Icons.receipt_outlined, 'Receipt LP-1042', 'Cash', true),
+          ],
+        );
+      case _WelcomePreview.reports:
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _reportMetric('Collections', '₹ 82,300', 'This month'),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _reportMetric(
+                'Outstanding',
+                '₹ 1,24,500',
+                '401 customers',
+              ),
+            ),
+          ],
+        );
+      case _WelcomePreview.qr:
+        return Row(
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black.withValues(alpha: .14)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.qr_code_2_rounded,
+                color: Colors.black.withValues(alpha: .78),
+                size: 70,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'RECEIVE PAYMENT',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    'UPI QR',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Share a scan-ready code with customers.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.3,
+                      color: Colors.black.withValues(alpha: .58),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+    }
+  }
+
+  Widget _paymentMethod(IconData icon, String label, String value) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      decoration: BoxDecoration(
+        color: widget.accent.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: widget.accent),
+          const SizedBox(height: 7),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 9, color: Colors.black54),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _statusPill(IconData icon, String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    decoration: BoxDecoration(
+      color: widget.accent.withValues(alpha: .11),
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: widget.accent),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: widget.accent,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _purchaseLine(String label, String value, {bool muted = false}) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: muted ? Colors.black54 : Colors.black87,
+          ),
+        ),
+      ),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 12,
+          color: muted ? Colors.black54 : Colors.black87,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ],
+  );
+
+  Widget _routeStop(String name, bool visited) => Padding(
+    padding: const EdgeInsets.only(bottom: 7),
+    child: Row(
+      children: [
+        Icon(
+          visited ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 17,
+          color: visited ? widget.accent : Colors.black38,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: visited ? FontWeight.w700 : FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          visited ? 'Visited' : 'Next',
+          style: TextStyle(
+            fontSize: 10,
+            color: visited ? widget.accent : Colors.black54,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _ledgerRow(IconData icon, String title, String value, bool positive) =>
+      Row(
+        children: [
+          Icon(icon, size: 19, color: widget.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: positive ? widget.accent : Colors.black87,
+            ),
+          ),
+        ],
+      );
+
+  Widget _reportMetric(String label, String value, String caption) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: widget.accent.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          caption,
+          style: const TextStyle(fontSize: 10, color: Colors.black54),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1263,37 +1675,9 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                       ),
                     ],
                   ),
-                  const Spacer(),
-                  Text(
-                    item.value,
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(
-                      8,
-                      (bar) => Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Container(
-                            height: 12.0 + ((bar + index) % 4) * 11,
-                            decoration: BoxDecoration(
-                              color: widget.accent.withValues(
-                                alpha: .20 + (bar % 3) * .15,
-                              ),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                  Expanded(child: _previewFor(item.preview)),
+                  const SizedBox(height: 8),
                   const Text(
                     'Feature preview · illustrative only',
                     style: TextStyle(color: Colors.black54, fontSize: 11),
@@ -1327,30 +1711,55 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
   );
 }
 
-class _PreviewValue extends StatelessWidget {
-  const _PreviewValue({
-    required this.label,
-    required this.value,
-    required this.color,
+class _FeatureCustomerRow extends StatelessWidget {
+  const _FeatureCustomerRow({
+    required this.name,
+    required this.amount,
+    this.cleared = false,
   });
-  final String label;
-  final String value;
-  final Color color;
+
+  final String name;
+  final String amount;
+  final bool cleared;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: const TextStyle(color: Colors.black54, fontSize: 10)),
-      const SizedBox(height: 3),
-      Text(
-        value,
-        style: TextStyle(
-          color: color,
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: Colors.black.withValues(alpha: .06),
+          child: Text(
+            name.characters.first,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
+          ),
         ),
-      ),
-    ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            name,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        Text(
+          amount,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: cleared ? const Color(0xFF16845A) : const Color(0xFFC44747),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
