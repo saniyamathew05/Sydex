@@ -15,6 +15,7 @@ Scope: Flutter client, checked-in Supabase migrations, and the connected Horizon
 | Signatures are stored in Supabase Storage and downloaded through the authenticated client. | Medium | Needs configuration verification | Confirm the `payment-signatures` bucket is private and its object policies restrict each company before release. |
 | Privacy notices, account deletion, and legal document acceptance are incomplete. | High | Open | These require operator contact details, retention decisions, and legal review; do not publish until supplied and implemented. |
 | Backup, restore, and storage recovery procedures are not verified. | High | Open | Confirm Supabase plan backups, storage backup process, recovery owner, RPO, RTO, and restore test record. |
+| Compromised-password screening is disabled in Supabase Auth. | High | Open, dashboard setting | Enable Supabase Auth leaked-password protection before release and document the setting in the release checklist. |
 
 ## Financial integrity rules now enforced
 
