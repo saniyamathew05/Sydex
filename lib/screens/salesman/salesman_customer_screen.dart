@@ -1481,7 +1481,7 @@ class _SalesmanSaleDetailsScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Customer Signature',
+                      'Signature',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 10),
@@ -1842,7 +1842,7 @@ class _PaymentCardState extends State<_PaymentCard> {
             alignment: Alignment.centerLeft,
 
             child: Text(
-              'Customer Signature',
+              'Signature',
 
               style: TextStyle(fontWeight: FontWeight.bold),
             ),

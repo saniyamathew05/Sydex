@@ -31,7 +31,7 @@ class SignatureSettingsScreen extends StatelessWidget {
 
                 Expanded(
                   child: Text(
-                    'Customer signatures are stored securely with their payment records.',
+                    'Signatures are stored securely with payment records.',
                   ),
                 ),
               ],

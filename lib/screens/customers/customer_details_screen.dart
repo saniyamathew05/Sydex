@@ -2398,7 +2398,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                         else
                           ..._displayedPurchaseEntries.map(_buildLedgerEntry),
                       ] else ...[
-                        _sectionHeading('Customer Signatures & Photos', 0),
+                        _sectionHeading('Signatures & Photos', 0),
                         ...ledgerEntries
                             .where(
                               (entry) =>
@@ -2716,7 +2716,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         Icon(Icons.photo_library_outlined, size: 38, color: Color(0xFF8A9B8F)),
         SizedBox(height: 8),
         Text(
-          'No customer signatures or photos yet',
+          'No signatures or photos yet',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -3402,7 +3402,7 @@ class _SignaturePreviewState extends State<_SignaturePreview> {
 
       children: [
         const Text(
-          'Customer Signature',
+          'Signature',
 
           style: TextStyle(fontWeight: FontWeight.w600),
         ),

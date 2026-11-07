@@ -289,7 +289,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     if (_signatureController.isEmpty) {
-      _showMessage('Please collect the customer signature.', isError: true);
+      _showMessage('Please collect the signature.', isError: true);
 
       return null;
     }
@@ -448,7 +448,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     if (_signatureController.isEmpty) {
-      _showMessage('Please collect the customer signature.', isError: true);
+      _showMessage('Please collect the signature.', isError: true);
 
       return;
     }
@@ -1207,7 +1207,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Customer Signature',
+                        'Signature',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,

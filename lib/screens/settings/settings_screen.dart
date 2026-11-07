@@ -344,7 +344,7 @@ class SettingsScreen extends StatelessWidget {
 
               title: const Text('Signature settings'),
 
-              subtitle: const Text('Customer signature options'),
+              subtitle: const Text('Signature options'),
 
               trailing: const Icon(Icons.chevron_right),
 

@@ -278,10 +278,10 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                 _PaymentSettingCard(
                   icon: Icons.draw_outlined,
 
-                  title: 'Customer signature',
+                  title: 'Signature',
 
                   subtitle:
-                      'Require a customer signature when receiving a payment',
+                      'Require a signature when receiving a payment',
 
                   child: SwitchListTile(
                     contentPadding: EdgeInsets.zero,

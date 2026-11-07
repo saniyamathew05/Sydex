@@ -282,7 +282,7 @@ class PaymentReceiptService {
     if (signatureBytes != null && signatureBytes.isNotEmpty) {
       _drawText(
         canvas,
-        'CUSTOMER SIGNATURE',
+        'SIGNATURE',
         76,
         990,
         680,

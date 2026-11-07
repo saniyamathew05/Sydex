@@ -1757,7 +1757,7 @@ class _SalesmanPaymentDetailsScreenState
             _InfoCard(
               icon: Icons.draw_outlined,
 
-              title: 'Customer Signature',
+                        title: 'Signature',
 
               children: [
                 const SizedBox(height: 2),
