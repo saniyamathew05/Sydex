@@ -123,7 +123,11 @@ class AuthService {
     final response = await _supabase.auth.signUp(
       email: email,
       password: password,
-      emailRedirectTo: _webRedirectUri,
+      // Return email confirmations to the running app. On web this keeps the
+      // one-time `code` on the app origin so AuthGate can exchange it; on
+      // mobile/desktop the registered deep link reopens the app instead of
+      // leaving the user on Supabase's generic callback page.
+      emailRedirectTo: _oauthRedirectUri,
       data: {
         'name': ownerName,
         'role': 'owner',
