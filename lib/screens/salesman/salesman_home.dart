@@ -3081,7 +3081,9 @@ class _MoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
 
       leading: Container(
@@ -3109,6 +3111,7 @@ class _MoreTile extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right_rounded),
 
       onTap: onTap,
+      ),
     );
   }
 }
