@@ -1927,6 +1927,8 @@ class _LoginScreenState extends State<LoginScreen>
   final emailController = TextEditingController();
 
   final passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
 
   bool isLoading = false;
 
@@ -1968,8 +1970,10 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     _introController.dispose();
     emailController.dispose();
+    _emailFocusNode.dispose();
 
     passwordController.dispose();
+    _passwordFocusNode.dispose();
 
     super.dispose();
   }
@@ -2171,8 +2175,14 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 28),
           TextField(
             controller: emailController,
+            focusNode: _emailFocusNode,
+            onTap: () => _emailFocusNode.requestFocus(),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
+            autocorrect: false,
+            enableSuggestions: false,
+            textCapitalization: TextCapitalization.none,
+            onSubmitted: (_) => _passwordFocusNode.requestFocus(),
             decoration: const InputDecoration(
               hintText: 'Email address',
               prefixIcon: Icon(Icons.email_outlined),
@@ -2181,6 +2191,8 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 14),
           TextField(
             controller: passwordController,
+            focusNode: _passwordFocusNode,
+            onTap: () => _passwordFocusNode.requestFocus(),
             obscureText: obscurePassword,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => isLoading ? null : login(),
