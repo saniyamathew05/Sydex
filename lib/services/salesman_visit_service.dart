@@ -249,18 +249,34 @@ class SalesmanVisitService {
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
     final startOfTomorrow = startOfToday.add(const Duration(days: 1));
-    final rows = await _client
-        .from('salesman_customer_daily_status')
-        .select('customer_id, status')
-        .eq('status_date', _todayKey())
-        .eq('entered_by', userId);
+    // Share outcomes only inside the active business workspace. Falling back
+    // to the current executive keeps older deployments safe until the
+    // current_company_id function is available everywhere.
+    List<dynamic> rows;
+    try {
+      final companyId = await _client.rpc('current_company_id');
+      rows = await _client
+          .from('salesman_customer_daily_status')
+          .select('customer_id, status')
+          .eq('status_date', _todayKey())
+          .eq('company_id', companyId);
+    } catch (_) {
+      rows = await _client
+          .from('salesman_customer_daily_status')
+          .select('customer_id, status')
+          .eq('status_date', _todayKey())
+          .eq('entered_by', userId);
+    }
 
     final result = <String, String>{};
     for (final row in rows) {
       final customerId = row['customer_id']?.toString();
       final status = row['status']?.toString();
       if (customerId != null && status != null) {
-        result.putIfAbsent(customerId, () => status);
+        final previous = result[customerId];
+        if (previous == null || (previous == 'rejected' && status == 'paid')) {
+          result[customerId] = status;
+        }
       }
     }
 
