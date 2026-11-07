@@ -992,7 +992,6 @@ class EmailConfirmedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -1230,6 +1229,7 @@ class WelcomeScreen extends StatelessWidget {
       ),
     );
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: isWide
             ? Row(
