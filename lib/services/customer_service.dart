@@ -4,6 +4,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/customer.dart';
 import 'supabase_pagination.dart';
 
+class CustomerDeletionResult {
+  const CustomerDeletionResult._(this.deleted);
+
+  const CustomerDeletionResult.success() : this._(true);
+
+  const CustomerDeletionResult.failure() : this._(false);
+
+  final bool deleted;
+}
+
 class CustomerService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -20,6 +30,8 @@ class CustomerService {
   // ---------------------------------------------------------------------------
 
   static Future<void> loadCustomers() async {
+    // Avoid duplicate full-table requests when multiple screens refresh at once.
+    if (isLoading) return;
     isLoading = true;
     errorMessage = null;
     dataVersion.value++;
@@ -38,7 +50,7 @@ class CustomerService {
         _cacheUserId = user.id;
       }
 
-      debugPrint('CustomerService: Loading customers for user ${user.id}');
+      debugPrint('CustomerService: Loading customers');
 
       final response = await SupabasePagination.loadAll(
         (from, to) => _supabase
@@ -69,13 +81,11 @@ class CustomerService {
         ..clear()
         ..addAll(refreshedCustomers);
 
-      debugPrint('CustomerService: Loaded ${customers.length} customers');
-    } catch (error, stackTrace) {
+      debugPrint('CustomerService: Customer load completed');
+    } catch (error) {
       errorMessage = error.toString();
 
-      debugPrint('CustomerService ERROR: $error');
-
-      debugPrint('CustomerService STACK TRACE: $stackTrace');
+      debugPrint('CustomerService: Customer load failed');
     } finally {
       isLoading = false;
       dataVersion.value++;
@@ -163,12 +173,10 @@ class CustomerService {
       dataVersion.value++;
 
       return customer;
-    } catch (error, stackTrace) {
+    } catch (error) {
       errorMessage = error.toString();
 
-      debugPrint('CustomerService ADD ERROR: $error');
-
-      debugPrint('CustomerService ADD STACK TRACE: $stackTrace');
+      debugPrint('CustomerService: Could not add customer');
 
       return null;
     }
@@ -282,52 +290,68 @@ class CustomerService {
       dataVersion.value++;
 
       return true;
-    } catch (error, stackTrace) {
+    } catch (error) {
       errorMessage = error.toString();
 
-      debugPrint('CustomerService UPDATE ERROR: $error');
-
-      debugPrint('CustomerService UPDATE STACK TRACE: $stackTrace');
+      debugPrint('CustomerService: Could not update customer');
 
       return false;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // DELETE / DEACTIVATE CUSTOMER
+  // PERMANENT DELETE CUSTOMER
   // ---------------------------------------------------------------------------
 
-  static Future<bool> deleteCustomer(String customerId) async {
+  /// Deletes a customer and all operational records linked to that customer.
+  /// Signature files are cleared first while the Storage policy can still
+  /// verify they belong to this customer and workspace. The deletion endpoint
+  /// then removes all linked database records in one transaction.
+  static Future<CustomerDeletionResult> deleteCustomer(
+    String customerId,
+  ) async {
     errorMessage = null;
 
     try {
-      // Customers are deactivated instead of physically deleted.
-      // This preserves their payment and ledger history.
+      final pathResponse = await _supabase.rpc(
+        'get_customer_signature_paths_for_deletion',
+        params: {'p_customer_id': customerId},
+      );
+      final signaturePaths = (pathResponse as List)
+          .whereType<Map>()
+          .map((row) => row['signature_path']?.toString() ?? '')
+          .where((path) => path.isNotEmpty)
+          .toList();
 
-      final response = await _supabase
-          .from('customers')
-          .update({'is_active': false})
-          .eq('id', customerId)
-          .select('id')
-          .maybeSingle();
-
-      if (response == null) {
-        throw Exception('Customer was not found.');
+      final failedSignaturePaths = await _deleteSignatureFiles(signaturePaths);
+      if (failedSignaturePaths.isNotEmpty) {
+        errorMessage =
+            'Could not remove saved signature files. Please try again.';
+        return const CustomerDeletionResult.failure();
       }
 
+      await _supabase.rpc(
+        'delete_customer_permanently',
+        params: {'p_customer_id': customerId},
+      );
       customers.removeWhere((customer) => customer.id == customerId);
-
       dataVersion.value++;
-
-      return true;
-    } catch (error, stackTrace) {
+      return const CustomerDeletionResult.success();
+    } catch (error) {
       errorMessage = error.toString();
+      debugPrint('CustomerService: Could not delete customer');
+      return const CustomerDeletionResult.failure();
+    }
+  }
 
-      debugPrint('CustomerService DELETE ERROR: $error');
-
-      debugPrint('CustomerService DELETE STACK TRACE: $stackTrace');
-
-      return false;
+  static Future<List<String>> _deleteSignatureFiles(List<String> paths) async {
+    if (paths.isEmpty) return const <String>[];
+    try {
+      await _supabase.storage.from('payment-signatures').remove(paths);
+      return const <String>[];
+    } catch (error) {
+      debugPrint('CustomerService: Could not clean up signature files');
+      return paths;
     }
   }
 

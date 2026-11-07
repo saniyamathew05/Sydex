@@ -235,39 +235,77 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   Future<void> _deleteCustomer(Customer customer) async {
+    final confirmationController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove customer?'),
-        content: Text(
-          'Remove "${customer.businessName}" from the active customer list? Purchase and payment history will be preserved.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Permanently delete customer?'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This permanently removes "${customer.businessName}" and all of their purchases, payments, ledger history, route and visit records, group memberships, and saved signatures.',
+                ),
+                const SizedBox(height: 16),
+                const Text('Type DELETE to confirm.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmationController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(hintText: 'DELETE'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed:
+                  confirmationController.text.trim().toUpperCase() == 'DELETE'
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text('Delete permanently'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _green),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
-          ),
-        ],
       ),
     );
+    confirmationController.dispose();
     if (confirmed != true) return;
-    final success = await CustomerService.deleteCustomer(customer.id);
+
+    final result = await CustomerService.deleteCustomer(customer.id);
     if (!mounted) return;
+    if (!result.deleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            CustomerService.errorMessage ?? 'Could not delete customer.',
+          ),
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success
-              ? '${customer.businessName} was removed.'
-              : CustomerService.errorMessage ?? 'Could not remove customer.',
+          '${customer.businessName} and all related data were permanently deleted.',
         ),
       ),
     );
-    if (success) await _loadData();
+    await _loadData();
   }
 
   @override

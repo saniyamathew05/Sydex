@@ -751,7 +751,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Horizon',
+                      'Sydex',
                       style: TextStyle(
                         color: _ink,
                         fontSize: 17,
@@ -1152,13 +1152,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   children: [
                     Expanded(
                       child: RepaintBoundary(
-                        child: CustomPaint(
-                          painter: _DailyCollectionLinePainter(
-                            values: days
-                                .map((day) => day.received)
-                                .toList(growable: false),
-                            lineColor: _green,
-                            gridColor: _line,
+                        child: SizedBox.expand(
+                          child: CustomPaint(
+                            painter: _DailyCollectionLinePainter(
+                              values: days
+                                  .map((day) => day.received)
+                                  .toList(growable: false),
+                              lineColor: _green,
+                              gridColor: _line,
+                            ),
                           ),
                         ),
                       ),

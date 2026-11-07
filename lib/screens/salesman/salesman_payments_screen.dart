@@ -1687,7 +1687,7 @@ class _SalesmanPaymentDetailsScreenState
                 _InfoRow(label: 'Method note', value: paymentMethodNote),
 
               _InfoRow(
-                label: 'Balance before',
+                label: 'Old balance',
 
                 value: CurrencyFormatter.balanceAfter(previousBalance),
               ),
@@ -1712,7 +1712,7 @@ class _SalesmanPaymentDetailsScreenState
               ),
 
               _InfoRow(
-                label: 'Balance after',
+                label: 'New balance',
 
                 value: CurrencyFormatter.balanceAfter(remainingBalance),
 

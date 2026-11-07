@@ -385,7 +385,7 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.school_outlined),
             title: const Text('Help & Tutorials'),
-            subtitle: const Text('Open Horizon Guide'),
+            subtitle: const Text('Open Sydex Guide'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
@@ -418,7 +418,7 @@ class SettingsScreen extends StatelessWidget {
 
             title: const Text('About'),
 
-            subtitle: const Text('Horizon'),
+            subtitle: const Text('Sydex'),
 
             trailing: const Icon(Icons.chevron_right),
 
@@ -426,7 +426,7 @@ class SettingsScreen extends StatelessWidget {
               showAboutDialog(
                 context: context,
 
-                applicationName: 'Business Payment',
+                applicationName: 'Sydex',
 
                 applicationVersion: '1.0.0',
 

@@ -100,7 +100,7 @@ class _HorizonGuideScreenState extends State<HorizonGuideScreen> {
             onToggle: () => _toggle(selected),
           );
     return Scaffold(
-      appBar: AppBar(title: const Text('Horizon Guide')),
+      appBar: AppBar(title: const Text('Sydex Guide')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -266,7 +266,7 @@ class _LessonContent extends StatelessWidget {
       _HorizonDemoPreview(lessonId: lesson.id),
       const SizedBox(height: 6),
       Text(
-        'Demo Horizon screen — example data only',
+        'Demo Sydex screen — example data only',
         style: Theme.of(context).textTheme.labelSmall,
       ),
       const SizedBox(height: 20),

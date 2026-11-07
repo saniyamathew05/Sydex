@@ -3186,12 +3186,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance Before', _money(balanceBefore)),
+                _detailRow('Old balance', _money(balanceBefore)),
 
                 const SizedBox(height: 8),
 
                 _detailRow(
-                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  balanceAfter < 0 ? 'Advance' : 'New balance',
                   _money(balanceAfter.abs()),
                 ),
               ] else if (isBouncedCheck) ...[
@@ -3215,12 +3215,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance Before', _money(balanceBefore)),
+                _detailRow('Old balance', _money(balanceBefore)),
 
                 const SizedBox(height: 8),
 
                 _detailRow(
-                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  balanceAfter < 0 ? 'Advance' : 'New balance',
                   _money(balanceAfter.abs()),
                 ),
               ] else if (isReturn) ...[
@@ -3228,12 +3228,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance Before', _money(balanceBefore)),
+                _detailRow('Old balance', _money(balanceBefore)),
 
                 const SizedBox(height: 8),
 
                 _detailRow(
-                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  balanceAfter < 0 ? 'Advance' : 'New balance',
                   _money(balanceAfter.abs()),
                 ),
               ] else ...[
@@ -3268,12 +3268,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 const SizedBox(height: 8),
 
-                _detailRow('Balance Before', _money(balanceBefore)),
+                _detailRow('Old balance', _money(balanceBefore)),
 
                 const SizedBox(height: 8),
 
                 _detailRow(
-                  balanceAfter < 0 ? 'Advance' : 'Balance After',
+                  balanceAfter < 0 ? 'Advance' : 'New balance',
                   _money(balanceAfter.abs()),
                 ),
               ],

@@ -117,7 +117,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         builder: (context, accent, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
 
-          title: 'Horizon',
+          title: 'Sydex',
 
           themeMode: themeMode,
 
@@ -1041,7 +1041,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             const Text(
-              'Horizon',
+              'Sydex',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 22,
@@ -1324,7 +1324,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
             _FeatureCustomerRow(name: 'Atlas Supplies', amount: '18,450'),
             _FeatureCustomerRow(name: 'Northstar Retail', amount: '6,240'),
             _FeatureCustomerRow(
-              name: 'Horizon Goods',
+              name: 'Sydex Goods',
               amount: '0',
               cleared: true,
             ),
@@ -1843,7 +1843,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final emailController = TextEditingController();
 
   final passwordController = TextEditingController();
@@ -1851,10 +1852,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
 
   bool obscurePassword = true;
+  late final AnimationController _introController;
+  late final Animation<double> _fadeIn;
+  late final Animation<double> _scaleIn;
+  late final Animation<Offset> _slideIn;
 
   @override
   void initState() {
     super.initState();
+    _introController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    final curved = CurvedAnimation(
+      parent: _introController,
+      curve: Curves.easeOutCubic,
+    );
+    _fadeIn = curved;
+    _scaleIn = Tween<double>(begin: .965, end: 1).animate(curved);
+    _slideIn = Tween<Offset>(
+      begin: const Offset(0, .035),
+      end: Offset.zero,
+    ).animate(curved);
+    _introController.forward();
 
     if (widget.initialError != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1867,6 +1887,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _introController.dispose();
     emailController.dispose();
 
     passwordController.dispose();
@@ -2189,7 +2210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Horizon',
+                        'Sydex',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -2216,15 +2237,22 @@ class _LoginScreenState extends State<LoginScreen> {
             final needsScroll =
                 constraints.maxHeight < 680 ||
                 MediaQuery.viewInsetsOf(context).bottom > 0;
+            final animatedContent = FadeTransition(
+              opacity: _fadeIn,
+              child: SlideTransition(
+                position: _slideIn,
+                child: ScaleTransition(scale: _scaleIn, child: pageContent),
+              ),
+            );
             return needsScroll
                 ? SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
-                    child: pageContent,
+                    child: animatedContent,
                   )
                 : Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: pageContent,
+                      child: animatedContent,
                     ),
                   );
           },
@@ -2421,7 +2449,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                           ),
                           SizedBox(height: 14),
                           Text(
-                            'Welcome to Horizon',
+                            'Welcome to Sydex',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,

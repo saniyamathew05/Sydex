@@ -230,12 +230,17 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     final customersById = {
       for (final customer in CustomerService.customers) customer.id: customer,
     };
-    // The owner-selected assignment is the source of truth. A customer
-    // stays on today's route even when their balance is zero or they have not
-    // yet been visited, so the assigned count and route order remain stable.
+    // Keep assigned customers with an outstanding balance visible. If a
+    // customer was settled during today's route, retain them for the rest of
+    // the day so the salesman can see the completed visit and receipt.
     return selectedRouteCustomerIds
         .map((id) => customersById[id])
         .whereType<Customer>()
+        .where((customer) {
+          final status = todaysCustomerStatuses[customer.id];
+          return TransactionService.getCustomerBalance(customer.id) > 0 ||
+              _isVisitCompleted(status);
+        })
         .toList(growable: false);
   }
 
@@ -409,7 +414,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Future<void> _finishRoute() async {
-    if (routeCustomers.isEmpty) return;
+    // The visible list can be empty after every assigned customer is settled,
+    // but the saved assignment still needs to be finishable so a queued route
+    // can activate.
+    if (selectedRouteCustomerIds.isEmpty) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -559,7 +567,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     var upi = upiIds.isEmpty ? '' : upiIds.first;
     var payload = upi.isEmpty
         ? netBankingQr
-        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Horizon')}';
+        : 'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Sydex')}';
     var qrLabel = upi.isEmpty ? 'Net banking' : upi;
     if (upiIds.length > 1 || (upiIds.isNotEmpty && netBankingQr.isNotEmpty)) {
       final selected = await showDialog<String>(
@@ -589,7 +597,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       } else {
         upi = selected;
         payload =
-            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Horizon')}';
+            'upi://pay?pa=${Uri.encodeComponent(upi)}&pn=${Uri.encodeComponent('Sydex')}';
         qrLabel = upi;
       }
     }
@@ -635,7 +643,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             ],
             const SizedBox(height: 6),
             Text(
-              'Confirm the payment before recording it in Horizon.',
+            'Confirm the payment before recording it in Sydex.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -891,7 +899,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                     color: colors.onSurfaceVariant,
                   ),
                 ),
-                if (route.isNotEmpty) ...[
+                if (selectedRouteCustomerIds.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -1785,13 +1793,13 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
                 title: 'About',
 
-                subtitle: 'Horizon',
+                subtitle: 'Sydex',
 
                 onTap: () {
                   showAboutDialog(
                     context: context,
 
-                    applicationName: 'Horizon',
+                    applicationName: 'Sydex',
 
                     applicationVersion: '1.0.0',
 
@@ -1857,7 +1865,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
         Center(
           child: Text(
-            'Horizon',
+            'Sydex',
 
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1987,7 +1995,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       _buildMoreTab(),
     ];
     final titles = [
-      'Horizon',
+      'Sydex',
       "Today's Customers",
       'Payments Received',
       'More',
@@ -2025,7 +2033,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Horizon',
+                            'Sydex',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,

@@ -298,6 +298,44 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       );
   }
 
+  Widget _transactionDateSummary(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required VoidCallback? onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_outlined, color: scheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(value, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 16)),
+                ],
+              ),
+            ),
+            Icon(Icons.edit_calendar_outlined, color: scheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -340,6 +378,13 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     ),
                     child: Row(
                       children: [
+                  _transactionDateSummary(
+                    context,
+                    label: 'Sale date',
+                    value: _formatSelectedDate(),
+                    onTap: _isSaving ? null : _selectDate,
+                  ),
+                  const SizedBox(height: 18),
                         Container(
                           width: 58,
                           height: 58,
@@ -672,7 +717,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     borderRadius: BorderRadius.circular(16),
                     child: InputDecorator(
                       decoration: InputDecoration(
-                        labelText: 'Sale Date',
+                        labelText: 'Change sale date',
                         prefixIcon: const Icon(Icons.calendar_today_outlined),
                         filled: true,
                         fillColor: colorScheme.surfaceContainerHighest,

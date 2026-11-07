@@ -1,6 +1,6 @@
-# Horizon
+# Sydex
 
-Horizon is a business ledger and payment collection application for owners and field teams.
+Sydex is a business ledger and payment collection application for owners and field teams.
 
 ## Getting Started
 

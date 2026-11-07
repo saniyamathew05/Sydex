@@ -1,5 +1,5 @@
-name: horizon
-description: "Horizon business ledger and payment collection app."
+name: sydex
+description: "Sydex business ledger and payment collection app."
 publish_to: 'none'
 version: 1.0.0+1
 

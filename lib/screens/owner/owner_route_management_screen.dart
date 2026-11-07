@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -762,11 +763,9 @@ class _OwnerRouteManagementScreenState
                   : '${selectedLocations.length} locations selected',
             ),
             insetPadding: const EdgeInsets.all(16),
-            content: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 560,
-                maxHeight: MediaQuery.sizeOf(context).height * .62,
-              ),
+            content: SizedBox(
+              width: math.min(560, MediaQuery.sizeOf(context).width - 48),
+              height: math.min(520, MediaQuery.sizeOf(context).height * .62),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1798,7 +1797,7 @@ class _OwnerRouteManagementScreenState
                               setState(() {
                                 _selectedRouteId = id;
                                 _selectedSalesmanIds.clear();
-                                _selectedCustomerIds = _selectedRoute == null
+                                final routeCustomerIds = _selectedRoute == null
                                     ? <String>{}
                                     : Set<String>.from(
                                         ((_selectedRoute!['customer_ids']
@@ -1806,6 +1805,12 @@ class _OwnerRouteManagementScreenState
                                                 const [])
                                             .map((value) => value.toString()),
                                       );
+                                // Preserve any location/customer picks made
+                                // before selecting the named route.
+                                _selectedCustomerIds = {
+                                  ..._selectedCustomerIds,
+                                  ...routeCustomerIds,
+                                };
                               });
                             },
                           ),
@@ -1844,9 +1849,10 @@ class _OwnerRouteManagementScreenState
                               label: const Text('Add customers'),
                             ),
                             OutlinedButton.icon(
-                              onPressed: _selectedRoute == null
-                                  ? null
-                                  : _selectRouteLocations,
+                              // Location selection can be prepared before a
+                              // named route is selected; the chosen customer
+                              // IDs are applied to the route on save.
+                              onPressed: _saving ? null : _selectRouteLocations,
                               icon: const Icon(Icons.location_on_outlined),
                               label: const Text('Add locations'),
                             ),
@@ -2394,7 +2400,9 @@ class _OwnerRouteManagementScreenState
               LatLng(visit['latitude'] as double, visit['longitude'] as double),
         )
         .toList();
-    final center = points.isEmpty ? const LatLng(10.3, 76.3) : points.first;
+    // Keep the empty state location-neutral; use the first real customer pin
+    // whenever coordinates are available.
+    final center = points.isEmpty ? const LatLng(0, 0) : points.first;
     return Padding(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 12 : 20),
       child: Column(
@@ -2425,7 +2433,7 @@ class _OwnerRouteManagementScreenState
               child: FlutterMap(
                 options: MapOptions(
                   initialCenter: center,
-                  initialZoom: points.isEmpty ? 7 : 11,
+                  initialZoom: points.isEmpty ? 2 : 11,
                 ),
                 children: [
                   TileLayer(

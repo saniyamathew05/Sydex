@@ -46,11 +46,17 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
     final customersById = {
       for (final customer in _customers) customer.id: customer,
     };
-    // Retain the complete owner assignment in its saved order. Visit work is
-    // independent of whether a customer currently has an outstanding balance.
+    // Hide assignments that are already at zero balance, while retaining a
+    // customer who was handled today so the completed visit remains visible.
     return _routeCustomerIds
         .map((id) => customersById[id])
         .whereType<Customer>()
+        .where((customer) {
+          final status = _statuses[customer.id];
+          return TransactionService.getCustomerBalance(customer.id) > 0 ||
+              status == 'paid' ||
+              status == 'rejected';
+        })
         .toList(growable: false);
   }
 

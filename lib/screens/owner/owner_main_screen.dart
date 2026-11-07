@@ -473,7 +473,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Horizon',
+                        'Sydex',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
@@ -2085,21 +2085,41 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         ? customer['business_name']?.toString() ?? 'Customer'
         : 'Customer';
     final date = row['status_date']?.toString() ?? '';
-    return Card(
-      color: colors.errorContainer,
-      child: ListTile(
-        leading: Icon(Icons.block_outlined, color: colors.error),
-        title: Text(
-          name,
-          style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(
-          'Payment method: Refused • $date\n${row['note'] ?? 'Customer refused payment'}',
-        ),
-        trailing: Text(
-          'Refused',
-          style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
-        ),
+    return Container(
+      margin: const EdgeInsets.only(top: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        border: Border(bottom: BorderSide(color: colors.surface)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.block_outlined, color: colors.error, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Refused • $date • ${row['note'] ?? 'Customer refused payment'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.onErrorContainer),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text('Refused', style: TextStyle(color: colors.error, fontWeight: FontWeight.w800)),
+        ],
       ),
     );
   }
@@ -2143,7 +2163,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   void _onCustomersChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // CustomerService can notify while a ValueListenableBuilder is painting.
+    // Defer the rebuild to the next frame to avoid setState-during-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   String _formatDate(DateTime date) =>
@@ -2483,19 +2508,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Widget _desktopLedgerHeader(ColorScheme colors) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       color: colors.surfaceContainerHigh,
-      child: Row(
-        children: const [
-          Expanded(flex: 12, child: Text('DATE')),
-          Expanded(flex: 22, child: Text('CUSTOMER')),
-          Expanded(flex: 18, child: Text('ENTERED BY')),
-          Expanded(flex: 18, child: Text('METHOD')),
-          Expanded(flex: 16, child: Text('NOTES')),
-          Expanded(flex: 14, child: Text('AMOUNT', textAlign: TextAlign.right)),
-          SizedBox(width: 80, child: Text('ACTION')),
-        ],
-      ),
+      child: Row(children: [
+        const SizedBox(width: 106, child: Text('DATE')),
+        const Expanded(flex: 3, child: Text('CUSTOMER')),
+        const Expanded(flex: 2, child: Text('ENTERED BY')),
+        const SizedBox(width: 100, child: Text('METHOD')),
+        const Expanded(flex: 2, child: Text('NOTES')),
+        const SizedBox(width: 128, child: Text('AMOUNT', textAlign: TextAlign.right)),
+        const SizedBox(width: 76, child: Text('ACTION')),
+      ]),
     );
   }
 
@@ -2504,11 +2527,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         PaymentMethodBreakdown.display(payment.paymentMethodNote) ??
         (payment.paymentMethod.trim().isEmpty ? '—' : payment.paymentMethod);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 12,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      child: Row(children: [
+          SizedBox(
+            width: 106,
             child: Text(
               _formatDate(payment.transactionDate.toLocal()),
               maxLines: 1,
@@ -2516,28 +2538,28 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           Expanded(
-            flex: 22,
+            flex: 3,
             child: Text(
               payment.customerName,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
           Expanded(
-            flex: 18,
+            flex: 2,
             child: Text(
               payment.receivedBy,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Expanded(
-            flex: 18,
+          SizedBox(
+            width: 100,
             child: Text(method, maxLines: 2, overflow: TextOverflow.ellipsis),
           ),
           Expanded(
-            flex: 16,
+            flex: 2,
             child: Text(
               payment.notes.trim().isEmpty ? '—' : payment.notes,
               maxLines: 2,
@@ -2545,8 +2567,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               style: TextStyle(color: colors.onSurfaceVariant),
             ),
           ),
-          Expanded(
-            flex: 14,
+          SizedBox(
+            width: 128,
             child: Text(
               _money(_amountForCurrentMethod(payment)),
               textAlign: TextAlign.right,
@@ -2559,7 +2581,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           SizedBox(
-            width: 80,
+            width: 76,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2592,8 +2614,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ],
             ),
           ),
-        ],
-      ),
+        ]),
     );
   }
 
@@ -2910,10 +2931,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         ...timeline.map(
                           (entry) => entry.payment != null
                               ? _desktopLedgerRow(entry.payment!, colors)
-                              : _buildRefusedPaymentCard(
-                                  entry.refused!,
-                                  colors,
-                                ),
+                              : _buildRefusedPaymentCard(entry.refused!, colors),
                         ),
                       ],
                     ),

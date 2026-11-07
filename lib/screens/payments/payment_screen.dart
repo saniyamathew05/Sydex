@@ -703,6 +703,36 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Widget _transactionDateSummary(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required VoidCallback? onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_outlined, color: scheme.primary),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(value, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 16)),
+            ])),
+            Icon(Icons.edit_calendar_outlined, color: scheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -778,6 +808,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _transactionDateSummary(
+                    context,
+                    label: 'Payment date',
+                    value: _formatSelectedDate(),
+                    onTap: _isSaving ? null : _selectDate,
+                  ),
+                  const SizedBox(height: 18),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -1152,28 +1189,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           bold: true,
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'Payment Date',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: _isSaving ? null : _selectDate,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InputDecorator(
-                      decoration: fieldDecoration(
-                        prefixIcon: const Icon(Icons.calendar_today_outlined),
-                      ),
-                      child: Text(
-                        _formatSelectedDate(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(height: 26),

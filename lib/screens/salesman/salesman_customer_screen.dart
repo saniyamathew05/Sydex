@@ -1435,11 +1435,11 @@ class _SalesmanSaleDetailsScreenState
                     emphasize: true,
                   ),
                   _SaleDetailRow(
-                    label: 'Balance before',
+                    label: 'Old balance',
                     value: CurrencyFormatter.rupees(_number('balance_before')),
                   ),
                   _SaleDetailRow(
-                    label: 'Balance after',
+                    label: 'New balance',
                     value: CurrencyFormatter.rupees(_number('balance_after')),
                   ),
                   if (method.isNotEmpty)

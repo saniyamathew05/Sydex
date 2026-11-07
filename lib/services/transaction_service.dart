@@ -37,6 +37,9 @@ class TransactionService {
   }
 
   static Future<void> loadTransactions() async {
+    // Realtime updates and pull-to-refresh can arrive together. Reuse the
+    // current request instead of starting another paginated ledger download.
+    if (isLoading) return;
     _prepareCacheForCurrentUser();
 
     // Reuse the shared customer cache when screens have already loaded it.
