@@ -82,6 +82,22 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         .length;
   }
 
+  int get _refusedAssignedCustomerCount {
+    return _payments
+        .where(_matchesDate)
+        .where(_matchesMethod)
+        .where(_matchesSalesman)
+        .where(
+          (payment) =>
+              payment['entry_type']?.toString().toLowerCase() == 'refusal',
+        )
+        .map((payment) => payment['customer_id']?.toString())
+        .whereType<String>()
+        .where(_assignedCustomerIds.contains)
+        .toSet()
+        .length;
+  }
+
   String get _selectedPeriodLabel => switch (_dateFilter) {
     'today' => 'Today',
     'week' => 'This week',
@@ -619,7 +635,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                 ),
 
                 child: Text(
-                  '$_paidAssignedCustomerCount / ${_assignedCustomerIds.length} paid',
+                  'Paid $_paidAssignedCustomerCount  •  Refused $_refusedAssignedCustomerCount',
 
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,

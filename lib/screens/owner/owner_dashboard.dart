@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -50,6 +51,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   List<Map<String, dynamic>> _ledgerEntries = const [];
   String? _visitLoadError;
   Set<String> _seenNotificationIds = <String>{};
+  RealtimeChannel? _visitStatusChannel;
 
   Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _navy => Theme.of(context).colorScheme.onSurface;
@@ -72,6 +74,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     super.initState();
     CustomerService.dataVersion.addListener(_refresh);
     TransactionService.dataVersion.addListener(_refresh);
+    _visitStatusChannel = Supabase.instance.client
+        .channel('owner-dashboard-visit-statuses')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'salesman_customer_daily_status',
+          callback: (_) => unawaited(_load()),
+        )
+        .subscribe();
     _load();
     NotificationReadStore.load().then((ids) {
       if (mounted) setState(() => _seenNotificationIds = ids);
@@ -82,6 +93,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   void dispose() {
     CustomerService.dataVersion.removeListener(_refresh);
     TransactionService.dataVersion.removeListener(_refresh);
+    final channel = _visitStatusChannel;
+    if (channel != null) {
+      unawaited(Supabase.instance.client.removeChannel(channel));
+    }
     super.dispose();
   }
 
