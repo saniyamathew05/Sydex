@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1938,6 +1939,17 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _scaleIn;
   late final Animation<Offset> _slideIn;
 
+  void _showMobileKeyboard(FocusNode node) {
+    node.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !node.hasFocus) return;
+      // A few Android keyboard implementations do not open from the first
+      // focus request after a route transition. Explicitly ask the platform
+      // text input service once the field is attached to the frame.
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2176,7 +2188,7 @@ class _LoginScreenState extends State<LoginScreen>
           TextField(
             controller: emailController,
             focusNode: _emailFocusNode,
-            onTap: () => _emailFocusNode.requestFocus(),
+            onTap: () => _showMobileKeyboard(_emailFocusNode),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autocorrect: false,
@@ -2192,7 +2204,7 @@ class _LoginScreenState extends State<LoginScreen>
           TextField(
             controller: passwordController,
             focusNode: _passwordFocusNode,
-            onTap: () => _passwordFocusNode.requestFocus(),
+            onTap: () => _showMobileKeyboard(_passwordFocusNode),
             obscureText: obscurePassword,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => isLoading ? null : login(),
