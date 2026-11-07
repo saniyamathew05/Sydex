@@ -2335,17 +2335,20 @@ class _LoginScreenState extends State<LoginScreen>
                 child: ScaleTransition(scale: _scaleIn, child: pageContent),
               ),
             );
-            return needsScroll
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: animatedContent,
-                  )
-                : Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: animatedContent,
-                    ),
-                  );
+            // Keep one stable widget subtree while the keyboard changes the
+            // view insets. Switching between Center and SingleChildScrollView
+            // here recreates the TextFields, drops focus, and makes the IME
+            // blink on some Android devices.
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: needsScroll ? 0 : constraints.maxHeight - 48,
+                ),
+                child: Center(child: animatedContent),
+              ),
+            );
           },
         ),
       ),
