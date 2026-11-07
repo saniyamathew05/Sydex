@@ -139,6 +139,13 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
     return '$day/$month/${_selectedDate.year}';
   }
 
+  double? _parseAmount(String value) {
+    final normalized = value
+        .replaceAll(RegExp(r'[₹,\s]'), '')
+        .trim();
+    return normalized.isEmpty ? null : double.tryParse(normalized);
+  }
+
   Future<void> _savePurchase() async {
     FocusScope.of(context).unfocus();
 
@@ -151,7 +158,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
     final amountText = _amountController.text.trim();
 
-    final amount = double.tryParse(amountText);
+    final amount = _parseAmount(amountText);
 
     if (amount == null || amount <= 0) {
       _showMessage('Enter a valid purchase amount.', isError: true);
@@ -161,7 +168,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
     final finalAmountText = _finalAmountController.text.trim();
     final finalAmount = finalAmountText.isEmpty
         ? amount
-        : double.tryParse(finalAmountText);
+        : _parseAmount(finalAmountText);
     if (finalAmount == null || finalAmount <= 0 || finalAmount > amount) {
       _showMessage(
         'Enter an amount after discount that is greater than zero and no more than the original amount.',
