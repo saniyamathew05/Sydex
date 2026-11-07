@@ -2269,6 +2269,7 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
