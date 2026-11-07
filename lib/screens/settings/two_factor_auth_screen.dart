@@ -58,7 +58,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     try {
       final enrollment = await Supabase.instance.client.auth.mfa.enroll(
         factorType: FactorType.totp,
-        issuer: 'Horizon',
+        issuer: 'Sydex',
         friendlyName: 'Authenticator app',
       );
       if (!mounted) return;

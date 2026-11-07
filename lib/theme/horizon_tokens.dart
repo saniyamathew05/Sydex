@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Horizon visual tokens based on the supplied dashboard reference.
+/// Sydex visual tokens based on the supplied dashboard reference.
 /// Use these constants for new screens so the brand stays consistent.
 abstract final class HorizonTokens {
   static const navy = Color(0xFF064632);

@@ -353,7 +353,7 @@ class _HorizonDemoPreview extends StatelessWidget {
       'route' => 'Places & routes',
       'visit' => "Today's customers",
       'reports' => 'Reports',
-      _ => 'Horizon',
+      _ => 'Sydex',
     };
     final lines = switch (lessonId) {
       'payment' => const [
@@ -504,9 +504,9 @@ final _allLessons = <_GuideLesson>[
   const _GuideLesson(
     'start',
     'Getting Started',
-    'Start with Horizon',
+    'Start with Sydex',
     'Understand the main areas of your workspace.',
-    'Sign in to your assigned Horizon account.',
+    'Sign in to your assigned Sydex account.',
     [
       'Open the dashboard.',
       'Use the sidebar or bottom navigation to move between features.',

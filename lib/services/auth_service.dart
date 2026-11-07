@@ -6,8 +6,8 @@ import 'currency_formatter.dart';
 
 class AuthService {
   static const _oauthAttemptKey = 'horizon_google_oauth_attempt_at';
-  // Keep the original registered callback during the Horizon rename. The
-  // visible app name and native package IDs are Horizon; this URI only returns
+  // Keep the original registered callback during the app rename. The
+  // visible app name is Sydex; this URI only returns
   // the secure OAuth response to the installed app.
   static const _nativeOAuthRedirectUri =
       'io.ledgerpro.ledgerpro://login-callback';

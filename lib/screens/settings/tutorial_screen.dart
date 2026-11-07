@@ -76,7 +76,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('How to use Horizon'),
+        title: const Text('How to use Sydex'),
         actions: [TextButton(onPressed: _finish, child: const Text('Skip'))],
       ),
       body: SafeArea(

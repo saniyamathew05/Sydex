@@ -1,4 +1,4 @@
-// Currency formatting for Horizon. The selected business currency is applied
+// Currency formatting for Sydex. The selected business currency is applied
 // consistently to every amount shown in the application.
 import 'package:shared_preferences/shared_preferences.dart';
 
