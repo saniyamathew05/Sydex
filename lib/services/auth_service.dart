@@ -143,6 +143,10 @@ class AuthService {
 
   static String? get _webRedirectUri {
     if (!kIsWeb) return null;
+    const configured = String.fromEnvironment('APP_WEB_REDIRECT_URL');
+    if (configured.trim().isNotEmpty) {
+      return configured.trim().replaceFirst(RegExp(r'/+$'), '');
+    }
     final origin = Uri.base.origin;
     return origin.startsWith('http') ? origin : null;
   }

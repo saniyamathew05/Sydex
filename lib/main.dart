@@ -838,6 +838,7 @@ class _AuthGateState extends State<AuthGate> {
 
   bool _handledCallback = false;
   bool _openingOAuthDashboard = false;
+  bool _emailConfirmed = false;
   StreamSubscription<AuthState>? _authSubscription;
 
   @override
@@ -879,6 +880,18 @@ class _AuthGateState extends State<AuthGate> {
           final response = await Supabase.instance.client.auth
               .exchangeCodeForSession(code);
           user = response.session.user;
+          // Email confirmation should be an explicit, branded completion
+          // page. Do not silently drop a newly confirmed user into a session
+          // on a shared device.
+          await Supabase.instance.client.auth.signOut(
+            scope: SignOutScope.local,
+          );
+          if (!mounted) return;
+          setState(() {
+            _emailConfirmed = true;
+            isLoading = false;
+          });
+          return;
         } catch (error) {
           if (!mounted) return;
           setState(() {
@@ -963,11 +976,77 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_emailConfirmed) return const EmailConfirmedScreen();
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return WelcomeScreen(initialError: errorMessage);
+  }
+}
+
+class EmailConfirmedScreen extends StatelessWidget {
+  const EmailConfirmedScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: colors.outlineVariant),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .07),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.mark_email_read_rounded,
+                        size: 64, color: colors.primary),
+                    const SizedBox(height: 20),
+                    Text('Email confirmed',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            )),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Your Sydex business account is ready. You can now sign in securely.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                          (_) => false,
+                        ),
+                        child: const Text('Continue to sign in'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
