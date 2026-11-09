@@ -91,6 +91,26 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     setState(() => _hiddenHistoryIds.add(id));
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_hiddenHistoryKey, _hiddenHistoryIds.toList());
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Hidden from customer history'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              if (!mounted) return;
+              setState(() => _hiddenHistoryIds.remove(id));
+              final updatedPrefs = await SharedPreferences.getInstance();
+              await updatedPrefs.setStringList(
+                _hiddenHistoryKey,
+                _hiddenHistoryIds.toList(),
+              );
+            },
+          ),
+        ),
+      );
   }
 
   Future<void> _selectAndHideEntries(List<Map<String, dynamic>> entries) async {
