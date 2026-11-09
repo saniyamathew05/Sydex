@@ -819,15 +819,6 @@ class _CustomerRow extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (!desktop && lastPayment.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        lastPayment,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: muted, fontSize: 10),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -842,6 +833,19 @@ class _CustomerRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 18),
+              ],
+              if (!desktop) ...[
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 92,
+                  child: Text(
+                    lastPayment,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(color: muted, fontSize: 10),
+                  ),
+                ),
               ],
               SizedBox(
                 width: desktop ? 125 : null,
