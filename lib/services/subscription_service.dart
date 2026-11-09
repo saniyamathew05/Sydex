@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show debugPrint, defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -52,9 +53,19 @@ class SubscriptionService {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   static Future<SubscriptionEntitlement> loadEntitlement() async {
-    final rows = await _supabase.rpc('get_my_subscription_entitlement');
-    final list = rows is List ? rows : const [];
-    if (list.isEmpty) {
+    List<dynamic> rows;
+    try {
+      final response = await _supabase.rpc('get_my_subscription_entitlement');
+      rows = response is List ? response : const <dynamic>[];
+    } on PostgrestException catch (error) {
+      // Older Supabase projects may not have the entitlement function (or its
+      // schema cache may not be refreshed yet). Keep Billing usable and avoid
+      // turning a configuration issue into a blank screen. Production access
+      // remains locked until the verified entitlement function is available.
+      debugPrint('Subscription entitlement unavailable: ${error.message}');
+      rows = const <dynamic>[];
+    }
+    if (rows.isEmpty) {
       return const SubscriptionEntitlement(
         planCode: 'free',
         status: 'inactive',
@@ -63,7 +74,7 @@ class SubscriptionService {
       );
     }
     return SubscriptionEntitlement.fromMap(
-      Map<String, dynamic>.from(list.first as Map),
+      Map<String, dynamic>.from(rows.first as Map),
     );
   }
 
