@@ -67,6 +67,25 @@ class _OwnerRouteManagementScreenState
     return null;
   }
 
+  Set<String> _decodeCustomerIds(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is List) {
+        return decoded.map((entry) => entry.toString()).toSet();
+      }
+    } catch (_) {
+      // Legacy rows may contain a malformed serialized value; treat them as
+      // having no explicit customer selection rather than showing a wrong
+      // count or crashing the route screen.
+    }
+    return <String>{};
+  }
+
+  int get _selectedCustomerCount {
+    final knownIds = CustomerService.customers.map((customer) => customer.id).toSet();
+    return _selectedCustomerIds.where(knownIds.contains).length;
+  }
+
   List<String> _locationsForSelectedCustomers() {
     final byId = {
       for (final customer in CustomerService.customers) customer.id: customer,
@@ -289,13 +308,13 @@ class _OwnerRouteManagementScreenState
         _selectedSalesmanIds.removeWhere(
           (id) => !availableSalesmanIds.contains(id),
         );
-        _selectedCustomerIds = _selectedRoute == null
-            ? <String>{}
-            : Set<String>.from(
-                ((_selectedRoute!['customer_ids'] as List?) ?? const []).map(
-                  (e) => e.toString(),
-                ),
-              );
+        final rawCustomerIds = _selectedRoute?['customer_ids'];
+        final parsedCustomerIds = rawCustomerIds is List
+            ? rawCustomerIds.map((e) => e.toString()).toSet()
+            : rawCustomerIds is String && rawCustomerIds.trim().isNotEmpty
+            ? _decodeCustomerIds(rawCustomerIds)
+            : <String>{};
+        _selectedCustomerIds = parsedCustomerIds;
         _loading = false;
       });
       _subscribeToVisitStatuses(companyId);
@@ -584,7 +603,11 @@ class _OwnerRouteManagementScreenState
           );
     // Start with the current route selection so individual customer choices
     // can be added to customers already included through locations.
-    final selected = Set<String>.from(_selectedCustomerIds);
+    // Keep the counter tied to real, currently selectable customers. Stale
+    // IDs from older route records must not inflate the displayed count.
+    final eligibleIds = eligible.map((customer) => customer.id).toSet();
+    final selected = Set<String>.from(_selectedCustomerIds)
+      ..retainAll(eligibleIds);
     var searchQuery = '';
     await showDialog<void>(
       context: context,
@@ -1797,14 +1820,15 @@ class _OwnerRouteManagementScreenState
                               setState(() {
                                 _selectedRouteId = id;
                                 _selectedSalesmanIds.clear();
-                                final routeCustomerIds = _selectedRoute == null
-                                    ? <String>{}
-                                    : Set<String>.from(
-                                        ((_selectedRoute!['customer_ids']
-                                                    as List?) ??
-                                                const [])
-                                            .map((value) => value.toString()),
-                                      );
+                                final rawCustomerIds =
+                                    _selectedRoute?['customer_ids'];
+                                final routeCustomerIds = rawCustomerIds is List
+                                    ? rawCustomerIds
+                                          .map((value) => value.toString())
+                                          .toSet()
+                                    : rawCustomerIds is String
+                                    ? _decodeCustomerIds(rawCustomerIds)
+                                    : <String>{};
                                 // Preserve any location/customer picks made
                                 // before selecting the named route.
                                 _selectedCustomerIds = {
@@ -1829,9 +1853,9 @@ class _OwnerRouteManagementScreenState
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.people_alt_outlined),
                           title: Text(
-                            _selectedCustomerIds.isEmpty
+                            _selectedCustomerCount == 0
                                 ? 'No customers selected'
-                                : '${_selectedCustomerIds.length} customers selected',
+                                : '$_selectedCustomerCount customers selected',
                           ),
                           subtitle: const Text(
                             'Build the route by mixing full locations with individual customers.',
