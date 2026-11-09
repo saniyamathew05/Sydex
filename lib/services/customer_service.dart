@@ -25,6 +25,14 @@ class CustomerService {
   static String? errorMessage;
   static String? _cacheUserId;
 
+  // Customer loads can be triggered while a screen is rebuilding. Defer the
+  // notifier event until the current build frame has completed.
+  static void _notifyDataChanged() {
+    Future<void>.delayed(Duration.zero, () {
+      dataVersion.value++;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // LOAD CUSTOMERS
   // ---------------------------------------------------------------------------
@@ -34,7 +42,7 @@ class CustomerService {
     if (isLoading) return;
     isLoading = true;
     errorMessage = null;
-    dataVersion.value++;
+    _notifyDataChanged();
 
     try {
       final user = _supabase.auth.currentUser;
@@ -88,7 +96,7 @@ class CustomerService {
       debugPrint('CustomerService: Customer load failed');
     } finally {
       isLoading = false;
-      dataVersion.value++;
+      _notifyDataChanged();
     }
   }
 
