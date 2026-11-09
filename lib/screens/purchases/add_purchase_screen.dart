@@ -385,13 +385,6 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     ),
                     child: Row(
                       children: [
-                  _transactionDateSummary(
-                    context,
-                    label: 'Sale date',
-                    value: _formatSelectedDate(),
-                    onTap: _isSaving ? null : _selectDate,
-                  ),
-                  const SizedBox(height: 18),
                         Container(
                           width: 58,
                           height: 58,
@@ -431,6 +424,15 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                         ),
                       ],
                     ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  _transactionDateSummary(
+                    context,
+                    label: 'Sale date',
+                    value: _formatSelectedDate(),
+                    onTap: _isSaving ? null : _selectDate,
                   ),
 
                   const SizedBox(height: 24),
