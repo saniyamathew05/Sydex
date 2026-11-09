@@ -80,6 +80,7 @@ class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
   @override
   Widget build(BuildContext context) {
     final points = _customers.map((row) => LatLng(double.parse(row['latitude'].toString()), double.parse(row['longitude'].toString()))).toList();
+    final hasMapLocation = _currentLocation != null || points.isNotEmpty;
     final center = _currentLocation ?? (points.isEmpty ? const LatLng(20.5937, 78.9629) : points.first);
     final pending = _customers.where((row) => !_visited.contains(row['id'].toString())).toList();
     final selectedMatches = _selectedCustomerId == null
@@ -107,8 +108,13 @@ class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
                 subtitle: Text(next['location']?.toString() ?? ''),
                 trailing: FilledButton(onPressed: () => _navigateTo(next), child: const Text('Navigate')),
               ),
-              Expanded(child: FlutterMap(
-                options: MapOptions(initialCenter: center, initialZoom: points.isEmpty ? 5 : 14),
+              Expanded(child: hasMapLocation
+                  ? FlutterMap(
+                options: MapOptions(
+                  initialCenter: center,
+                  // Street-level delivery view, similar to food-delivery apps.
+                  initialZoom: _currentLocation != null ? 16.5 : 15,
+                ),
                 children: [
                   TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.horizon.horizon'),
                   if (routePoints.isNotEmpty)
@@ -127,7 +133,13 @@ class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
                   ]),
                   const RichAttributionWidget(attributions: [TextSourceAttribution('© OpenStreetMap contributors')]),
                 ],
-              )),
+              )
+                  : const Center(
+                      child: Text(
+                        'Turn on location or visit a customer to see the delivery map.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )),
             ]),
     );
   }
