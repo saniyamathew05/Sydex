@@ -2026,6 +2026,28 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     if (result == true) await _refreshCustomerData();
   }
 
+  Future<void> _deleteSalesReturn(Map<String, dynamic> entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete sales return?'),
+        content: const Text('This will remove the return and recalculate the customer balance and all later payment balances.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc('delete_sales_return', params: {'p_entry_id': entry['id']});
+      await _refreshAfterPurchaseChange();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sales return deleted and balance recalculated.')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not delete sales return: $error')));
+    }
+  }
+
   Future<void> _refreshAfterPurchaseChange() async {
     _isRefreshingFromDataChange = true;
 
@@ -3176,6 +3198,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           _hideHistoryEntry(entry);
                         } else if (value == 'edit') {
                           _editReturn(entry);
+                        } else if (value == 'delete') {
+                          _deleteSalesReturn(entry);
                         }
                       },
                       itemBuilder: (context) => [
@@ -3190,6 +3214,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             leading: Icon(Icons.visibility_off_outlined),
                             title: Text('Remove from customer history'),
                           ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline), title: Text('Delete sales return')),
                         ),
                       ],
                     ),
