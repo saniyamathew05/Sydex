@@ -18,7 +18,7 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
   final List<_AssistantMessage> _messages = [
     _AssistantMessage(
       text:
-          "Hi! I'm Sydex Copilot. Ask me about the app, today's collection, sales, outstanding balances, recent payments, or your top customers.",
+          "Hi! I'm Sydie. Ask me about the app, today's collection, sales, outstanding balances, recent payments, or your top customers.",
       isUser: false,
     ),
   ];
@@ -162,7 +162,7 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sydex Copilot'),
+        title: const Text('Sydie'),
         actions: [
           IconButton(
             tooltip: 'Clear conversation',

@@ -419,7 +419,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                 NavigationDestination(
                   icon: Icon(Icons.auto_awesome_outlined),
                   selectedIcon: Icon(Icons.auto_awesome),
-                  label: 'Copilot',
+                  label: 'Sydie',
                 ),
               ],
             ),
@@ -538,7 +538,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
           ),
           _item(context, Icons.bar_chart_rounded, 'Reports', 3),
           _item(context, Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
-          _item(context, Icons.auto_awesome_outlined, 'Sydex Copilot', -1, onTap: onAIAssistant),
+          _item(context, Icons.auto_awesome_outlined, 'Sydie', -1, onTap: onAIAssistant),
           _item(
             context,
             Icons.settings_outlined,
