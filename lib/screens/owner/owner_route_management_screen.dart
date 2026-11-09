@@ -763,6 +763,12 @@ class _OwnerRouteManagementScreenState
         },
       ),
     );
+    // Persist the exact checkbox selection immediately. Previously the dialog
+    // only changed local state, so reopening the route could fall back to its
+    // location list and show an unrelated customer count.
+    if (mounted && _selectedRoute != null && _selectedCustomerIds.isNotEmpty) {
+      await _saveTemplateLocations();
+    }
   }
 
   Future<void> _showSelectedCustomers(
