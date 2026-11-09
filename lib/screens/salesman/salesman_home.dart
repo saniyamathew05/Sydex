@@ -1681,18 +1681,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
         const SizedBox(height: 22),
 
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.map_outlined),
-            title: const Text('Route map'),
-            subtitle: const Text('See assigned customers and navigate to the next stop'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => setState(() => selectedIndex = 4),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
         Container(
           padding: const EdgeInsets.all(18),
 
