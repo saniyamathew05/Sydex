@@ -413,7 +413,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     // The visible list can be empty after every assigned customer is settled,
     // but the saved assignment still needs to be finishable so a queued route
     // can activate.
-    if (selectedRouteCustomerIds.isEmpty) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
