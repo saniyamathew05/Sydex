@@ -28,6 +28,7 @@ import 'owner_dashboard.dart';
 import 'salesman_visit_audit_screen.dart';
 import 'owner_route_management_screen.dart';
 import 'owner_notifications_screen.dart';
+import 'owner_ai_assistant_screen.dart';
 
 class OwnerMainScreen extends StatefulWidget {
   final String userName;
@@ -196,6 +197,13 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     );
   }
 
+  void _openAIAssistant() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OwnerAIAssistantScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
@@ -345,6 +353,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                     onPlaces: _openPlaces,
                     onSalesmen: _openSalesmen,
                     onRouteMap: _openRouteMap,
+                    onAIAssistant: _openAIAssistant,
                   ),
                   Expanded(
                     child: IndexedStack(
@@ -365,6 +374,10 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
               onDestinationSelected: (index) {
                 if (index == 5) {
                   _openSettings();
+                  return;
+                }
+                if (index == 6) {
+                  _openAIAssistant();
                   return;
                 }
                 setState(() {
@@ -403,6 +416,11 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                   selectedIcon: Icon(Icons.settings_rounded),
                   label: 'Settings',
                 ),
+                NavigationDestination(
+                  icon: Icon(Icons.auto_awesome_outlined),
+                  selectedIcon: Icon(Icons.auto_awesome),
+                  label: 'Assistant',
+                ),
               ],
             ),
           );
@@ -421,6 +439,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
   final VoidCallback onPlaces;
   final VoidCallback onSalesmen;
   final VoidCallback onRouteMap;
+  final VoidCallback onAIAssistant;
 
   const _HorizonDesktopSidebar({
     required this.userName,
@@ -430,6 +449,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
     required this.onPlaces,
     required this.onSalesmen,
     required this.onRouteMap,
+    required this.onAIAssistant,
   });
 
   @override
@@ -518,6 +538,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
           ),
           _item(context, Icons.bar_chart_rounded, 'Reports', 3),
           _item(context, Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
+          _item(context, Icons.auto_awesome_outlined, 'AI Assistant', -1, onTap: onAIAssistant),
           _item(
             context,
             Icons.settings_outlined,
