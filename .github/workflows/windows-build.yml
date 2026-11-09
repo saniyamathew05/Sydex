@@ -1,0 +1,130 @@
+name: Build Sydex Android APK and Windows App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java for Android build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Build Android release APK
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::Set the SUPABASE_PUBLISHABLE_KEY repository secret before building."
+            exit 1
+          fi
+          flutter build apk --release "--dart-define=SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sydex-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install NuGet for Windows plugins
+        uses: NuGet/setup-nuget@v2
+        with:
+          nuget-version: latest
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_PUBLISHABLE_KEY)) {
+            throw "Set the SUPABASE_PUBLISHABLE_KEY repository secret before building."
+          }
+          $attempt = 1
+          while ($attempt -le 3) {
+            flutter build windows --release "--dart-define=SUPABASE_PUBLISHABLE_KEY=$env:SUPABASE_PUBLISHABLE_KEY"
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw "Windows build failed after $attempt attempts." }
+            Write-Host "PDFium/network download failed; retrying build (attempt $($attempt + 1)/3)..."
+            Start-Sleep -Seconds 10
+            $attempt++
+          }
+
+      - name: Bundle Microsoft Visual C++ runtime
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "Visual Studio locator was not found on the Windows runner."
+          }
+
+          $vsInstall = & $vswhere -latest -products '*' -property installationPath
+          $crtRoot = Join-Path $vsInstall "VC\Redist\MSVC"
+          $crt = Get-ChildItem $crtRoot -Directory -Recurse -Filter "Microsoft.VC143.CRT" |
+            Where-Object { $_.FullName -match "\\x64\\Microsoft\.VC143\.CRT$" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $crt) {
+            throw "The x64 Microsoft Visual C++ runtime files were not found."
+          }
+
+          $releaseDir = "build/windows/x64/runner/Release"
+          Copy-Item -Path (Join-Path $crt.FullName "*") -Destination $releaseDir -Force
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sydex-Windows
+          path: build/windows/x64/runner/Release/*
+          if-no-files-found: error

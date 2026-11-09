@@ -1,0 +1,46 @@
+name: Supabase database backup
+
+on:
+  schedule:
+    - cron: '15 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Validate backup secret
+        shell: bash
+        run: |
+          if [[ -z "$SUPABASE_DB_URL" ]]; then
+            echo "::error::Set the SUPABASE_DB_URL repository secret before running backups."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump roles
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f roles.sql --role-only
+
+      - name: Dump schema
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+
+      - name: Dump data
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f data.sql --data-only --use-copy
+
+      - name: Upload encrypted GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: |
+            roles.sql
+            schema.sql
+            data.sql
+          retention-days: 90
+          if-no-files-found: error

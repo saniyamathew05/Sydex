@@ -1,0 +1,223 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// AI extraction and explicit import operations for handwritten customer cards.
+///
+/// Extraction returns a draft only. The real ledger is changed only when the
+/// owner explicitly calls [importReviewedEntries] after reviewing the draft.
+class OldCardImportService {
+  OldCardImportService._();
+
+  static final SupabaseClient _supabase = Supabase.instance.client;
+
+  static const int _maxImageBytes = 10 * 1024 * 1024;
+  static const Set<String> _supportedMimeTypes = {
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  };
+  static const Set<String> _transactionTypes = {
+    'sale',
+    'payment',
+    'return',
+  };
+  static const Set<String> _paymentMethods = {
+    'unknown',
+    'cash',
+    'cheque',
+    'neft',
+    'gpay',
+  };
+
+  /// Extracts a draft from an image using the owner-only Edge Function.
+  ///
+  /// This does NOT write to the ledger.
+  static Future<Map<String, dynamic>> extractCard({
+    required String customerId,
+    required Uint8List imageBytes,
+    required String mimeType,
+  }) async {
+    final id = customerId.trim();
+    if (id.isEmpty) {
+      throw ArgumentError('Select a customer before choosing a card image.');
+    }
+    if (imageBytes.isEmpty) {
+      throw ArgumentError('The selected image is empty. Choose another image.');
+    }
+    if (imageBytes.length > _maxImageBytes) {
+      throw ArgumentError(
+        'The image is larger than 10 MB. Choose a smaller image.',
+      );
+    }
+
+    final normalizedMimeType = mimeType.trim().toLowerCase();
+    if (!_supportedMimeTypes.contains(normalizedMimeType)) {
+      throw ArgumentError(
+        'Unsupported image type. Choose a JPG, PNG, or WebP image.',
+      );
+    }
+
+    final response = await _supabase.functions.invoke(
+      'extract-old-card',
+      body: <String, dynamic>{
+        'customerId': id,
+        'mimeType': normalizedMimeType,
+        'imageBase64': base64Encode(imageBytes),
+      },
+    );
+
+    _throwForHttpError(response.status, response.data);
+
+    final result = _asMap(response.data, 'card extraction');
+    if (result['saved'] != false ||
+        result['requiresOwnerReview'] != true ||
+        result['entries'] is! List) {
+      throw FormatException(
+        _readError(result).isEmpty
+            ? 'The service did not return a review-only draft.'
+            : _readError(result),
+      );
+    }
+
+    return result;
+  }
+
+  /// Saves owner-reviewed entries using the secure PostgreSQL RPC.
+  ///
+  /// Call this only after showing an explicit confirmation dialog to the
+  /// owner. The server rejects customers that already have ledger entries,
+  /// validates running balances, and inserts the entire batch atomically.
+  static Future<Map<String, dynamic>> importReviewedEntries({
+    required String customerId,
+    required List<Map<String, dynamic>> entries,
+  }) async {
+    final id = customerId.trim();
+    if (id.isEmpty) throw ArgumentError('Select a customer first.');
+    if (entries.isEmpty) {
+      throw ArgumentError('There are no reviewed entries to import.');
+    }
+    if (entries.length > 500) {
+      throw ArgumentError('Import no more than 500 entries at a time.');
+    }
+
+    final cleanedEntries = <Map<String, dynamic>>[];
+    DateTime? previousDate;
+
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      final index = i + 1;
+
+      final dateText = (entry['date'] ?? '').toString().trim();
+      final parsedDate = DateTime.tryParse(dateText);
+      if (parsedDate == null ||
+          !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(dateText)) {
+        throw ArgumentError(
+          'Entry $index needs a valid date in YYYY-MM-DD format.',
+        );
+      }
+      if (previousDate != null && parsedDate.isBefore(previousDate)) {
+        throw ArgumentError(
+          'Put entries in date order, from oldest to newest.',
+        );
+      }
+      previousDate = parsedDate;
+
+      final type = (entry['type'] ?? '').toString().trim();
+      if (!_transactionTypes.contains(type)) {
+        throw ArgumentError(
+          'Choose New Sale, Payment Received, or Sales Return for entry $index.',
+        );
+      }
+
+      final amountText = (entry['amount'] ?? '').toString().trim();
+      final amount = double.tryParse(amountText);
+      if (amount == null || !amount.isFinite || amount <= 0) {
+        throw ArgumentError(
+          'Entry $index must have an amount greater than zero.',
+        );
+      }
+
+      final method = (entry['paymentMethod'] ?? 'unknown').toString().trim();
+      if (!_paymentMethods.contains(method)) {
+        throw ArgumentError('Choose a valid payment method for entry $index.');
+      }
+
+      final balanceText =
+          (entry['writtenBalanceAfter'] ?? '').toString().trim();
+      double? writtenBalance;
+      if (balanceText.isNotEmpty) {
+        writtenBalance = double.tryParse(balanceText);
+        if (writtenBalance == null ||
+            !writtenBalance.isFinite ||
+            writtenBalance < 0) {
+          throw ArgumentError(
+            'Entry $index has an invalid written balance.',
+          );
+        }
+      }
+      if (i == 0 && writtenBalance == null) {
+        throw ArgumentError(
+          'The first entry needs its written balance after the transaction. '
+          'This is used to validate the starting balance.',
+        );
+      }
+
+      cleanedEntries.add(<String, dynamic>{
+        'date': dateText,
+        'type': type,
+        'amount': amount.toStringAsFixed(2),
+        'writtenBalanceAfter': writtenBalance?.toStringAsFixed(2) ?? '',
+        'paymentMethod': method,
+        'notes': (entry['notes'] ?? '').toString().trim(),
+        'rawText': (entry['rawText'] ?? '').toString(),
+      });
+    }
+
+    final response = await _supabase.rpc(
+      'import_old_card_transactions',
+      params: <String, dynamic>{
+        'p_customer_id': id,
+        'p_entries': cleanedEntries,
+      },
+    );
+
+    final result = _asMap(response, 'historical import');
+    if (result['success'] != true) {
+      throw FormatException(
+        _readError(result).isEmpty
+            ? 'The historical import was not confirmed by the server.'
+            : _readError(result),
+      );
+    }
+    return result;
+  }
+
+  static void _throwForHttpError(int status, dynamic data) {
+    if (status < 200 || status >= 300) {
+      final message = _readError(data);
+      throw Exception(
+        message.isEmpty
+            ? 'Could not extract the card (HTTP $status).'
+            : message,
+      );
+    }
+  }
+
+  static Map<String, dynamic> _asMap(dynamic value, String operation) {
+    if (value is Map) return Map<String, dynamic>.from(value);
+    throw FormatException(
+      'The $operation service returned an unexpected response.',
+    );
+  }
+
+  static String _readError(dynamic data) {
+    if (data is Map) {
+      final message = data['error'] ?? data['message'];
+      if (message != null) return message.toString();
+    }
+    if (data is String) return data;
+    return '';
+  }
+}
