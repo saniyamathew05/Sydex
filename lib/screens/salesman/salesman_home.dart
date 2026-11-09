@@ -1936,7 +1936,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     0 => 0,
     1 => 1,
     2 => 3,
-    _ => 4,
+    3 => 4,
+    _ => 5,
   };
 
   void _selectPhoneNavigation(int index) {
@@ -1944,7 +1945,15 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       _showPaymentQr();
       return;
     }
-    setState(() => selectedIndex = index < 2 ? index : index - 1);
+    setState(() {
+      selectedIndex = switch (index) {
+        0 => 0,
+        1 => 1,
+        3 => 2,
+        4 => 3,
+        _ => 4,
+      };
+    });
   }
 
   Widget _navigationRail(BuildContext context) {
@@ -1979,6 +1988,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           label: Text('Payments'),
         ),
         NavigationRailDestination(
+          icon: Icon(Icons.map_outlined),
+          selectedIcon: Icon(Icons.map_rounded),
+          label: Text('Map'),
+        ),
+        NavigationRailDestination(
           icon: Icon(Icons.person_outline_rounded),
           selectedIcon: Icon(Icons.person_rounded),
           label: Text('More'),
@@ -1994,15 +2008,15 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       _buildHomeTab(),
       _buildCustomersTab(),
       const SalesmanPaymentsScreen(),
-      _buildMoreTab(),
       _buildMapTab(),
+      _buildMoreTab(),
     ];
     final titles = [
       'Sydex',
       "Today's Customers",
       'Payments Received',
-      'More',
       "Today's Route Map",
+      'More',
     ];
 
     return LayoutBuilder(
@@ -2102,6 +2116,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                           icon: Icon(Icons.payments_outlined),
                           selectedIcon: Icon(Icons.payments_rounded),
                           label: 'Payments',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.map_outlined),
+                          selectedIcon: Icon(Icons.map_rounded),
+                          label: 'Map',
                         ),
                         NavigationDestination(
                           icon: Icon(Icons.more_horiz_rounded),
