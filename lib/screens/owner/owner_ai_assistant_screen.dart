@@ -67,7 +67,19 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
       }
       final response = await _supabase.functions.invoke(
         'owner-ai-assistant',
-        body: <String, dynamic>{'question': question},
+        body: <String, dynamic>{
+          'question': question,
+          'app_context': '''
+You are Sydie, the Sydex in-app helper. Understand natural, informal questions
+about using Sydex and answer with clear step-by-step navigation. Sydex includes
+Owner and Salesman dashboards, customers and ledgers, sales, payments, cheque
+bounce handling, routes, salesman assignments, reports, receipts, settings,
+dark/light mode, subscription billing, and hiding payments from the owner
+ledger. Explain where to tap and what each action does. Never invent data or
+claim a payment was changed; for business figures use only verified data
+available to the function.
+''',
+        },
       );
 
       final data = response.data;
@@ -109,15 +121,16 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
 
   String? _appHelpAnswer(String question) {
     final text = question.toLowerCase();
-    if (text.contains('hide') &&
-        (text.contains('payment') || text.contains('ledger'))) {
+    if ((text.contains('hide') || text.contains('remove') || text.contains('not show')) &&
+        (text.contains('payment') || text.contains('ledger') || text.contains('entry'))) {
       return 'To hide a payment: open Owner → Payments, find the payment, open its three-dot menu, and choose Hide. It is removed from the ledger view but the payment record is not deleted. You can still find it in the customer history.';
     }
-    if (text.contains('assign') &&
-        (text.contains('salesman') || text.contains('route'))) {
+    if ((text.contains('assign') || text.contains('give') || text.contains('add')) &&
+        (text.contains('salesman') || text.contains('route') || text.contains('executive'))) {
       return 'To assign customers: open Owner → Routes & Areas, create or select a route, choose customers, save the selection, then open Assign route to salesmen and select the salesman. The salesman will see only those assigned customers.';
     }
-    if (text.contains('new sale') || text.contains('new purchase')) {
+    if (text.contains('new sale') || text.contains('new purchase') ||
+        text.contains('record sale') || text.contains('make a sale')) {
       return 'To create a sale: open Owner → Sales, choose the customer, enter the sale amount and items, then save. You can also use the Add Sale button on the dashboard.';
     }
     if (text.contains('settings') || text.contains('theme') || text.contains('dark mode')) {
