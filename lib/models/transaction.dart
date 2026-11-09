@@ -35,6 +35,7 @@ class PaymentTransaction {
 
   /// A cheque that bounced is not money actually received.
   final bool isBounced;
+  final bool isHiddenFromLedger;
 
   /// Ledger transaction type: 'sale', 'payment_received', or 'sales_return'.
   ///
@@ -62,6 +63,7 @@ class PaymentTransaction {
     this.paymentMethod = 'cash',
     this.paymentMethodNote = '',
     this.isBounced = false,
+    this.isHiddenFromLedger = false,
     this.transactionType = 'unknown',
   }) : amountReceived = amountReceived ?? (amount - discount);
 

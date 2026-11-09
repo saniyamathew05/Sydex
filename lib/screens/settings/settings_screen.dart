@@ -6,6 +6,7 @@ import '../../main.dart';
 
 import '../../services/theme_controller.dart';
 import '../../services/history_display_settings.dart';
+import '../../services/owner_display_settings.dart';
 
 import 'business_information_screen.dart';
 
@@ -76,6 +77,43 @@ class SettingsScreen extends StatelessWidget {
 
       (route) => false,
     );
+  }
+
+  Future<void> _deleteMyAccount(BuildContext context) async {
+    if (isOwner) {
+      _showInfo(context, 'Account deletion',
+          'Owner accounts cannot be self-deleted because the workspace must first be transferred or closed.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete my account?'),
+        content: const Text(
+          'Your login and profile will be permanently removed. Historical payments, ledger entries and visit records will remain for the business, but your user identity will be anonymised. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await Supabase.instance.client.functions.invoke('delete-my-account');
+      await Supabase.instance.client.auth.signOut();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+          (_) => false,
+        );
+      }
+    } catch (error) {
+      if (context.mounted) _showInfo(context, 'Could not delete account', error.toString());
+    }
   }
 
   @override
@@ -177,7 +215,7 @@ class SettingsScreen extends StatelessWidget {
                       children: ThemeController.accentChoices.entries.map((
                         entry,
                       ) {
-                        final isSelected = entry.value.value == selected.value;
+                        final isSelected = entry.value.toARGB32() == selected.toARGB32();
                         return Tooltip(
                           message: entry.key,
                           child: InkWell(
@@ -211,6 +249,45 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+
+          if (isOwner)
+            const _SettingsSectionTitle(title: 'OWNER DISPLAY'),
+
+          if (isOwner)
+            ValueListenableBuilder<bool>(
+              valueListenable: OwnerDisplaySettings.showBalances,
+              builder: (context, value, _) => SwitchListTile(
+                secondary: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('Show balances'),
+                subtitle: const Text('Display outstanding balances on owner screens'),
+                value: value,
+                onChanged: OwnerDisplaySettings.setBalances,
+              ),
+            ),
+
+          if (isOwner)
+            ValueListenableBuilder<bool>(
+              valueListenable: OwnerDisplaySettings.showRecentPayments,
+              builder: (context, value, _) => SwitchListTile(
+                secondary: const Icon(Icons.history_outlined),
+                title: const Text('Show recent payment history'),
+                subtitle: const Text('Show recent payments in the owner dashboard'),
+                value: value,
+                onChanged: OwnerDisplaySettings.setRecentPayments,
+              ),
+            ),
+
+          if (isOwner)
+            ValueListenableBuilder<bool>(
+              valueListenable: OwnerDisplaySettings.showQuickActions,
+              builder: (context, value, _) => SwitchListTile(
+                secondary: const Icon(Icons.bolt_outlined),
+                title: const Text('Show quick actions'),
+                subtitle: const Text('Display shortcut actions on the dashboard'),
+                value: value,
+                onChanged: OwnerDisplaySettings.setQuickActions,
               ),
             ),
 
@@ -489,6 +566,37 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: ListTile(
+                leading: Icon(
+                  Icons.person_remove_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Delete my account',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  isOwner
+                      ? 'Owner accounts require workspace transfer first'
+                      : 'Remove your login and anonymise your historical activity',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                onTap: () => _deleteMyAccount(context),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

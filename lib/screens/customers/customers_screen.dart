@@ -236,6 +236,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   Future<void> _deleteCustomer(Customer customer) async {
     final confirmationController = TextEditingController();
+    var exportConfirmed = false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -251,6 +252,16 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   'This permanently removes "${customer.businessName}" and all of their purchases, payments, ledger history, route and visit records, group memberships, and saved signatures.',
                 ),
                 const SizedBox(height: 16),
+                StatefulBuilder(
+                  builder: (context, setState) => CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: exportConfirmed,
+                    onChanged: (value) => setState(() => exportConfirmed = value == true),
+                    title: const Text('I have exported any records I need to keep'),
+                    subtitle: const Text('Customer deletion is permanent and cannot be undone.'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const Text('Type DELETE to confirm.'),
                 const SizedBox(height: 8),
                 TextField(
@@ -273,7 +284,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 backgroundColor: Theme.of(context).colorScheme.error,
               ),
               onPressed:
-                  confirmationController.text.trim().toUpperCase() == 'DELETE'
+                  exportConfirmed && confirmationController.text.trim().toUpperCase() == 'DELETE'
                   ? () => Navigator.pop(dialogContext, true)
                   : null,
               child: const Text('Delete permanently'),
@@ -527,7 +538,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         if (_groups.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String?>(
-                            value: _selectedGroupId,
+                            initialValue: _selectedGroupId,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Customer group',
@@ -684,7 +695,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     List<String> values,
     ValueChanged<String> onChanged,
   ) => DropdownButtonFormField<String>(
-    value: value,
+    initialValue: value,
     isDense: true,
     decoration: InputDecoration(
       labelText: label,

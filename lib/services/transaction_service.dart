@@ -87,6 +87,7 @@ class TransactionService {
             payment_method_note,
 
             is_bounced,
+            hidden_from_ledger,
             customers (business_name)
 
           ''')
@@ -186,6 +187,8 @@ class TransactionService {
             paymentMethodNote: row['payment_method_note']?.toString() ?? '',
 
             isBounced: row['is_bounced'] == true,
+
+            isHiddenFromLedger: row['hidden_from_ledger'] == true,
 
             transactionType: 'payment_received',
           ),

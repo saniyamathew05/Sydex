@@ -36,17 +36,19 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
   Future<void> _load() async {
     try {
       final factors = await Supabase.instance.client.auth.mfa.listFactors();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _factors = factors.totp;
           _loading = false;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Could not load two-factor authentication.';
           _loading = false;
         });
+      }
     }
   }
 
@@ -70,8 +72,9 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Could not start setup. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -104,11 +107,12 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       });
       await _load();
     } on AuthException catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'That code could not be verified. Check the code and try again.',
         );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -219,11 +223,12 @@ class _TotpQrPainter extends CustomPainter {
     final paint = Paint()..color = Colors.black;
     for (var row = 0; row < image.moduleCount; row++) {
       for (var col = 0; col < image.moduleCount; col++) {
-        if (image.isDark(row, col))
+        if (image.isDark(row, col)) {
           canvas.drawRect(
             Rect.fromLTWH(col * cell, row * cell, cell + .2, cell + .2),
             paint,
           );
+        }
       }
     }
   }

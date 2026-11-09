@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// Optional owner helpers remain available for compatibility with older layouts.
+// ignore_for_file: unused_field, unused_element, unused_element_parameter
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
@@ -21,6 +22,7 @@ import '../../services/transaction_service.dart';
 import '../../services/payment_method_breakdown.dart';
 
 import '../settings/settings_screen.dart';
+import '../settings/profile_screen.dart';
 
 import 'owner_reports_screen.dart';
 import 'owner_dashboard.dart';
@@ -356,6 +358,14 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                     onSalesmen: _openSalesmen,
                     onRouteMap: _openRouteMap,
                     onAIAssistant: _openAIAssistant,
+                    onProfile: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProfileScreen(
+                          userName: widget.userName,
+                          role: 'owner',
+                        ),
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: IndexedStack(
@@ -371,15 +381,19 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
             body: _showMobileRoutes
                 ? const OwnerRouteManagementScreen(page: OwnerRoutePage.places)
                 : IndexedStack(index: _selectedIndex, children: pages),
+            floatingActionButton: FloatingActionButton.small(
+              heroTag: 'sydie-mobile-fab',
+              tooltip: 'Open Sydie assistant',
+              onPressed: _openAIAssistant,
+              child: const Icon(Icons.auto_awesome_rounded, size: 19),
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.endFloat,
             bottomNavigationBar: NavigationBar(
               selectedIndex: _showMobileRoutes ? 4 : _selectedIndex,
               onDestinationSelected: (index) {
                 if (index == 5) {
                   _openSettings();
-                  return;
-                }
-                if (index == 6) {
-                  _openAIAssistant();
                   return;
                 }
                 setState(() {
@@ -418,11 +432,6 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                   selectedIcon: Icon(Icons.settings_rounded),
                   label: 'Settings',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.auto_awesome_outlined),
-                  selectedIcon: Icon(Icons.auto_awesome),
-                  label: 'Sydie',
-                ),
               ],
             ),
           );
@@ -442,6 +451,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
   final VoidCallback onSalesmen;
   final VoidCallback onRouteMap;
   final VoidCallback onAIAssistant;
+  final VoidCallback onProfile;
 
   const _HorizonDesktopSidebar({
     required this.userName,
@@ -452,6 +462,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
     required this.onSalesmen,
     required this.onRouteMap,
     required this.onAIAssistant,
+    required this.onProfile,
   });
 
   @override
@@ -471,7 +482,10 @@ class _HorizonDesktopSidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 24),
-          Padding(
+          InkWell(
+            onTap: onProfile,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
@@ -482,10 +496,17 @@ class _HorizonDesktopSidebar extends StatelessWidget {
                     color: colors.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.account_balance_wallet_rounded,
-                    color: Colors.white,
-                    size: 20,
+                  child: Image.asset(
+                    'assets/sydex_logo_transparent.png',
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 9),
@@ -509,6 +530,7 @@ class _HorizonDesktopSidebar extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
           const SizedBox(height: 34),
@@ -2012,17 +2034,14 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   String _methodFilter = 'all';
   DateTime? _selectedDate;
   DateTimeRange? _selectedDateRange;
-  final Set<String> _hiddenPaymentIds = <String>{};
   List<Map<String, dynamic>> _refusedPayments = const [];
 
-  static const _hiddenPaymentsKey = 'owner_hidden_payment_ids';
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     CustomerService.dataVersion.addListener(_onCustomersChanged);
-    _loadHiddenPayments();
     _loadRefusedPayments();
   }
 
@@ -2035,10 +2054,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           )
           .eq('status', 'rejected')
           .order('status_date', ascending: false);
-      if (mounted)
+      if (mounted) {
         setState(
           () => _refusedPayments = List<Map<String, dynamic>>.from(rows),
         );
+      }
     } catch (error) {
       debugPrint('Could not load refused payment history: $error');
     }
@@ -2146,28 +2166,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  Future<void> _loadHiddenPayments() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _hiddenPaymentIds
-        ..clear()
-        ..addAll(prefs.getStringList(_hiddenPaymentsKey) ?? const []);
-    });
-  }
-
   Future<void> _hidePayment(PaymentTransaction payment) async {
-    setState(() => _hiddenPaymentIds.add(payment.id));
     try {
-      await Supabase.instance.client
-          .from('payments')
-          .update({'hidden_from_ledger': true})
-          .eq('id', payment.id);
+      await Supabase.instance.client.rpc(
+        'set_payment_hidden_from_ledger',
+        params: {'p_payment_id': payment.id, 'p_hidden': true},
+      );
     } catch (error) {
       debugPrint('Could not sync hidden payment visibility: $error');
+      return;
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_hiddenPaymentsKey, _hiddenPaymentIds.toList());
+    await TransactionService.loadTransactions();
   }
 
   @override
@@ -2249,7 +2258,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   List<PaymentTransaction> _filteredPayments() {
     final payments = TransactionService.transactions.where((payment) {
-      if (_hiddenPaymentIds.contains(payment.id)) return false;
+      if (payment.isHiddenFromLedger) return false;
       if (!_matchesDate(payment)) return false;
       if (_methodFilter != 'all') {
         final method = payment.paymentMethod.trim().toLowerCase().replaceAll(
@@ -2640,6 +2649,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
@@ -2758,7 +2768,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     SizedBox(
                       width: isDesktop ? 190 : 155,
                       child: DropdownButtonFormField<String>(
-                        value: _dateFilter,
+                        initialValue: _dateFilter,
                         decoration: InputDecoration(
                           labelText: 'Date range',
                           filled: true,
@@ -2806,7 +2816,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     SizedBox(
                       width: isDesktop ? 180 : 155,
                       child: DropdownButtonFormField<String>(
-                        value: _methodFilter,
+                        initialValue: _methodFilter,
                         decoration: InputDecoration(
                           labelText: 'Payment method',
                           filled: true,
@@ -3299,9 +3309,7 @@ class _EmptyPayments extends StatelessWidget {
 
   const _EmptyPayments({
     required this.colors,
-
-    this.message = 'Payments received from customers will appear here.',
-  });
+  }) : message = 'Payments received from customers will appear here.';
 
   @override
   Widget build(BuildContext context) {

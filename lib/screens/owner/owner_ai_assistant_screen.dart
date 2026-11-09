@@ -27,13 +27,7 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
 
   static const List<String> _suggestions = [
     "How much is today's collection?",
-    "How much did we sell today?",
     "What is the total outstanding?",
-    "Show the latest payments",
-    "Which customers owe the most?",
-    "How do I hide a payment from the ledger?",
-    "Where do I assign customers to a salesman?",
-    "How do I create a new sale?",
   ];
 
   @override

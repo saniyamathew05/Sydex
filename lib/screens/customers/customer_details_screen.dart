@@ -1,3 +1,5 @@
+// Legacy selection helper is retained for backwards-compatible customer flows.
+// ignore_for_file: unused_element
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -17,7 +19,6 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'package:printing/printing.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/transaction_service.dart';
 import '../../services/payment_receipt_share_service.dart';
@@ -72,25 +73,30 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     });
   }
 
-  String get _hiddenHistoryKey =>
-      'customer_details_hidden_history_${widget.customer.id}';
-
   Future<void> _loadHiddenHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _hiddenHistoryIds.addAll(
-        prefs.getStringList(_hiddenHistoryKey) ?? const [],
-      );
+    final rows = await Supabase.instance.client
+        .from('payments')
+        .select('id')
+        .eq('customer_id', widget.customer.id)
+        .eq('hidden_from_ledger', true);
+    if (mounted) {
+      setState(() {
+      _hiddenHistoryIds
+        ..clear()
+        ..addAll((rows as List).map((row) => row['id'].toString()));
     });
+    }
   }
 
   Future<void> _hideHistoryEntry(Map<String, dynamic> entry) async {
     final id = entry['id']?.toString();
     if (id == null || id.isEmpty) return;
+    if (entry['entry_type']?.toString() != 'payment') return;
+    await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+      'p_payment_id': id,
+      'p_hidden': true,
+    });
     setState(() => _hiddenHistoryIds.add(id));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_hiddenHistoryKey, _hiddenHistoryIds.toList());
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -101,12 +107,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             label: 'Undo',
             onPressed: () async {
               if (!mounted) return;
-              setState(() => _hiddenHistoryIds.remove(id));
-              final updatedPrefs = await SharedPreferences.getInstance();
-              await updatedPrefs.setStringList(
-                _hiddenHistoryKey,
-                _hiddenHistoryIds.toList(),
-              );
+              await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+                'p_payment_id': id,
+                'p_hidden': false,
+              });
+              if (mounted) setState(() => _hiddenHistoryIds.remove(id));
             },
           ),
         ),
@@ -115,9 +120,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   Future<void> _restoreHiddenHistory() async {
     if (_hiddenHistoryIds.isEmpty) return;
+    for (final id in _hiddenHistoryIds) {
+      await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+        'p_payment_id': id,
+        'p_hidden': false,
+      });
+    }
     setState(() => _hiddenHistoryIds.clear());
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_hiddenHistoryKey);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Hidden customer history restored')),
@@ -177,20 +186,34 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       ),
     );
     if (confirmed != true || selected.isEmpty || !mounted) return;
-    setState(() => _hiddenHistoryIds.addAll(selected));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_hiddenHistoryKey, _hiddenHistoryIds.toList());
+    for (final id in selected) {
+      final entry = entries.firstWhere((row) => row['id']?.toString() == id,
+          orElse: () => const <String, dynamic>{});
+      if (entry['entry_type']?.toString() == 'payment') {
+        await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+          'p_payment_id': id,
+          'p_hidden': true,
+        });
+      }
+    }
+    await _loadHiddenHistory();
   }
 
   Future<void> _finishHistorySelection() async {
     if (_selectedHistoryIds.isNotEmpty) {
-      setState(() {
-        _hiddenHistoryIds.addAll(_selectedHistoryIds);
+      for (final id in _selectedHistoryIds) {
+        await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+          'p_payment_id': id,
+          'p_hidden': true,
+        });
+      }
+      await _loadHiddenHistory();
+      if (mounted) {
+        setState(() {
         _selectedHistoryIds.clear();
         _selectingHistory = false;
       });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_hiddenHistoryKey, _hiddenHistoryIds.toList());
+      }
     } else {
       setState(() => _selectingHistory = false);
     }
@@ -1986,6 +2009,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     );
   }
 
+  Future<void> _editReturn(Map<String, dynamic> entry) async {
+    final amount = TextEditingController(text: ((entry['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2));
+    final notes = TextEditingController(text: entry['notes']?.toString() ?? '');
+    var date = DateTime.tryParse(entry['transaction_date']?.toString() ?? '')?.toLocal() ?? DateTime.now();
+    final result = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (context, setState) => AlertDialog(
+      title: const Text('Edit sales return'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Return amount')),
+        TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
+        ListTile(title: const Text('Return date'), subtitle: Text(_formatDate(date)), onTap: () async { final picked = await showDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100)); if (picked != null) setState(() => date = picked); }),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () async { await Supabase.instance.client.rpc('update_return', params: {'p_entry_id': entry['id'], 'p_amount': double.tryParse(amount.text) ?? 0, 'p_notes': notes.text.trim(), 'p_transaction_date': date.toUtc().toIso8601String()}); if (dialogContext.mounted) Navigator.pop(dialogContext, true); }, child: const Text('Save'))],
+    )));
+    amount.dispose(); notes.dispose();
+    if (result == true) await _refreshCustomerData();
+  }
+
   Future<void> _refreshAfterPurchaseChange() async {
     _isRefreshingFromDataChange = true;
 
@@ -3134,9 +3174,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       onSelected: (value) {
                         if (value == 'hide') {
                           _hideHistoryEntry(entry);
+                        } else if (value == 'edit') {
+                          _editReturn(entry);
                         }
                       },
                       itemBuilder: (context) => [
+                        const PopupMenuItem<String>(
+                          value: 'edit',
+                          child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Edit sales return')),
+                        ),
                         const PopupMenuItem<String>(
                           value: 'hide',
                           child: ListTile(

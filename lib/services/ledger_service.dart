@@ -86,6 +86,20 @@ class LedgerService {
         response.map((entry) => Map<String, dynamic>.from(entry)),
       );
 
+      final hiddenRows = await _supabase
+          .from('payments')
+          .select('id')
+          .eq('customer_id', customerId)
+          .eq('hidden_from_ledger', true);
+      final hiddenIds = (hiddenRows as List)
+          .map((row) => row['id']?.toString())
+          .whereType<String>()
+          .toSet();
+      entries.removeWhere(
+        (entry) => entry['entry_type']?.toString() == 'payment' &&
+            hiddenIds.contains(entry['id']?.toString()),
+      );
+
       // Keep historical payments visible even when an older deployment has a
       // payment row but its matching ledger row was not exposed by RLS.
       final knownIds = entries
@@ -102,6 +116,7 @@ class LedgerService {
             is_bounced, profiles(name)
           ''')
             .eq('customer_id', customerId)
+            .eq('hidden_from_ledger', false)
             .order('created_at');
         for (final row in paymentRows) {
           final id = row['id']?.toString();

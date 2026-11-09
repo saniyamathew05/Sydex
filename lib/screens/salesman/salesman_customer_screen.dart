@@ -36,6 +36,17 @@ class _SalesmanCustomerDetailsScreenState
   late Customer _customer;
   bool _savingPhone = false;
 
+  Future<void> _editTransactionDate(Map<String, dynamic> entry, {required bool payment}) async {
+    var date = DateTime.tryParse(entry['transaction_date']?.toString() ?? '')?.toLocal() ?? DateTime.now();
+    final picked = await showDatePicker(context: context, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    if (picked == null || !mounted) return;
+    await Supabase.instance.client.rpc(
+      payment ? 'update_payment_date' : 'update_return_date',
+      params: {payment ? 'p_payment_id' : 'p_entry_id': entry['id'], 'p_transaction_date': picked.toUtc().toIso8601String()},
+    );
+    await _loadSaleHistory();
+  }
+
   List<Map<String, dynamic>> get _saleEntries => _ledgerEntries
       .where((entry) => entry['entry_type']?.toString() == 'purchase')
       .toList();
@@ -765,6 +776,7 @@ class _SalesmanCustomerDetailsScreenState
                                     PaymentScreen(customer: _customer),
                               ),
                             );
+                            if (!mounted) return;
                             if (paymentSaved == true) {
                               try {
                                 await SalesmanVisitService.recordStatus(
@@ -776,7 +788,7 @@ class _SalesmanCustomerDetailsScreenState
                                   'Could not record payment visit status: $error',
                                 );
                               }
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               Navigator.pop(context, true);
                               return;
                             }
@@ -835,13 +847,14 @@ class _SalesmanCustomerDetailsScreenState
                         ],
                       ),
                     );
+                    if (!context.mounted) return;
                     if (confirm != true) return;
                     try {
                       await SalesmanVisitService.recordStatus(
                         customerId: _customer.id,
                         status: 'rejected',
                       );
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -852,12 +865,13 @@ class _SalesmanCustomerDetailsScreenState
                         Navigator.pop(context, true);
                       }
                     } catch (error) {
-                      if (mounted)
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Could not record visit: $error'),
                           ),
                         );
+                      }
                     }
                   },
                   icon: const Icon(Icons.person_off_outlined),
@@ -1134,6 +1148,10 @@ class _SalesmanCustomerDetailsScreenState
                       );
                       return _PaymentCard(
                         transaction: payment,
+                        onEditDate: () => _editTransactionDate(
+                          ledgerEntry.isEmpty ? {'id': payment.id, 'transaction_date': payment.transactionDate.toIso8601String()} : ledgerEntry,
+                          payment: true,
+                        ),
                         previousBalanceOverride:
                             (ledgerEntry['balance_before'] as num?)?.toDouble(),
                         remainingBalanceOverride:
@@ -1280,6 +1298,11 @@ class _SalesmanCustomerDetailsScreenState
                                     ),
                                   ),
                                   Text(dateLabel),
+                                  IconButton(
+                                    tooltip: 'Edit return date',
+                                    onPressed: () => _editTransactionDate(entry, payment: false),
+                                    icon: const Icon(Icons.edit_calendar_outlined),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -1650,11 +1673,13 @@ class _PaymentCard extends StatefulWidget {
   final PaymentTransaction transaction;
   final double? previousBalanceOverride;
   final double? remainingBalanceOverride;
+  final VoidCallback? onEditDate;
 
   const _PaymentCard({
     required this.transaction,
     this.previousBalanceOverride,
     this.remainingBalanceOverride,
+    this.onEditDate,
   });
 
   @override
@@ -1840,6 +1865,16 @@ class _PaymentCardState extends State<_PaymentCard> {
           ],
 
           const SizedBox(height: 16),
+
+          if (widget.onEditDate != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Edit payment date',
+                onPressed: widget.onEditDate,
+                icon: const Icon(Icons.edit_calendar_outlined),
+              ),
+            ),
 
           const Align(
             alignment: Alignment.centerLeft,

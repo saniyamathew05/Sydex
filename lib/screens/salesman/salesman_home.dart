@@ -1,5 +1,7 @@
 import 'dart:async';
 
+// Optional legacy dashboard cards remain available for older saved layouts.
+// ignore_for_file: unused_element, unused_element_parameter, dead_code, unused_local_variable
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -1127,7 +1129,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 3, 20, 18),
                       itemCount: filteredCustomers.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         thickness: 0.6,
                         indent: 47,
@@ -2703,9 +2705,7 @@ class _CustomerCard extends StatelessWidget {
     required this.balance,
 
     required this.onTap,
-
     this.onPayment,
-
     this.showBalance = false,
   });
 

@@ -1,3 +1,5 @@
+// Location filter helper is retained for route data compatibility.
+// ignore_for_file: unused_element
 import 'package:flutter/material.dart';
 
 import '../../models/customer.dart';

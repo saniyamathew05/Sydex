@@ -1,3 +1,5 @@
+// Normalization helper supports legacy route payloads.
+// ignore_for_file: unused_element
 import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';

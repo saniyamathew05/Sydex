@@ -12,6 +12,7 @@ import 'screens/salesman/salesman_home.dart';
 
 import 'services/theme_controller.dart';
 import 'services/history_display_settings.dart';
+import 'services/owner_display_settings.dart';
 
 import 'services/auth_service.dart';
 import 'services/business_date_service.dart';
@@ -55,6 +56,7 @@ Future<void> main() async {
 
   await ThemeController.loadTheme();
   await HistoryDisplaySettings.load();
+  await OwnerDisplaySettings.load();
   await CurrencyFormatter.load();
   await BusinessDateService.load();
 
@@ -1116,9 +1118,17 @@ class WelcomeScreen extends StatelessWidget {
                 color: Colors.white.withValues(alpha: .14),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Colors.white,
+              child: Image.asset(
+                'assets/sydex_logo_transparent.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -2297,10 +2307,17 @@ class _LoginScreenState extends State<LoginScreen>
                           color: colors.primaryContainer,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(
-                          Icons.account_balance_wallet_rounded,
-                          color: colors.primary,
-                          size: 20,
+                        child: Image.asset(
+                          'assets/sydex_logo_transparent.png',
+                          width: 26,
+                          height: 26,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: colors.primary,
+                            size: 20,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -2653,7 +2670,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: _selectedMarket,
+                      initialValue: _selectedMarket,
                       decoration: _decoration(
                         'Business location',
                         Icons.public_outlined,
@@ -2669,8 +2686,9 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       onChanged: _loading
                           ? null
                           : (value) {
-                              if (value != null)
+                              if (value != null) {
                                 setState(() => _selectedMarket = value);
+                              }
                             },
                     ),
                     const SizedBox(height: 10),

@@ -383,6 +383,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     if (received >= 50000 || discount > 10000) {
+      if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1163,12 +1164,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         _SummaryRow(
                           label: 'Amount to settle',
                           value:
-                              '${CurrencyFormatter.rupees(_settlementAmount)}',
+                              CurrencyFormatter.rupees(_settlementAmount),
                         ),
                         const SizedBox(height: 11),
                         _SummaryRow(
                           label: 'Discount',
-                          value: '${CurrencyFormatter.rupees(_discount)}',
+                          value: CurrencyFormatter.rupees(_discount),
                         ),
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 5),
@@ -1176,7 +1177,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                         _SummaryRow(
                           label: 'Amount actually received',
-                          value: '${CurrencyFormatter.rupees(received)}',
+                          value: CurrencyFormatter.rupees(received),
                           bold: true,
                           valueColor: emerald,
                         ),
@@ -1185,7 +1186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           label: remaining < 0
                               ? 'Advance'
                               : 'Remaining balance',
-                          value: '${CurrencyFormatter.rupees(remaining)}',
+                          value: CurrencyFormatter.rupees(remaining),
                           bold: true,
                         ),
                       ],

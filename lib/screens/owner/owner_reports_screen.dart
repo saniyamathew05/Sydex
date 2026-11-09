@@ -330,7 +330,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.035),
+            color: Colors.black.withValues(alpha: 0.035),
 
             blurRadius: 18,
 
@@ -588,7 +588,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             height: 52,
 
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.16),
+              color: Colors.white.withValues(alpha: 0.16),
 
               borderRadius: BorderRadius.circular(15),
             ),
@@ -642,7 +642,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
 
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.13),
+              color: Colors.white.withValues(alpha: 0.13),
 
               borderRadius: BorderRadius.circular(12),
             ),
@@ -1135,7 +1135,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.025),
+            color: Colors.black.withValues(alpha: 0.025),
 
             blurRadius: 16,
 

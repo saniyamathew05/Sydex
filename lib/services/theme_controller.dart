@@ -79,7 +79,7 @@ class ThemeController {
 
   static String get accentName => accentChoices.entries
       .firstWhere(
-        (entry) => entry.value.value == accentColor.value.value,
+        (entry) => entry.value.toARGB32() == accentColor.value.toARGB32(),
         orElse: () => const MapEntry('Forest', Color(0xFF075C42)),
       )
       .key;

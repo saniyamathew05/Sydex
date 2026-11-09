@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,12 +17,28 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late String _name;
+  String? _imagePath;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _name = widget.userName;
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _imagePath = prefs.getString('sydex_profile_image_path'));
+  }
+
+  Future<void> _pickImage() async {
+    const group = XTypeGroup(label: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp']);
+    final file = await openFile(acceptedTypeGroups: [group]);
+    if (file == null || !mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('sydex_profile_image_path', file.path);
+    if (mounted) setState(() => _imagePath = file.path);
   }
 
   Future<void> _editName() async {
@@ -58,10 +77,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .eq('id', userId);
       if (mounted) setState(() => _name = value);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not update your profile.')),
         );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -80,21 +100,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(20),
 
         children: [
-          CircleAvatar(
-            radius: 42,
-
-            backgroundColor: colors.primaryContainer,
-
-            child: Text(
-              _initials(_name),
-
-              style: TextStyle(
-                color: colors.primary,
-
-                fontSize: 24,
-
-                fontWeight: FontWeight.w800,
-              ),
+          Center(
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 42,
+                  backgroundColor: colors.primaryContainer,
+                  backgroundImage: _imagePath == null ? null : FileImage(File(_imagePath!)),
+                  child: _imagePath == null
+                      ? Text(_initials(_name), style: TextStyle(color: colors.primary, fontSize: 24, fontWeight: FontWeight.w800))
+                      : null,
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: IconButton.filled(
+                    tooltip: 'Change profile image',
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.camera_alt_outlined, size: 17),
+                  ),
+                ),
+              ],
             ),
           ),
 

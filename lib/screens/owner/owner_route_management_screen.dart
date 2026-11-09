@@ -508,8 +508,9 @@ class _OwnerRouteManagementScreenState
     controller.dispose();
     if (name == null ||
         name.trim().isEmpty ||
-        name.trim() == route['route_name'])
+        name.trim() == route['route_name']) {
       return;
+    }
     setState(() => _saving = true);
     try {
       await _client
@@ -567,12 +568,13 @@ class _OwnerRouteManagementScreenState
         final index = _routes.indexWhere(
           (r) => r['id'].toString() == route['id'].toString(),
         );
-        if (index >= 0)
+        if (index >= 0) {
           _routes[index] = {
             ..._routes[index],
             'locations': locations,
             'customer_ids': _selectedCustomerIds.toList(),
           };
+        }
       });
       _message('Default locations saved for ${route['route_name']}.');
     } catch (error) {
@@ -1213,7 +1215,7 @@ class _OwnerRouteManagementScreenState
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: insertBeforeCustomerId,
+                    initialValue: insertBeforeCustomerId,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'Position on $salesmanName’s route',
@@ -1625,7 +1627,7 @@ class _OwnerRouteManagementScreenState
           pw.Text('Salesman: $salesmanName'),
           if (routeName.isNotEmpty) pw.Text('Route: $routeName'),
           pw.SizedBox(height: 14),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: const ['#', 'Customer', 'Location', 'Phone'],
             data: [
               for (var i = 0; i < customers.length; i++)
@@ -1865,7 +1867,7 @@ class _OwnerRouteManagementScreenState
                           const Text('Create your first route to get started.')
                         else
                           DropdownButtonFormField<String>(
-                            value: _selectedRouteId,
+                            initialValue: _selectedRouteId,
                             decoration: const InputDecoration(
                               labelText: 'Saved route',
                             ),

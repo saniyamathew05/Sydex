@@ -450,8 +450,9 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
     if (_methodFilter == 'refused') {
       return payment['entry_type']?.toString().toLowerCase() == 'refusal';
     }
-    if (payment['entry_type']?.toString().toLowerCase() == 'refusal')
+    if (payment['entry_type']?.toString().toLowerCase() == 'refusal') {
       return false;
+    }
     final method = payment['payment_method']
         ?.toString()
         .trim()
@@ -718,7 +719,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         if (_showFilters) ...[
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _dateFilter,
+            initialValue: _dateFilter,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Date'),
             items: [
@@ -746,7 +747,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _methodFilter,
+            initialValue: _methodFilter,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Method'),
             items: const [
@@ -762,7 +763,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _salesmanFilter,
+            initialValue: _salesmanFilter,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Salesman'),
             items: [
@@ -1667,7 +1668,7 @@ class _SalesmanPaymentDetailsScreenState
                 const SizedBox(height: 6),
 
                 Text(
-                  '${CurrencyFormatter.rupees(amountReceived)}',
+                  CurrencyFormatter.rupees(amountReceived),
 
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -1724,20 +1725,20 @@ class _SalesmanPaymentDetailsScreenState
               _InfoRow(
                 label: 'Settlement',
 
-                value: '${CurrencyFormatter.rupees(settlementAmount)}',
+                value: CurrencyFormatter.rupees(settlementAmount),
               ),
 
               if (discount > 0)
                 _InfoRow(
                   label: 'Discount',
 
-                  value: '${CurrencyFormatter.rupees(discount)}',
+                  value: CurrencyFormatter.rupees(discount),
                 ),
 
               _InfoRow(
                 label: 'Amount received',
 
-                value: '${CurrencyFormatter.rupees(amountReceived)}',
+                value: CurrencyFormatter.rupees(amountReceived),
               ),
 
               _InfoRow(

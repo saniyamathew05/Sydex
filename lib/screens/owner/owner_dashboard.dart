@@ -12,6 +12,7 @@ import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
 import '../../services/supabase_pagination.dart';
 import '../../services/notification_read_store.dart';
+import '../../services/owner_display_settings.dart';
 import '../../widgets/horizon_motion.dart';
 
 /// Owner overview for the Sydex desktop experience.
@@ -1254,7 +1255,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     return value.round().toString();
   }
 
-  Widget _recentPayments(List<PaymentTransaction> recent) => Column(
+  Widget _recentPayments(List<PaymentTransaction> recent) => ValueListenableBuilder<bool>(
+    valueListenable: OwnerDisplaySettings.showRecentPayments,
+    builder: (context, visible, _) => visible ? Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _panelHeader(
@@ -1340,6 +1343,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           ),
         ),
     ],
+    ) : const SizedBox.shrink(),
   );
 
   Widget _salesmanActivity(
