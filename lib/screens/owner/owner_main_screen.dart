@@ -363,6 +363,10 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
             bottomNavigationBar: NavigationBar(
               selectedIndex: _showMobileRoutes ? 4 : _selectedIndex,
               onDestinationSelected: (index) {
+                if (index == 5) {
+                  _openSettings();
+                  return;
+                }
                 setState(() {
                   _showMobileRoutes = index == 4;
                   if (index < 4) _selectedIndex = index;
@@ -393,6 +397,11 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                   icon: Icon(Icons.route_outlined),
                   selectedIcon: Icon(Icons.route_rounded),
                   label: 'Routes',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  label: 'Settings',
                 ),
               ],
             ),
