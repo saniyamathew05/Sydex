@@ -1180,7 +1180,10 @@ class _SalesmanCustomerDetailsScreenState
                                 '${date.year}';
                       final note = entry['notes']?.toString().trim() ?? '';
                       return Card(
-                        color: Theme.of(context).colorScheme.errorContainer,
+                        color: Color.alphaBlend(
+                          Theme.of(context).colorScheme.error.withValues(alpha: .08),
+                          Theme.of(context).colorScheme.surface,
+                        ),
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

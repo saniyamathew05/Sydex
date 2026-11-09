@@ -951,7 +951,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       return Container(
         margin: const EdgeInsets.only(bottom: 11),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.errorContainer,
+          color: Color.alphaBlend(
+            Theme.of(context).colorScheme.error.withValues(alpha: .08),
+            Theme.of(context).colorScheme.surface,
+          ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: error),
         ),

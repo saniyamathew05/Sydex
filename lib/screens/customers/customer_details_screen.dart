@@ -2925,7 +2925,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
-        color: isRefusal ? Theme.of(context).colorScheme.errorContainer : null,
+          color: isRefusal
+              ? Color.alphaBlend(
+                  Theme.of(context).colorScheme.error.withValues(alpha: .08),
+                  Theme.of(context).colorScheme.surface,
+                )
+              : null,
         shape: isRefusal
             ? RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
