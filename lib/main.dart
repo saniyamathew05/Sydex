@@ -11,6 +11,7 @@ import 'screens/owner/owner_main_screen.dart';
 import 'screens/salesman/salesman_home.dart';
 
 import 'services/theme_controller.dart';
+import 'services/history_display_settings.dart';
 
 import 'services/auth_service.dart';
 import 'services/business_date_service.dart';
@@ -53,6 +54,7 @@ Future<void> main() async {
   }
 
   await ThemeController.loadTheme();
+  await HistoryDisplaySettings.load();
   await CurrencyFormatter.load();
   await BusinessDateService.load();
 

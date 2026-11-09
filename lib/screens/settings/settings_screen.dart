@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart';
 
 import '../../services/theme_controller.dart';
+import '../../services/history_display_settings.dart';
 
 import 'business_information_screen.dart';
 
@@ -211,6 +212,47 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+
+          if (isOwner)
+            ValueListenableBuilder<int>(
+              valueListenable: HistoryDisplaySettings.limit,
+              builder: (context, limit, _) => ListTile(
+                leading: const Icon(Icons.history_outlined),
+                title: const Text('Recent payment history'),
+                subtitle: Text(
+                  limit == 0 ? 'Show all transactions' : 'Show the latest $limit payments',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  final controller = TextEditingController(
+                    text: limit == 0 ? '' : limit.toString(),
+                  );
+                  final value = await showDialog<int>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Recent payment history'),
+                      content: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Number of payments (blank = all)',
+                        ),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, int.tryParse(controller.text.trim()) ?? 0),
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  );
+                  controller.dispose();
+                  if (value != null) await HistoryDisplaySettings.setLimit(value);
+                },
               ),
             ),
 
