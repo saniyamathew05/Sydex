@@ -209,29 +209,6 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
       colorScheme: colorScheme,
 
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFFBFCFC2),
-          disabledForegroundColor: const Color(0xFF5D6E63),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFFBFCFC2),
-          disabledForegroundColor: const Color(0xFF5D6E63),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.primary,
-          side: BorderSide(color: colorScheme.outline),
-        ),
-      ),
-
       textTheme: HorizonTokens.textTheme(
         ThemeData.light().textTheme,
       ).apply(bodyColor: textPrimary, displayColor: textPrimary),
@@ -573,29 +550,6 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
       brightness: Brightness.dark,
 
       colorScheme: colorScheme,
-
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: const Color(0xFF063D28),
-          disabledBackgroundColor: const Color(0xFF345245),
-          disabledForegroundColor: const Color(0xFFB8C9BE),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: const Color(0xFF063D28),
-          disabledBackgroundColor: const Color(0xFF345245),
-          disabledForegroundColor: const Color(0xFFB8C9BE),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.primary,
-          side: BorderSide(color: colorScheme.outline),
-        ),
-      ),
 
       textTheme: HorizonTokens.textTheme(
         ThemeData.dark().textTheme,
