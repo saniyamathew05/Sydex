@@ -1995,13 +1995,15 @@ class _OwnerRouteManagementScreenState
                         const SizedBox(height: 8),
                         ..._salesmen.map((salesman) {
                           final salesmanId = salesman['id'].toString();
-                          final currentLocations =
-                              _todayAssignments[salesmanId];
-                          final subtitle = currentLocations == null
-                              ? 'No active route assignment'
-                              : currentLocations.isEmpty
-                              ? 'No active route assignment'
-                              : 'Location order: ${currentLocations.join(' → ')}';
+                          final assignedCustomerIds =
+                              _todayCustomerAssignments[salesmanId] ??
+                              const <String>[];
+                          final assignedCustomerCount = assignedCustomerIds
+                              .toSet()
+                              .length;
+                          final subtitle = assignedCustomerCount == 0
+                              ? 'No customers assigned'
+                              : '$assignedCustomerCount customer${assignedCustomerCount == 1 ? '' : 's'} assigned';
                           return CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             value: _selectedSalesmanIds.contains(salesmanId),
