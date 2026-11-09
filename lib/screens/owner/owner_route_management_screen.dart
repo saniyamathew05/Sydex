@@ -2072,8 +2072,22 @@ class _OwnerRouteManagementScreenState
                     break;
                   }
                 }
-                final assignedIds =
-                    _todayCustomerAssignments[salesmanId] ?? const <String>[];
+                // The salesman card must count only customers that are
+                // actually assigned to that salesman. Remove stale IDs and
+                // de-duplicate legacy assignment rows before displaying the
+                // count or list.
+                final knownCustomerIds = CustomerService.customers
+                    .map((customer) => customer.id)
+                    .toSet();
+                final assignedIds = <String>[];
+                for (final id
+                    in _todayCustomerAssignments[salesmanId] ??
+                        const <String>[]) {
+                  if (knownCustomerIds.contains(id) &&
+                      !assignedIds.contains(id)) {
+                    assignedIds.add(id);
+                  }
+                }
                 final customerSerialNumbers = {
                   for (var index = 0; index < assignedIds.length; index++)
                     assignedIds[index]: index + 1,
