@@ -2919,8 +2919,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
     return GestureDetector(
       onLongPress: () {
-        if (!_selectingHistory) {
-          setState(() => _selectingHistory = true);
+        if (_isOwner && !isRefusal) {
+          _hideHistoryEntry(entry);
         }
       },
       child: Card(

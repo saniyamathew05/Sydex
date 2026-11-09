@@ -125,7 +125,7 @@ available to the function.
     final text = question.toLowerCase();
     if ((text.contains('hide') || text.contains('remove') || text.contains('not show')) &&
         (text.contains('payment') || text.contains('ledger') || text.contains('entry'))) {
-      return 'To hide a payment: open Owner → Payments, find the payment, open its three-dot menu, and choose Hide. It is removed from the ledger view but the payment record is not deleted. You can still find it in the customer history.';
+      return 'To hide a transaction: open the customer history and press that transaction for a moment. Sydie will show Hide from ledger. Tap it to remove the entry from the ledger view without deleting the payment record. You can still find it in the customer history.';
     }
     if ((text.contains('assign') || text.contains('give') || text.contains('add')) &&
         (text.contains('salesman') || text.contains('route') || text.contains('executive'))) {
