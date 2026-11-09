@@ -21,8 +21,6 @@ import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
 
 import '../../services/salesman_visit_service.dart';
-import '../../services/tutorial_service.dart';
-import '../settings/tutorial_screen.dart';
 
 import '../settings/settings_screen.dart';
 
@@ -64,10 +62,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _showTutorialIfNeeded(),
-    );
-
     _loadData();
 
     _startPresenceMonitoring();
@@ -1910,13 +1904,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
-  }
-
-  Future<void> _showTutorialIfNeeded() async {
-    if (!await TutorialService.shouldShowOnLogin() || !mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TutorialScreen(role: 'salesman')),
-    );
   }
 
   @override

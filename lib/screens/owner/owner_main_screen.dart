@@ -19,8 +19,6 @@ import '../../services/customer_service.dart';
 
 import '../../services/transaction_service.dart';
 import '../../services/payment_method_breakdown.dart';
-import '../../services/tutorial_service.dart';
-import '../settings/tutorial_screen.dart';
 
 import '../settings/settings_screen.dart';
 
@@ -53,16 +51,8 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadData();
-        _showTutorialIfNeeded();
       }
     });
-  }
-
-  Future<void> _showTutorialIfNeeded() async {
-    if (!await TutorialService.shouldShowOnLogin() || !mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TutorialScreen(role: 'owner')),
-    );
   }
 
   Future<void> _loadData() async {

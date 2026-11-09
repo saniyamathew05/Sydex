@@ -18,7 +18,6 @@ import 'signature_settings_screen.dart';
 
 import 'sync_status_screen.dart';
 import 'two_factor_auth_screen.dart';
-import 'horizon_guide_screen.dart';
 
 import 'user_management_screen.dart';
 import 'subscription_billing_screen.dart';
@@ -404,17 +403,6 @@ class SettingsScreen extends StatelessWidget {
           ],
 
           const _SettingsSectionTitle(title: 'APP'),
-
-          ListTile(
-            leading: const Icon(Icons.school_outlined),
-            title: const Text('Help & Tutorials'),
-            subtitle: const Text('Open Sydex Guide'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => HorizonGuideScreen(role: role)),
-            ),
-          ),
 
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
