@@ -154,9 +154,19 @@ jobs:
           $releaseDir = "build/windows/x64/runner/Release"
           Copy-Item -Path (Join-Path $crt.FullName "*") -Destination $releaseDir -Force
 
-      - name: Upload Windows build
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          $releaseDir = "build/windows/x64/runner/Release"
+          $zipPath = "build/Sydex-Windows.zip"
+          if (-not (Test-Path $releaseDir)) {
+            throw "Windows release directory was not found: $releaseDir"
+          }
+          Compress-Archive -Path (Join-Path $releaseDir "*") -DestinationPath $zipPath -Force
+
+      - name: Upload Windows build ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Sydex-Windows
-          path: build/windows/x64/runner/Release/*
+          path: build/Sydex-Windows.zip
           if-no-files-found: error
