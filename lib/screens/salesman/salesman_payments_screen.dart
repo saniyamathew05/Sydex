@@ -276,10 +276,20 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         debugPrint('Could not load payment receiver names: $error');
       }
 
+      // Payment History is route-scoped. Once the salesman finishes a route,
+      // loadTodayCustomerIds() returns no active customers and this list is
+      // intentionally empty. Customer-specific history remains available from
+      // the customer details screen, which uses its own customer ID lookup.
+      final activeRouteCustomerIds = _assignedCustomerIds;
+      final routePayments = payments.where((payment) {
+        final customerId = payment['customer_id']?.toString();
+        return customerId != null && activeRouteCustomerIds.contains(customerId);
+      }).toList(growable: false);
+
       if (!mounted) return;
 
       setState(() {
-        _payments = payments;
+        _payments = routePayments;
         _loadError = null;
         _isLoading = false;
       });
