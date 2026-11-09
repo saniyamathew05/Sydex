@@ -56,7 +56,7 @@ class CustomerService {
         (from, to) => _supabase
             .from('customers')
             .select(
-              'id, business_name, location, phone, opening_balance, latitude, longitude, is_active, created_at',
+              'id, business_name, location, phone, opening_balance, is_active, created_at',
             )
             .eq('is_active', true)
             .order('business_name', ascending: true)
@@ -73,8 +73,6 @@ class CustomerService {
             location: row['location'] as String,
             phone: row['phone'] as String,
             openingBalance: (row['opening_balance'] as num).toDouble(),
-            latitude: (row['latitude'] as num?)?.toDouble(),
-            longitude: (row['longitude'] as num?)?.toDouble(),
           ),
         );
       }

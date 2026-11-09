@@ -5,9 +5,6 @@ import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr/qr.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/customer.dart';
 import '../../models/transaction.dart';
@@ -1313,55 +1310,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     );
   }
 
-  Widget _buildRealMapTab() {
-    final mapped = routeCustomers
-        .where((customer) => customer.latitude != null && customer.longitude != null)
-        .toList();
-    final center = mapped.isEmpty
-        ? const LatLng(20.5937, 78.9629)
-        : LatLng(mapped.first.latitude!, mapped.first.longitude!);
-    final next = mapped.firstWhere(
-      (customer) => !todaysCustomerStatuses.containsKey(customer.id),
-      orElse: () => mapped.isEmpty ? Customer(id: '', businessName: '', location: '', phone: '') : mapped.first,
-    );
-    return SafeArea(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.map_outlined),
-            title: const Text("Today's route"),
-            subtitle: Text(mapped.isEmpty ? 'No customer GPS locations saved yet' : '${mapped.length} customers mapped'),
-            trailing: next.id.isEmpty ? null : IconButton(
-              tooltip: 'Navigate to next customer',
-              icon: const Icon(Icons.navigation_outlined),
-              onPressed: () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${next.latitude},${next.longitude}'), mode: LaunchMode.externalApplication),
-            ),
-          ),
-          Expanded(
-            child: FlutterMap(
-              options: MapOptions(initialCenter: center, initialZoom: mapped.isEmpty ? 5 : 14),
-              children: [
-                TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.horizon.horizon'),
-                MarkerLayer(markers: mapped.map((customer) => Marker(
-                  point: LatLng(customer.latitude!, customer.longitude!),
-                  width: 48,
-                  height: 56,
-                  child: GestureDetector(
-                    onTap: () => _openCustomer(customer),
-                    child: Icon(Icons.location_on, size: 44, color: todaysCustomerStatuses.containsKey(customer.id) ? Colors.blue : Colors.green.shade700),
-                  ),
-                )).toList()),
-                const RichAttributionWidget(attributions: [TextSourceAttribution('© OpenStreetMap contributors')]),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMapTab() {
-    return _buildRealMapTab();
     const green = Color(0xFF0B5D3B);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
