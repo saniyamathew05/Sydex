@@ -2,6 +2,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(horizon LANGUAGES CXX)
 
+# Use the checked-in local dependency when present. This avoids the printing
+# plugin's configure-time GitHub PDFium download while retaining PDF printing.
+set(SYDEX_PDFIUM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../local_deps/pdfium"
+    CACHE PATH "Local PDFium package for the printing plugin")
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "horizon")

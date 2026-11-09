@@ -779,10 +779,9 @@ packages:
   printing:
     dependency: "direct main"
     description:
-      name: printing
-      sha256: "0f72f29f2e08b8453b7a45b6c7781eb792b1da3468bf0910be0eb3b1d6781f49"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/printing"
+      relative: true
+    source: path
     version: "5.15.1"
   proj4dart:
     dependency: transitive
