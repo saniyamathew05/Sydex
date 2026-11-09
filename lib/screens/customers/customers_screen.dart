@@ -819,6 +819,15 @@ class _CustomerRow extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (!desktop && lastPayment.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        lastPayment,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: muted, fontSize: 10),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -848,16 +857,7 @@ class _CustomerRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (!desktop) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    lastPayment,
-                    style: TextStyle(color: muted, fontSize: 10),
-                    maxLines: 2,
-                  ),
-                ),
-              ],
+              if (!desktop) const SizedBox(width: 8),
               PopupMenuButton<String>(
                 tooltip: 'Customer options',
                 icon: Icon(Icons.more_vert_rounded, size: 19, color: muted),
