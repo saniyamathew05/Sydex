@@ -1362,7 +1362,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
   Widget _buildMapTab() {
     return _buildRealMapTab();
-    /*
     const green = Color(0xFF0B5D3B);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
@@ -2270,8 +2269,6 @@ class _PaymentQrPainter extends CustomPainter {
   bool shouldRepaint(covariant _PaymentQrPainter oldDelegate) =>
       oldDelegate.data != data;
 }
-*/
-
 class _SalesmanMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
