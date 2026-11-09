@@ -31,6 +31,9 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
     "What is the total outstanding?",
     "Show the latest payments",
     "Which customers owe the most?",
+    "How do I hide a payment from the ledger?",
+    "Where do I assign customers to a salesman?",
+    "How do I create a new sale?",
   ];
 
   @override
@@ -53,6 +56,15 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
     _scrollToBottom();
 
     try {
+      final localAnswer = _appHelpAnswer(question);
+      if (localAnswer != null) {
+        if (mounted) {
+          setState(() {
+            _messages.add(_AssistantMessage(text: localAnswer, isUser: false));
+          });
+        }
+        return;
+      }
       final response = await _supabase.functions.invoke(
         'owner-ai-assistant',
         body: <String, dynamic>{'question': question},
@@ -93,6 +105,31 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
     }
+  }
+
+  String? _appHelpAnswer(String question) {
+    final text = question.toLowerCase();
+    if (text.contains('hide') &&
+        (text.contains('payment') || text.contains('ledger'))) {
+      return 'To hide a payment: open Owner → Payments, find the payment, open its three-dot menu, and choose Hide. It is removed from the ledger view but the payment record is not deleted. You can still find it in the customer history.';
+    }
+    if (text.contains('assign') &&
+        (text.contains('salesman') || text.contains('route'))) {
+      return 'To assign customers: open Owner → Routes & Areas, create or select a route, choose customers, save the selection, then open Assign route to salesmen and select the salesman. The salesman will see only those assigned customers.';
+    }
+    if (text.contains('new sale') || text.contains('new purchase')) {
+      return 'To create a sale: open Owner → Sales, choose the customer, enter the sale amount and items, then save. You can also use the Add Sale button on the dashboard.';
+    }
+    if (text.contains('settings') || text.contains('theme') || text.contains('dark mode')) {
+      return 'Open Owner → Settings to change appearance, business settings, notifications, and subscription options.';
+    }
+    if (text.contains('route') && (text.contains('finish') || text.contains('complete'))) {
+      return 'Salesmen finish a route from their route dashboard using Finish route. After finishing, the route payment history is no longer shown in Payment History, while customer-specific history remains available.';
+    }
+    if (text.contains('where') || text.contains('how') || text.contains('app')) {
+      return 'I can guide you around Sydex. Ask about customers, sales, payments, routes, salesman assignments, reports, settings, hiding ledger payments, or subscription billing.';
+    }
+    return null;
   }
 
   String _friendlyError(Object error) {
