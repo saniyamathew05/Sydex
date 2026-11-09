@@ -113,6 +113,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       );
   }
 
+  Future<void> _restoreHiddenHistory() async {
+    if (_hiddenHistoryIds.isEmpty) return;
+    setState(() => _hiddenHistoryIds.clear());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_hiddenHistoryKey);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hidden customer history restored')),
+    );
+  }
+
   Future<void> _selectAndHideEntries(List<Map<String, dynamic>> entries) async {
     final selected = <String>{};
     final confirmed = await showDialog<bool>(
@@ -2353,6 +2364,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       const SizedBox(height: 12),
                       if (_activeTab == 'ledger') ...[
                         _buildLedgerFilterSelector(),
+                        if (_hiddenHistoryIds.isNotEmpty)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _restoreHiddenHistory,
+                              icon: const Icon(Icons.visibility_outlined),
+                              label: Text(
+                                'Restore hidden entries (${_hiddenHistoryIds.length})',
+                              ),
+                            ),
+                          ),
                         if (_selectingHistory)
                           Align(
                             alignment: Alignment.centerRight,
