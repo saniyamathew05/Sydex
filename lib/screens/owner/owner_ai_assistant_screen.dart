@@ -18,7 +18,7 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
   final List<_AssistantMessage> _messages = [
     _AssistantMessage(
       text:
-          "Hi! I'm Sydie. Ask me about the app, today's collection, sales, outstanding balances, recent payments, or your top customers.",
+          "Hi! I'm Sydie 😊 I’m here to help you use Sydex. Ask me anything about the app, your collections, sales, routes, payments, or customers.",
       isUser: false,
     ),
   ];
@@ -70,8 +70,10 @@ class _OwnerAIAssistantScreenState extends State<OwnerAIAssistantScreen> {
         body: <String, dynamic>{
           'question': question,
           'app_context': '''
-You are Sydie, the Sydex in-app helper. Understand natural, informal questions
-about using Sydex and answer with clear step-by-step navigation. Sydex includes
+You are Sydie, the friendly Sydex in-app helper. Be warm, patient, encouraging,
+and conversational. Understand natural, informal questions and answer without
+making the user feel technical or judged. Use short, clear step-by-step
+instructions when navigation is needed. Sydex includes
 Owner and Salesman dashboards, customers and ledgers, sales, payments, cheque
 bounce handling, routes, salesman assignments, reports, receipts, settings,
 dark/light mode, subscription billing, and hiding payments from the owner
