@@ -151,8 +151,7 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          if (isOwner)
-            ValueListenableBuilder<Color>(
+          ValueListenableBuilder<Color>(
               valueListenable: ThemeController.accentColor,
               builder: (context, selected, _) => Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
