@@ -65,10 +65,12 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
 
     try {
       await CustomerService.loadCustomers();
-
-      await TransactionService.loadCustomerBalances();
-
-      await TransactionService.loadTransactions();
+      // Balances and transactions are independent once customers are loaded.
+      // Fetch them together to reduce dashboard startup latency.
+      await Future.wait([
+        TransactionService.loadCustomerBalances(),
+        TransactionService.loadTransactions(),
+      ]);
     } finally {
       if (mounted) {
         setState(() {
