@@ -123,6 +123,19 @@ available to the function.
 
   String? _appHelpAnswer(String question) {
     final text = question.toLowerCase();
+    if (RegExp(r'^(hi|hello|hey| hai|good morning|good afternoon|good evening)\b')
+        .hasMatch(text)) {
+      return 'Hi there 😊 I’m Sydie. What would you like help with in Sydex today?';
+    }
+    if (text.contains('how are you') || text.contains('how do you feel')) {
+      return 'I’m doing great and ready to help 😊 What are you working on in Sydex?';
+    }
+    if (text.contains('thank') || text.contains('thanks')) {
+      return 'You’re very welcome 😊 I’m always happy to help.';
+    }
+    if (text.contains('who are you') || text.contains('your name')) {
+      return 'I’m Sydie, your friendly Sydex helper. I can explain the app and help you find features.';
+    }
     if ((text.contains('hide') || text.contains('remove') || text.contains('not show')) &&
         (text.contains('payment') || text.contains('ledger') || text.contains('entry'))) {
       return 'To hide a transaction: open the customer history and press that transaction for a moment. Sydie will show Hide from ledger. Tap it to remove the entry from the ledger view without deleting the payment record. You can still find it in the customer history.';
