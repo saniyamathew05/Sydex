@@ -3064,15 +3064,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                               title: Text('Delete Accidental Sale'),
                             ),
                           ),
-                          PopupMenuItem<String>(
-                            value: 'remove_paid',
-                            enabled: isPaid,
-                            child: const ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(Icons.remove_circle_outline),
-                              title: Text('Remove Paid Sale'),
+                          if (isPaid)
+                            const PopupMenuItem<String>(
+                              value: 'remove_paid',
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.remove_circle_outline),
+                                title: Text('Remove Paid Sale'),
+                              ),
                             ),
-                          ),
                         ];
                       },
                     ),
