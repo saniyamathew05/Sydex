@@ -34,6 +34,21 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Prepare PDFium for printing plugin
+        shell: pwsh
+        run: |
+          $pdfiumDir = Join-Path $env:GITHUB_WORKSPACE "local_deps/pdfium"
+          $config = Join-Path $pdfiumDir "PDFiumConfig.cmake"
+          if (-not (Test-Path $config)) {
+            New-Item -ItemType Directory -Force -Path $pdfiumDir | Out-Null
+            $archive = Join-Path $env:RUNNER_TEMP "pdfium-win-x64.tgz"
+            curl.exe -L --fail --retry 8 --retry-all-errors --retry-delay 5 `
+              -o $archive `
+              "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/5200/pdfium-win-x64.tgz"
+            tar.exe -xzf $archive -C $pdfiumDir
+          }
+          if (-not (Test-Path $config)) { throw "PDFiumConfig.cmake was not found after extraction." }
+
       - name: Analyze Dart code
         run: flutter analyze
         # Keep release artifact generation available while legacy analyzer

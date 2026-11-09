@@ -35,6 +35,10 @@ endif()
 # Sydex can provide a verified local PDFium package to keep Windows builds
 # independent of GitHub release availability. The directory must contain
 # PDFiumConfig.cmake, include/, bin/pdfium.dll and lib/pdfium.dll.lib.
+if(NOT DEFINED SYDEX_PDFIUM_DIR AND EXISTS "${CMAKE_SOURCE_DIR}/../local_deps/pdfium/PDFiumConfig.cmake")
+  set(SYDEX_PDFIUM_DIR "${CMAKE_SOURCE_DIR}/../local_deps/pdfium")
+endif()
+
 if(DEFINED SYDEX_PDFIUM_DIR AND EXISTS "${SYDEX_PDFIUM_DIR}/PDFiumConfig.cmake")
   set(pdfium_SOURCE_DIR "${SYDEX_PDFIUM_DIR}")
 else()
