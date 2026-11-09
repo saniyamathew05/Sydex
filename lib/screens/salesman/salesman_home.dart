@@ -14,6 +14,7 @@ import '../payments/payment_screen.dart';
 import 'salesman_customer_screen.dart';
 
 import 'salesman_payments_screen.dart';
+import 'salesman_route_map_screen.dart';
 
 import '../../services/customer_service.dart';
 
@@ -170,7 +171,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     }
 
     await CustomerService.loadCustomers();
-
     await TransactionService.loadTransactions();
 
     try {
@@ -1311,6 +1311,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Widget _buildMapTab() {
+    return SalesmanRouteMapScreen(
+      onBack: () => setState(() => selectedIndex = 0),
+    );
     const green = Color(0xFF0B5D3B);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
