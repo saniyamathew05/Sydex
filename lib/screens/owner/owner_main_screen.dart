@@ -403,7 +403,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   }
 }
 
-// Responsive desktop navigation, inspired by the supplied Horizon reference.
+// Responsive Sydex desktop navigation.
 class _HorizonDesktopSidebar extends StatelessWidget {
   final String userName;
   final int selectedIndex;

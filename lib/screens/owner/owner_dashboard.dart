@@ -14,7 +14,7 @@ import '../../services/supabase_pagination.dart';
 import '../../services/notification_read_store.dart';
 import '../../widgets/horizon_motion.dart';
 
-/// Owner overview built around the supplied Horizon desktop reference.
+/// Owner overview for the Sydex desktop experience.
 /// All financial/customer figures are read from the existing services.
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({

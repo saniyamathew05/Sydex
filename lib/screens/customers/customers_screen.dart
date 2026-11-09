@@ -12,7 +12,7 @@ import '../payments/payment_screen.dart';
 import '../purchases/add_purchase_screen.dart';
 import '../../widgets/horizon_motion.dart';
 
-/// Horizon customer directory styled to match the supplied reference mockup.
+/// Sydex customer directory.
 /// Keeps the existing CustomerService and TransactionService data flow.
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
