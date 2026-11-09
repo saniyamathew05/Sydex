@@ -49,6 +49,7 @@ class _OwnerRouteManagementScreenState
   List<Map<String, dynamic>> _salesmen = [];
   final Map<String, List<String>> _todayAssignments = {};
   final Map<String, List<String>> _todayCustomerAssignments = {};
+  final Map<String, List<String>> _queuedCustomerAssignments = {};
   Map<String, Map<String, String>> _todayCustomerStatusesBySalesman = {};
   final Map<String, String> _customerFiltersBySalesman = {};
   final Map<String, String> _customerSearchBySalesman = {};
@@ -235,6 +236,11 @@ class _OwnerRouteManagementScreenState
             .eq('company_id', companyId)
             .lte('route_date', todayKey)
             .order('route_date', ascending: false),
+        _client
+            .from('salesman_route_queue')
+            .select('salesman_id, customer_ids, created_at, company_id')
+            .eq('company_id', companyId)
+            .order('created_at'),
         SalesmanVisitService.loadTodayStatusesForOwnerBySalesman(
           companyId: companyId,
         ),
@@ -243,9 +249,23 @@ class _OwnerRouteManagementScreenState
       final assignmentRows = List<Map<String, dynamic>>.from(
         results[2] as List,
       );
+      final queuedRows = List<Map<String, dynamic>>.from(results[3] as List);
       final todayStatuses = Map<String, Map<String, String>>.from(
-        results[3] as Map<String, Map<String, String>>,
+        results[4] as Map<String, Map<String, String>>,
       );
+      final queuedAssignments = <String, List<String>>{};
+      for (final row in queuedRows) {
+        final id = (row['salesman_id'] ?? '').toString();
+        final raw = row['customer_ids'];
+        final ids = raw is List
+            ? raw.map((e) => e.toString()).toList()
+            : raw is String
+                ? _decodeCustomerIds(raw).toList()
+                : const <String>[];
+        if (id.isNotEmpty) {
+          queuedAssignments.putIfAbsent(id, () => <String>[]).addAll(ids);
+        }
+      }
       final assignments = <String, List<String>>{};
       final customerAssignments = <String, List<String>>{};
       for (final row in assignmentRows) {
@@ -295,6 +315,9 @@ class _OwnerRouteManagementScreenState
         _todayCustomerAssignments
           ..clear()
           ..addAll(customerAssignments);
+        _queuedCustomerAssignments
+          ..clear()
+          ..addAll(queuedAssignments);
         _todayCustomerStatusesBySalesman = todayStatuses;
         _selectedRouteId ??= _routes.isEmpty
             ? null
@@ -1903,10 +1926,10 @@ class _OwnerRouteManagementScreenState
                                     : <String>{};
                                 // Preserve any location/customer picks made
                                 // before selecting the named route.
-                                _selectedCustomerIds = {
-                                  ..._selectedCustomerIds,
-                                  ...routeCustomerIds,
-                                };
+                                // A saved route is authoritative. Do not
+                                // merge the previous route's selection, which
+                                // caused unrelated customers to be counted.
+                                _selectedCustomerIds = routeCustomerIds;
                               });
                             },
                           ),
@@ -2162,13 +2185,16 @@ class _OwnerRouteManagementScreenState
                     assignedIds.add(id);
                   }
                 }
+                final queuedIds = <String>{
+                  ...?_queuedCustomerAssignments[salesmanId],
+                };
                 final customerSerialNumbers = {
                   for (var index = 0; index < assignedIds.length; index++)
                     assignedIds[index]: index + 1,
                 };
-                final subtitle = assignedIds.isEmpty
+                final subtitle = assignedIds.isEmpty && queuedIds.isEmpty
                     ? 'No active route assignment'
-                    : '${assignedRouteName == null ? 'Assigned customers' : 'Route: $assignedRouteName'}\n${assignedIds.length} selected customers';
+                    : '${assignedRouteName == null ? 'Assigned customers' : 'Route: $assignedRouteName'}\n${assignedIds.length} active customers${queuedIds.isEmpty ? '' : ' • ${queuedIds.length} next route queued'}';
                 // Customer IDs are the single source of truth for assignments.
                 final routeCustomers = CustomerService.customers.where((
                   customer,
