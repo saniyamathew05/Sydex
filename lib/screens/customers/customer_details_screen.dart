@@ -2381,7 +2381,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             child: TextButton(
                               onPressed: _finishHistorySelection,
                               child: Text(
-                                'Finish selection (${_selectedHistoryIds.length})',
+                                'Hide from ledger (${_selectedHistoryIds.length})',
                               ),
                             ),
                           ),
@@ -2961,8 +2961,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
     return GestureDetector(
       onLongPress: () {
-        if (_isOwner && !isRefusal) {
-          _hideHistoryEntry(entry);
+        if (_isOwner && !isRefusal && mounted) {
+          setState(() {
+            _selectingHistory = true;
+            final id = entry['id']?.toString();
+            if (id != null && id.isNotEmpty) _selectedHistoryIds.add(id);
+          });
         }
       },
       child: Card(
