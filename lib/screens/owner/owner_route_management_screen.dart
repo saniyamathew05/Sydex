@@ -726,6 +726,19 @@ class _OwnerRouteManagementScreenState
               ),
             ),
             actions: [
+              if (selected.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () async {
+                    await _showSelectedCustomers(
+                      dialogContext,
+                      selected,
+                      eligible,
+                    );
+                    setDialogState(() {});
+                  },
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: Text('View selected (${selected.length})'),
+                ),
               TextButton(
                 onPressed: eligible.isEmpty
                     ? null
@@ -746,6 +759,57 @@ class _OwnerRouteManagementScreenState
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _showSelectedCustomers(
+    BuildContext parentContext,
+    Set<String> selected,
+    List<Customer> eligible,
+  ) async {
+    final selectedCustomers = eligible
+        .where((customer) => selected.contains(customer.id))
+        .toList();
+    await showDialog<void>(
+      context: parentContext,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('${selected.length} customers selected'),
+          content: SizedBox(
+            width: 520,
+            height: 460,
+            child: selectedCustomers.isEmpty
+                ? const Center(child: Text('No customers selected.'))
+                : ListView.separated(
+                    itemCount: selectedCustomers.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final customer = selectedCustomers[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(customer.businessName),
+                        subtitle: Text(customer.location),
+                        trailing: IconButton(
+                          tooltip: 'Remove customer',
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () {
+                            selected.remove(customer.id);
+                            selectedCustomers.removeAt(index);
+                            setDialogState(() {});
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
       ),
     );
   }
