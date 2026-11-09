@@ -21,10 +21,10 @@ class ThemeController {
     'Plum': Color(0xFF6B456D),
   };
 
-  // Use the device setting for a fresh install unless the user has explicitly
-  // selected Light or Dark mode before.
+  // Start fresh installs in Light mode. Existing explicit user choices are
+  // restored below.
   static final ValueNotifier<ThemeMode> themeMode = ValueNotifier<ThemeMode>(
-    ThemeMode.system,
+    ThemeMode.light,
   );
   static final ValueNotifier<Color> accentColor = ValueNotifier<Color>(
     accentChoices['Forest']!,
@@ -40,8 +40,7 @@ class ThemeController {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
       'system' => ThemeMode.system,
-      // Do not force Light mode on first launch. Follow the device instead.
-      _ => ThemeMode.system,
+      _ => ThemeMode.light,
     };
     final savedAccent =
         preferences.getString(_accentPreferenceKey) ??
