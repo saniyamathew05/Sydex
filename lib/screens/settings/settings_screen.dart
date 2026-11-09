@@ -263,7 +263,7 @@ class SettingsScreen extends StatelessWidget {
                 title: const Text('Show balances'),
                 subtitle: const Text('Display outstanding balances on owner screens'),
                 value: value,
-                onChanged: OwnerDisplaySettings.setBalances,
+                onChanged: (value) => OwnerDisplaySettings.setBalances(value),
               ),
             ),
 
@@ -275,7 +275,7 @@ class SettingsScreen extends StatelessWidget {
                 title: const Text('Show recent payment history'),
                 subtitle: const Text('Show recent payments in the owner dashboard'),
                 value: value,
-                onChanged: OwnerDisplaySettings.setRecentPayments,
+                onChanged: (value) => OwnerDisplaySettings.setRecentPayments(value),
               ),
             ),
 
@@ -287,7 +287,7 @@ class SettingsScreen extends StatelessWidget {
                 title: const Text('Show quick actions'),
                 subtitle: const Text('Display shortcut actions on the dashboard'),
                 value: value,
-                onChanged: OwnerDisplaySettings.setQuickActions,
+                onChanged: (value) => OwnerDisplaySettings.setQuickActions(value),
               ),
             ),
 
