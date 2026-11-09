@@ -1955,6 +1955,17 @@ class _OwnerRouteManagementScreenState
                           subtitle: const Text(
                             'Build the route by mixing full locations with individual customers.',
                           ),
+                          trailing: _selectedCustomerCount == 0
+                              ? null
+                              : TextButton.icon(
+                                  onPressed: () => _showSelectedCustomers(
+                                    context,
+                                    _selectedCustomerIds,
+                                    CustomerService.customers,
+                                  ),
+                                  icon: const Icon(Icons.visibility_outlined),
+                                  label: const Text('View selection'),
+                                ),
                         ),
                         Wrap(
                           spacing: 10,
