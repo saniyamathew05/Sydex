@@ -82,11 +82,19 @@ jobs:
             attempt=$((attempt + 1))
           done
 
-      - name: Upload Android APK
+      - name: Package Android APK
+        shell: bash
+        run: |
+          mkdir -p build/android-artifact
+          cp build/app/outputs/flutter-apk/app-release.apk build/android-artifact/Sydex.apk
+          cd build/android-artifact
+          zip -j ../Sydex-Android-APK.zip Sydex.apk
+
+      - name: Upload Android APK package
         uses: actions/upload-artifact@v4
         with:
           name: Sydex-Android-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/Sydex-Android-APK.zip
           if-no-files-found: error
 
   build-windows:
