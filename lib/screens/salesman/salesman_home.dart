@@ -1926,7 +1926,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     1 => 1,
     2 => 2,
     3 => 3,
-    _ => 4,
+    _ => 3,
   };
 
   void _selectPhoneNavigation(int index) {
@@ -1936,7 +1936,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         1 => 1,
         2 => 2,
         3 => 3,
-        _ => 4,
+        _ => 3,
       };
     });
   }
@@ -1977,11 +1977,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           selectedIcon: Icon(Icons.map_rounded),
           label: Text('Map'),
         ),
-        NavigationRailDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: Text('More'),
-        ),
       ],
     );
   }
@@ -1994,14 +1989,12 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       _buildCustomersTab(),
       const SalesmanPaymentsScreen(),
       _buildMapTab(),
-      _buildMoreTab(),
     ];
     final titles = [
       'Sydex',
       "Today's Customers",
       'Payments Received',
       "Today's Route Map",
-      'More',
     ];
 
     return LayoutBuilder(
@@ -2062,6 +2055,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                   ),
             actions: [
               IconButton(
+                tooltip: 'Settings',
+                onPressed: _openSettings,
+                icon: const Icon(Icons.settings_outlined),
+              ),
+              IconButton(
                 tooltip: 'Refresh',
                 onPressed: isLoading ? null : _loadData,
                 icon: const Icon(Icons.refresh_rounded),
@@ -2101,11 +2099,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                           icon: Icon(Icons.map_outlined),
                           selectedIcon: Icon(Icons.map_rounded),
                           label: 'Map',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.more_horiz_rounded),
-                          selectedIcon: Icon(Icons.more_rounded),
-                          label: 'More',
                         ),
                       ],
                     ),
