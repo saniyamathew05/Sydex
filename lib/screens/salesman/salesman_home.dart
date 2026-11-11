@@ -1924,22 +1924,18 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   int get _phoneNavigationIndex => switch (selectedIndex) {
     0 => 0,
     1 => 1,
-    2 => 3,
-    3 => 4,
-    _ => 5,
+    2 => 2,
+    3 => 3,
+    _ => 4,
   };
 
   void _selectPhoneNavigation(int index) {
-    if (index == 2) {
-      _showPaymentQr();
-      return;
-    }
     setState(() {
       selectedIndex = switch (index) {
         0 => 0,
         1 => 1,
-        3 => 2,
-        4 => 3,
+        2 => 2,
+        3 => 3,
         _ => 4,
       };
     });
@@ -2095,11 +2091,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                           icon: Icon(Icons.people_outline_rounded),
                           selectedIcon: Icon(Icons.people_rounded),
                           label: 'Customers',
-                        ),
-                        NavigationDestination(
-                          icon: SizedBox.shrink(),
-                          selectedIcon: SizedBox.shrink(),
-                          label: '',
                         ),
                         NavigationDestination(
                           icon: Icon(Icons.payments_outlined),
