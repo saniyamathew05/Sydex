@@ -76,41 +76,16 @@ class BusinessPaymentApp extends StatefulWidget {
   State<BusinessPaymentApp> createState() => _BusinessPaymentAppState();
 }
 
-class _BusinessPaymentAppState extends State<BusinessPaymentApp>
-    with WidgetsBindingObserver {
-  Future<void>? _closeSignOut;
+class _BusinessPaymentAppState extends State<BusinessPaymentApp> {
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached) {
-      unawaited(_signOutOnClose());
-    }
-  }
-
-  Future<void> _signOutOnClose() => _closeSignOut ??= _performSignOutOnClose();
-
-  Future<void> _performSignOutOnClose() async {
-    final auth = Supabase.instance.client.auth;
-    if (auth.currentSession == null) return;
-    try {
-      await auth.signOut(scope: SignOutScope.local);
-    } catch (error) {
-      // The launch-time logout below also covers forced closes and shutdowns
-      // where Flutter cannot finish this asynchronous cleanup.
-      debugPrint('Could not complete sign-out while closing the app: $error');
-    }
   }
 
   @override
