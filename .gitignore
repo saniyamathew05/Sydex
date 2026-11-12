@@ -43,5 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Native plugin build caches
+third_party/printing/android/.gradle/
+third_party/printing/android/build/
 # Widget Preview related
 .widget_preview/
