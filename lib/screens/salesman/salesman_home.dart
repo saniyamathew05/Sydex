@@ -371,7 +371,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   Future<void> _startRoute() async {
     try {
       final assigned = await SalesmanVisitService.loadTodayRoute();
-      if (assigned.isEmpty) {
+      final assignedCustomerIds =
+          await SalesmanVisitService.loadTodayCustomerIdsInOrder();
+      // Customer IDs are the authoritative assignment. Locations are optional
+      // display metadata and may be empty for customers without an address.
+      if (assigned.isEmpty && assignedCustomerIds.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -380,9 +384,6 @@ class _SalesmanHomeState extends State<SalesmanHome> {
         );
         return;
       }
-
-      final assignedCustomerIds =
-          await SalesmanVisitService.loadTodayCustomerIdsInOrder();
       String? routeName;
       try {
         routeName = await SalesmanVisitService.loadRouteNameForCustomerIds(
