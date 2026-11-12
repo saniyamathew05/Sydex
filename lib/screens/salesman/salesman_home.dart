@@ -440,6 +440,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       if (!mounted) return;
       await _loadData();
       if (!mounted) return;
+      if (outcome == 'next_route_activated' && selectedRouteCustomerIds.isNotEmpty) {
+        // Make the newly activated queued route visible immediately instead of
+        // leaving the salesman on the dashboard with the old route context.
+        setState(() => selectedIndex = 1);
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
