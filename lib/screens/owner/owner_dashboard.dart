@@ -14,6 +14,7 @@ import '../../services/supabase_pagination.dart';
 import '../../services/notification_read_store.dart';
 import '../../services/owner_display_settings.dart';
 import '../../widgets/horizon_motion.dart';
+import '../../widgets/desktop_workspace.dart';
 
 /// Owner overview for the Sydex desktop experience.
 /// All financial/customer figures are read from the existing services.
@@ -330,6 +331,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_refreshing && CustomerService.customers.isEmpty) {
+      return const WorkspaceLoadingView();
+    }
     final customers = CustomerService.customers;
     final receivable = TransactionService.getTotalMoneyToReceive(customers);
     final overdue = _overdueAmount(customers);
@@ -1255,96 +1259,100 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     return value.round().toString();
   }
 
-  Widget _recentPayments(List<PaymentTransaction> recent) => ValueListenableBuilder<bool>(
-    valueListenable: OwnerDisplaySettings.showRecentPayments,
-    builder: (context, visible, _) => visible ? Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _panelHeader(
-        'Recent Payments',
-        action: 'View All',
-        onAction: widget.onOpenPayments,
-      ),
-      const SizedBox(height: 7),
-      if (recent.isEmpty) ...[
-        SizedBox(
-          height: 110,
-          child: Center(
-            child: Text(
-              'No payments recorded yet',
-              style: TextStyle(color: _muted, fontSize: 11),
-            ),
-          ),
-        ),
-      ] else
-        ...recent.map(
-          (t) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor:
-                      Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF183D2D)
-                      : const Color(0xFFDDF3E5),
-                  child: Text(
-                    t.customerName.isEmpty
-                        ? '?'
-                        : t.customerName[0].toUpperCase(),
-                    style: TextStyle(
-                      color: _green,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
+  Widget _recentPayments(List<PaymentTransaction> recent) =>
+      ValueListenableBuilder<bool>(
+        valueListenable: OwnerDisplaySettings.showRecentPayments,
+        builder: (context, visible, _) => visible
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _panelHeader(
+                    'Recent Payments',
+                    action: 'View All',
+                    onAction: widget.onOpenPayments,
+                  ),
+                  const SizedBox(height: 7),
+                  if (recent.isEmpty) ...[
+                    SizedBox(
+                      height: 110,
+                      child: Center(
+                        child: Text(
+                          'No payments recorded yet',
+                          style: TextStyle(color: _muted, fontSize: 11),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    t.customerName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _ink,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
+                  ] else
+                    ...recent.map(
+                      (t) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 7),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xFF183D2D)
+                                  : const Color(0xFFDDF3E5),
+                              child: Text(
+                                t.customerName.isEmpty
+                                    ? '?'
+                                    : t.customerName[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: _green,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                t.customerName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _ink,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '+${_money(t.actualAmountReceived)}',
+                              style: TextStyle(
+                                color: _green,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              t.isBounced
+                                  ? Icons.error_outline_rounded
+                                  : Icons.verified_rounded,
+                              size: 13,
+                              color: t.isBounced ? _red : _green,
+                            ),
+                            const SizedBox(width: 7),
+                            SizedBox(
+                              width: 48,
+                              child: Text(
+                                _relativeTime(t.transactionDate),
+                                textAlign: TextAlign.right,
+                                style: TextStyle(color: _muted, fontSize: 9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '+${_money(t.actualAmountReceived)}',
-                  style: TextStyle(
-                    color: _green,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  t.isBounced
-                      ? Icons.error_outline_rounded
-                      : Icons.verified_rounded,
-                  size: 13,
-                  color: t.isBounced ? _red : _green,
-                ),
-                const SizedBox(width: 7),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    _relativeTime(t.transactionDate),
-                    textAlign: TextAlign.right,
-                    style: TextStyle(color: _muted, fontSize: 9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-    ],
-    ) : const SizedBox.shrink(),
-  );
+                ],
+              )
+            : const SizedBox.shrink(),
+      );
 
   Widget _salesmanActivity(
     List<SalesmanDailyActivity> activities,

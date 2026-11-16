@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../widgets/desktop_workspace.dart';
+import 'old_card_import_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // Optional owner helpers remain available for compatibility with older layouts.
 // ignore_for_file: unused_field, unused_element, unused_element_parameter
@@ -44,6 +46,7 @@ class OwnerMainScreen extends StatefulWidget {
 class _OwnerMainScreenState extends State<OwnerMainScreen> {
   int _selectedIndex = 0;
   bool _showMobileRoutes = false;
+  final Set<int> _visitedDesktopPages = {0};
 
   bool _isInitialLoading = true;
 
@@ -208,6 +211,46 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     );
   }
 
+  Widget _desktopToolbar(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.workspaces_outline, color: colors.primary, size: 18),
+          const SizedBox(width: 10),
+          const Text(
+            'Owner workspace',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _openAddCustomer,
+            icon: const Icon(Icons.person_add_alt_1, size: 17),
+            label: const Text('Add customer'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: _openAddPurchase,
+            icon: const Icon(Icons.add, size: 17),
+            label: const Text('Add sale'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: _openReceivePayment,
+            icon: const Icon(Icons.south_west, size: 17),
+            label: const Text('Receive payment'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
@@ -259,36 +302,15 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
         ),
       ),
 
-      inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
-        filled: true,
-
-        fillColor: colors.surfaceContainerHigh,
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-
-          borderSide: BorderSide.none,
-        ),
-
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-
-          borderSide: BorderSide.none,
-        ),
-
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-
-          borderSide: BorderSide(color: colors.primary, width: 1.5),
-        ),
-      ),
-
       cardTheme: baseTheme.cardTheme.copyWith(
         elevation: 0,
 
         margin: EdgeInsets.zero,
 
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
       ),
     );
 
@@ -311,6 +333,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
       const OwnerReportsScreen(),
     ];
 
+    _visitedDesktopPages.add(_selectedIndex);
     final desktopPages = <Widget>[
       OwnerDashboard(
         userName: widget.userName,
@@ -325,6 +348,14 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
       const CustomersScreen(),
       const PaymentsScreen(),
       const OwnerReportsScreen(),
+      const OwnerRouteManagementScreen(page: OwnerRoutePage.places),
+      const OwnerRouteManagementScreen(page: OwnerRoutePage.salesmen),
+      const OwnerRouteManagementScreen(page: OwnerRoutePage.map),
+      const SalesmanVisitAuditScreen(),
+      const OldCardImportScreen(),
+      const OwnerAIAssistantScreen(),
+      const OwnerNotificationsScreen(),
+      SettingsScreen(role: 'owner', userName: widget.userName),
     ];
 
     return Theme(
@@ -348,16 +379,9 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: Row(
                 children: [
-                  _HorizonDesktopSidebar(
+                  DesktopWorkspaceSidebar(
                     userName: widget.userName,
-                    selectedIndex: _selectedIndex,
-                    onSelected: (index) =>
-                        setState(() => _selectedIndex = index),
-                    onSettings: _openSettings,
-                    onPlaces: _openPlaces,
-                    onSalesmen: _openSalesmen,
-                    onRouteMap: _openRouteMap,
-                    onAIAssistant: _openAIAssistant,
+                    role: 'Owner',
                     onProfile: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ProfileScreen(
@@ -366,11 +390,58 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                         ),
                       ),
                     ),
+                    destinations: [
+                      for (final item in const <(String, IconData)>[
+                        ('Overview', Icons.space_dashboard_outlined),
+                        ('Customers', Icons.people_outline_rounded),
+                        (
+                          'Payments & ledger',
+                          Icons.account_balance_wallet_outlined,
+                        ),
+                        ('Reports', Icons.bar_chart_rounded),
+                        ('Routes & areas', Icons.route_outlined),
+                        ('Team assignments', Icons.badge_outlined),
+                        ('Route map', Icons.map_outlined),
+                        ('Visit audit', Icons.fact_check_outlined),
+                        ('Import old cards', Icons.document_scanner_outlined),
+                        ('Sydie assistant', Icons.auto_awesome_outlined),
+                        ('Notifications', Icons.notifications_none_rounded),
+                        ('Settings', Icons.settings_outlined),
+                      ].indexed)
+                        WorkspaceDestination(
+                          label: item.$2.$1,
+                          icon: item.$2.$2,
+                          selected: _selectedIndex == item.$1,
+                          secondary: item.$1 == 7 || item.$1 == 11,
+                          onTap: () => setState(() => _selectedIndex = item.$1),
+                        ),
+                    ],
                   ),
                   Expanded(
-                    child: IndexedStack(
-                      index: _selectedIndex.clamp(0, desktopPages.length - 1),
-                      children: desktopPages,
+                    child: Column(
+                      children: [
+                        _desktopToolbar(context),
+                        Expanded(
+                          child: IndexedStack(
+                            index: _selectedIndex.clamp(
+                              0,
+                              desktopPages.length - 1,
+                            ),
+                            children: [
+                              for (var i = 0; i < desktopPages.length; i++)
+                                _visitedDesktopPages.contains(i)
+                                    ? TickerMode(
+                                        enabled: _selectedIndex == i,
+                                        child: WorkspacePageTransition(
+                                          identity: _selectedIndex == i,
+                                          child: desktopPages[i],
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -380,7 +451,10 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
           return Scaffold(
             appBar: AppBar(
               automaticallyImplyLeading: false,
-              title: const Text('Sydex', style: TextStyle(fontWeight: FontWeight.w800)),
+              title: const Text(
+                'Sydex',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
               actions: [
                 IconButton(
                   tooltip: 'Settings',
@@ -392,17 +466,19 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
             ),
             body: _showMobileRoutes
                 ? const OwnerRouteManagementScreen(page: OwnerRoutePage.places)
-                : IndexedStack(index: _selectedIndex, children: pages),
+                : IndexedStack(
+                    index: _selectedIndex.clamp(0, 3),
+                    children: pages,
+                  ),
             floatingActionButton: FloatingActionButton.small(
               heroTag: 'sydie-mobile-fab',
               tooltip: 'Open Sydie assistant',
               onPressed: _openAIAssistant,
               child: const Icon(Icons.auto_awesome_rounded, size: 19),
             ),
-            floatingActionButtonLocation:
-                FloatingActionButtonLocation.endFloat,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             bottomNavigationBar: NavigationBar(
-              selectedIndex: _showMobileRoutes ? 4 : _selectedIndex,
+              selectedIndex: _showMobileRoutes ? 4 : _selectedIndex.clamp(0, 3),
               onDestinationSelected: (index) {
                 setState(() {
                   _showMobileRoutes = index == 4;
@@ -439,229 +515,6 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-// Responsive Sydex desktop navigation.
-class _HorizonDesktopSidebar extends StatelessWidget {
-  final String userName;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-  final VoidCallback onSettings;
-  final VoidCallback onPlaces;
-  final VoidCallback onSalesmen;
-  final VoidCallback onRouteMap;
-  final VoidCallback onAIAssistant;
-  final VoidCallback onProfile;
-
-  const _HorizonDesktopSidebar({
-    required this.userName,
-    required this.selectedIndex,
-    required this.onSelected,
-    required this.onSettings,
-    required this.onPlaces,
-    required this.onSalesmen,
-    required this.onRouteMap,
-    required this.onAIAssistant,
-    required this.onProfile,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final sidebarWidth = (screenWidth * 0.14).clamp(160.0, 220.0);
-    final colors = Theme.of(context).colorScheme;
-    final background = Color.lerp(colors.primary, Colors.black, .38)!;
-    final muted = Color.alphaBlend(
-      Colors.white.withValues(alpha: .72),
-      background,
-    );
-    return Container(
-      width: sidebarWidth,
-      color: background,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 24),
-          InkWell(
-            onTap: onProfile,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: colors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Image.asset(
-                    'assets/sydex_logo_transparent.png',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sydex',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        'Business Ledger',
-                        style: TextStyle(color: muted, fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            ),
-          ),
-          const SizedBox(height: 34),
-          _item(context, Icons.home_rounded, 'Home', 0),
-          _item(context, Icons.people_alt_outlined, 'Customers', 1),
-          _item(context, Icons.payments_outlined, 'Payments', 2),
-          _item(
-            context,
-            Icons.shopping_cart_outlined,
-            'Sales',
-            -1,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AddPurchaseScreen()),
-            ),
-          ),
-          _item(
-            context,
-            Icons.location_on_outlined,
-            'Routes & Areas',
-            -1,
-            onTap: onPlaces,
-          ),
-          _item(
-            context,
-            Icons.person_outline_rounded,
-            'Marketing Executive',
-            -1,
-            onTap: onSalesmen,
-          ),
-          _item(context, Icons.bar_chart_rounded, 'Reports', 3),
-          _item(context, Icons.map_outlined, 'Map View', -1, onTap: onRouteMap),
-          _item(context, Icons.auto_awesome_outlined, 'Sydie', -1, onTap: onAIAssistant),
-          _item(
-            context,
-            Icons.settings_outlined,
-            'Settings',
-            -1,
-            onTap: onSettings,
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: colors.primary,
-                  child: Text(
-                    userName.isEmpty ? 'O' : userName[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Owner',
-                        style: TextStyle(color: muted, fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _item(
-    BuildContext context,
-    IconData icon,
-    String label,
-    int index, {
-    VoidCallback? onTap,
-  }) {
-    final active = selectedIndex == index;
-    final colors = Theme.of(context).colorScheme;
-    final background = Color.lerp(colors.primary, Colors.black, .38)!;
-    final muted = Color.alphaBlend(
-      Colors.white.withValues(alpha: .82),
-      background,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      child: Material(
-        color: active ? colors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: onTap ?? () => onSelected(index.clamp(0, 3)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-            child: Row(
-              children: [
-                Icon(icon, size: 17, color: active ? Colors.white : muted),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? Colors.white : muted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -2039,7 +1892,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   DateTimeRange? _selectedDateRange;
   List<Map<String, dynamic>> _refusedPayments = const [];
 
-
   @override
   void initState() {
     super.initState();
@@ -2150,7 +2002,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: colors.error,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -2163,7 +2018,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Text('Refused', style: TextStyle(color: colors.error, fontWeight: FontWeight.w800)),
+          Text(
+            'Refused',
+            style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -2544,15 +2402,20 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       color: colors.surfaceContainerHigh,
-      child: Row(children: [
-        const SizedBox(width: 106, child: Text('DATE')),
-        const Expanded(flex: 3, child: Text('CUSTOMER')),
-        const Expanded(flex: 2, child: Text('ENTERED BY')),
-        const SizedBox(width: 100, child: Text('METHOD')),
-        const Expanded(flex: 2, child: Text('NOTES')),
-        const SizedBox(width: 128, child: Text('AMOUNT', textAlign: TextAlign.right)),
-        const SizedBox(width: 76, child: Text('ACTION')),
-      ]),
+      child: Row(
+        children: [
+          const SizedBox(width: 106, child: Text('DATE')),
+          const Expanded(flex: 3, child: Text('CUSTOMER')),
+          const Expanded(flex: 2, child: Text('ENTERED BY')),
+          const SizedBox(width: 100, child: Text('METHOD')),
+          const Expanded(flex: 2, child: Text('NOTES')),
+          const SizedBox(
+            width: 128,
+            child: Text('AMOUNT', textAlign: TextAlign.right),
+          ),
+          const SizedBox(width: 76, child: Text('ACTION')),
+        ],
+      ),
     );
   }
 
@@ -2562,7 +2425,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         (payment.paymentMethod.trim().isEmpty ? '—' : payment.paymentMethod);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      child: Row(children: [
+      child: Row(
+        children: [
           SizedBox(
             width: 106,
             child: Text(
@@ -2648,7 +2512,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ],
             ),
           ),
-        ]),
+        ],
+      ),
     );
   }
 
@@ -2966,7 +2831,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         ...timeline.map(
                           (entry) => entry.payment != null
                               ? _desktopLedgerRow(entry.payment!, colors)
-                              : _buildRefusedPaymentCard(entry.refused!, colors),
+                              : _buildRefusedPaymentCard(
+                                  entry.refused!,
+                                  colors,
+                                ),
                         ),
                       ],
                     ),
@@ -3310,9 +3178,8 @@ class _EmptyPayments extends StatelessWidget {
 
   final String message;
 
-  const _EmptyPayments({
-    required this.colors,
-  }) : message = 'Payments received from customers will appear here.';
+  const _EmptyPayments({required this.colors})
+    : message = 'Payments received from customers will appear here.';
 
   @override
   Widget build(BuildContext context) {

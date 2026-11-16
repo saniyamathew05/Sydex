@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'currency_formatter.dart';
+import 'login_connection.dart';
 
 class AuthService {
   static const _oauthAttemptKey = 'horizon_google_oauth_attempt_at';
@@ -22,9 +23,8 @@ class AuthService {
     required String password,
   }) async {
     await clearPendingGoogleSignIn();
-    final response = await _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
+    final response = await LoginConnection.retry(
+      () => _supabase.auth.signInWithPassword(email: email, password: password),
     );
 
     if (response.user != null) {
@@ -79,11 +79,13 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>?> getProfile(String userId) async {
-    return _supabase
-        .from('profiles')
-        .select('name, role')
-        .eq('id', userId)
-        .maybeSingle();
+    return LoginConnection.retry(
+      () => _supabase
+          .from('profiles')
+          .select('name, role')
+          .eq('id', userId)
+          .maybeSingle(),
+    );
   }
 
   static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
@@ -97,7 +99,9 @@ class AuthService {
   }
 
   static Future<void> clearOwnForceLogout() async {
-    await _supabase.rpc('clear_own_force_logout');
+    await LoginConnection.retry(() async {
+      await _supabase.rpc('clear_own_force_logout');
+    });
   }
 
   static Future<void> signOut() async {

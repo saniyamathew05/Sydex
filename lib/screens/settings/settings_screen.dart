@@ -81,8 +81,11 @@ class SettingsScreen extends StatelessWidget {
 
   Future<void> _deleteMyAccount(BuildContext context) async {
     if (isOwner) {
-      _showInfo(context, 'Account deletion',
-          'Owner accounts cannot be self-deleted because the workspace must first be transferred or closed.');
+      _showInfo(
+        context,
+        'Account deletion',
+        'Owner accounts cannot be self-deleted because the workspace must first be transferred or closed.',
+      );
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -93,7 +96,10 @@ class SettingsScreen extends StatelessWidget {
           'Your login and profile will be permanently removed. Historical payments, ledger entries and visit records will remain for the business, but your user identity will be anonymised. This cannot be undone.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete account'),
@@ -112,7 +118,9 @@ class SettingsScreen extends StatelessWidget {
         );
       }
     } catch (error) {
-      if (context.mounted) _showInfo(context, 'Could not delete account', error.toString());
+      if (context.mounted) {
+        _showInfo(context, 'Could not delete account', error.toString());
+      }
     }
   }
 
@@ -129,9 +137,7 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
 
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 30),
-
+      body: _SettingsWorkspace(
         children: [
           const _SettingsSectionTitle(title: 'ACCOUNT'),
 
@@ -190,70 +196,70 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           ValueListenableBuilder<Color>(
-              valueListenable: ThemeController.accentColor,
-              builder: (context, selected, _) => Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Brand accent',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+            valueListenable: ThemeController.accentColor,
+            builder: (context, selected, _) => Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Brand accent',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Choose the primary color used across this device.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Choose the primary color used across this device.',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: ThemeController.accentChoices.entries.map((
-                        entry,
-                      ) {
-                        final isSelected = entry.value.toARGB32() == selected.toARGB32();
-                        return Tooltip(
-                          message: entry.key,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () => ThemeController.setAccent(entry.key),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: entry.value,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.onSurface
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: ThemeController.accentChoices.entries.map((
+                      entry,
+                    ) {
+                      final isSelected =
+                          entry.value.toARGB32() == selected.toARGB32();
+                      return Tooltip(
+                        message: entry.key,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () => ThemeController.setAccent(entry.key),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: entry.value,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : Colors.transparent,
+                                width: 2,
                               ),
-                              child: isSelected
-                                  ? const Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    )
-                                  : null,
                             ),
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  )
+                                : null,
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
             ),
+          ),
 
-          if (isOwner)
-            const _SettingsSectionTitle(title: 'OWNER DISPLAY'),
+          if (isOwner) const _SettingsSectionTitle(title: 'OWNER DISPLAY'),
 
           if (isOwner)
             ValueListenableBuilder<bool>(
@@ -261,7 +267,9 @@ class SettingsScreen extends StatelessWidget {
               builder: (context, value, _) => SwitchListTile(
                 secondary: const Icon(Icons.account_balance_wallet_outlined),
                 title: const Text('Show balances'),
-                subtitle: const Text('Display outstanding balances on owner screens'),
+                subtitle: const Text(
+                  'Display outstanding balances on owner screens',
+                ),
                 value: value,
                 onChanged: (value) => OwnerDisplaySettings.setBalances(value),
               ),
@@ -273,9 +281,12 @@ class SettingsScreen extends StatelessWidget {
               builder: (context, value, _) => SwitchListTile(
                 secondary: const Icon(Icons.history_outlined),
                 title: const Text('Show recent payment history'),
-                subtitle: const Text('Show recent payments in the owner dashboard'),
+                subtitle: const Text(
+                  'Show recent payments in the owner dashboard',
+                ),
                 value: value,
-                onChanged: (value) => OwnerDisplaySettings.setRecentPayments(value),
+                onChanged: (value) =>
+                    OwnerDisplaySettings.setRecentPayments(value),
               ),
             ),
 
@@ -285,9 +296,12 @@ class SettingsScreen extends StatelessWidget {
               builder: (context, value, _) => SwitchListTile(
                 secondary: const Icon(Icons.bolt_outlined),
                 title: const Text('Show quick actions'),
-                subtitle: const Text('Display shortcut actions on the dashboard'),
+                subtitle: const Text(
+                  'Display shortcut actions on the dashboard',
+                ),
                 value: value,
-                onChanged: (value) => OwnerDisplaySettings.setQuickActions(value),
+                onChanged: (value) =>
+                    OwnerDisplaySettings.setQuickActions(value),
               ),
             ),
 
@@ -298,7 +312,9 @@ class SettingsScreen extends StatelessWidget {
                 leading: const Icon(Icons.history_outlined),
                 title: const Text('Recent payment history'),
                 subtitle: Text(
-                  limit == 0 ? 'Show all transactions' : 'Show the latest $limit payments',
+                  limit == 0
+                      ? 'Show all transactions'
+                      : 'Show the latest $limit payments',
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
@@ -318,16 +334,24 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancel'),
+                        ),
                         FilledButton(
-                          onPressed: () => Navigator.pop(dialogContext, int.tryParse(controller.text.trim()) ?? 0),
+                          onPressed: () => Navigator.pop(
+                            dialogContext,
+                            int.tryParse(controller.text.trim()) ?? 0,
+                          ),
                           child: const Text('Save'),
                         ),
                       ],
                     ),
                   );
                   controller.dispose();
-                  if (value != null) await HistoryDisplaySettings.setLimit(value);
+                  if (value != null) {
+                    await HistoryDisplaySettings.setLimit(value);
+                  }
                 },
               ),
             ),
@@ -355,11 +379,15 @@ class SettingsScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.workspace_premium_outlined),
               title: const Text('Subscription & billing'),
-              subtitle: const Text('View workspace plan and subscription status'),
+              subtitle: const Text(
+                'View workspace plan and subscription status',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SubscriptionBillingScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionBillingScreen(),
+                ),
               ),
             ),
 
@@ -454,7 +482,9 @@ class SettingsScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SubscriptionBillingScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionBillingScreen(),
+                ),
               ),
             ),
 
@@ -676,6 +706,121 @@ class _SettingsSectionTitle extends StatelessWidget {
           letterSpacing: 1.2,
         ),
       ),
+    );
+  }
+}
+
+/// The existing role-filtered settings remain the source of truth. Wide windows
+/// organize those same controls into categories without duplicating permissions.
+class _SettingsWorkspace extends StatefulWidget {
+  final List<Widget> children;
+  const _SettingsWorkspace({required this.children});
+
+  @override
+  State<_SettingsWorkspace> createState() => _SettingsWorkspaceState();
+}
+
+class _SettingsWorkspaceState extends State<_SettingsWorkspace> {
+  String? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 760) {
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 30),
+            children: widget.children,
+          );
+        }
+        final sections = <String, List<Widget>>{};
+        var name = 'ACCOUNT';
+        for (final child in widget.children) {
+          if (child is _SettingsSectionTitle) {
+            name = child.title;
+            sections.putIfAbsent(name, () => []);
+          } else {
+            sections.putIfAbsent(name, () => []).add(child);
+          }
+        }
+        final selected = sections.containsKey(_selected)
+            ? _selected!
+            : sections.keys.first;
+        final colors = Theme.of(context).colorScheme;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 200,
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: colors.outlineVariant)),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(12, 12, 12, 20),
+                    child: Text(
+                      'PREFERENCES',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                  ),
+                  for (final name in sections.keys)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: ListTile(
+                        selected: name == selected,
+                        selectedTileColor: colors.primary.withValues(
+                          alpha: .09,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        title: Text(
+                          name[0] + name.substring(1).toLowerCase(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () => setState(() => _selected = name),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                key: PageStorageKey('settings-$selected'),
+                padding: const EdgeInsets.all(28),
+                children: [
+                  Text(
+                    selected[0] + selected.substring(1).toLowerCase(),
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Manage your ${selected.toLowerCase()} preferences.',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 24),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: sections[selected]!,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

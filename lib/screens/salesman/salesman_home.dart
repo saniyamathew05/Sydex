@@ -3,6 +3,7 @@ import 'dart:async';
 // Optional legacy dashboard cards remain available for older saved layouts.
 // ignore_for_file: unused_element, unused_element_parameter, dead_code, unused_local_variable
 import 'package:flutter/material.dart';
+import '../../widgets/desktop_workspace.dart';
 import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -440,7 +441,8 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       if (!mounted) return;
       await _loadData();
       if (!mounted) return;
-      if (outcome == 'next_route_activated' && selectedRouteCustomerIds.isNotEmpty) {
+      if (outcome == 'next_route_activated' &&
+          selectedRouteCustomerIds.isNotEmpty) {
         // Make the newly activated queued route visible immediately instead of
         // leaving the salesman on the dashboard with the old route context.
         setState(() => selectedIndex = 1);
@@ -644,7 +646,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
             ],
             const SizedBox(height: 6),
             Text(
-            'Confirm the payment before recording it in Sydex.',
+              'Confirm the payment before recording it in Sydex.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -1948,40 +1950,33 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Widget _navigationRail(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (index) => setState(() => selectedIndex = index),
-      labelType: NavigationRailLabelType.all,
-      backgroundColor: colors.surface,
-      leading: Padding(
-        padding: const EdgeInsets.only(top: 12, bottom: 16),
-        child: IconButton.filledTonal(
-          tooltip: 'Receive payment by QR',
-          onPressed: _showPaymentQr,
-          icon: const Icon(Icons.qr_code_2_rounded),
-        ),
+    return DesktopWorkspaceSidebar(
+      userName: widget.userName,
+      role: 'Marketing Executive',
+      onProfile: _openSettings,
+      action: IconButton.filledTonal(
+        tooltip: 'Receive payment by QR',
+        onPressed: _showPaymentQr,
+        icon: const Icon(Icons.qr_code_2_rounded),
       ),
-      destinations: const [
-        NavigationRailDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: Text('Home'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.people_outline_rounded),
-          selectedIcon: Icon(Icons.people_rounded),
-          label: Text('Customers'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.payments_outlined),
-          selectedIcon: Icon(Icons.payments_rounded),
-          label: Text('Payments'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.map_outlined),
-          selectedIcon: Icon(Icons.map_rounded),
-          label: Text('Map'),
+      destinations: [
+        for (final item in const <(String, IconData)>[
+          ('Overview', Icons.space_dashboard_outlined),
+          ('Assigned customers', Icons.people_outline),
+          ('Payments', Icons.payments_outlined),
+          ('Route map', Icons.map_outlined),
+        ].indexed)
+          WorkspaceDestination(
+            label: item.$2.$1,
+            icon: item.$2.$2,
+            selected: selectedIndex == item.$1,
+            onTap: () => setState(() => selectedIndex = item.$1),
+          ),
+        WorkspaceDestination(
+          label: 'Settings',
+          icon: Icons.settings_outlined,
+          onTap: _openSettings,
+          secondary: true,
         ),
       ],
     );
@@ -2005,7 +2000,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useRail = constraints.maxWidth >= 720;
+        final useRail = constraints.maxWidth >= 1000;
         final content = Scaffold(
           appBar: AppBar(
             backgroundColor: colors.surface,
@@ -2075,7 +2070,19 @@ class _SalesmanHomeState extends State<SalesmanHome> {
           ),
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
-              : IndexedStack(index: selectedIndex, children: pages),
+              : IndexedStack(
+                  index: selectedIndex,
+                  children: [
+                    for (var i = 0; i < pages.length; i++)
+                      TickerMode(
+                        enabled: selectedIndex == i,
+                        child: WorkspacePageTransition(
+                          identity: selectedIndex == i,
+                          child: pages[i],
+                        ),
+                      ),
+                  ],
+                ),
           bottomNavigationBar: useRail
               ? null
               : Stack(
@@ -2233,6 +2240,7 @@ class _PaymentQrPainter extends CustomPainter {
   bool shouldRepaint(covariant _PaymentQrPainter oldDelegate) =>
       oldDelegate.data != data;
 }
+
 class _SalesmanMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -3083,33 +3091,33 @@ class _MoreTile extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
 
-      leading: Container(
-        padding: const EdgeInsets.all(9),
+        leading: Container(
+          padding: const EdgeInsets.all(9),
 
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
 
-          borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(11),
+          ),
+
+          child: Icon(
+            icon,
+
+            size: 20,
+
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
 
-        child: Icon(
-          icon,
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
 
-          size: 20,
+        subtitle: Text(subtitle),
 
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-        ),
-      ),
+        trailing: const Icon(Icons.chevron_right_rounded),
 
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-
-      subtitle: Text(subtitle),
-
-      trailing: const Icon(Icons.chevron_right_rounded),
-
-      onTap: onTap,
+        onTap: onTap,
       ),
     );
   }

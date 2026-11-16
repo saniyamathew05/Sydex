@@ -15,9 +15,11 @@ import 'services/history_display_settings.dart';
 import 'services/owner_display_settings.dart';
 
 import 'services/auth_service.dart';
+import 'services/login_connection.dart';
 import 'services/business_date_service.dart';
 import 'services/currency_formatter.dart';
 import 'theme/horizon_tokens.dart';
+import 'theme/workspace_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +79,6 @@ class BusinessPaymentApp extends StatefulWidget {
 }
 
 class _BusinessPaymentAppState extends State<BusinessPaymentApp> {
-
   @override
   void initState() {
     super.initState();
@@ -100,10 +101,19 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp> {
           title: 'Sydex',
 
           themeMode: themeMode,
+          themeAnimationDuration:
+              (MediaQuery.maybeOf(context)?.disableAnimations ??
+                  WidgetsBinding
+                      .instance
+                      .platformDispatcher
+                      .accessibilityFeatures
+                      .disableAnimations)
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
 
-          theme: _buildLightTheme(accent),
+          theme: workspaceTheme(_buildLightTheme(accent)),
 
-          darkTheme: _buildDarkTheme(accent),
+          darkTheme: workspaceTheme(_buildDarkTheme(accent)),
 
           home: const AuthGate(),
         ),
@@ -995,27 +1005,37 @@ class EmailConfirmedScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.mark_email_read_rounded,
-                        size: 64, color: colors.primary),
+                    Icon(
+                      Icons.mark_email_read_rounded,
+                      size: 64,
+                      color: colors.primary,
+                    ),
                     const SizedBox(height: 20),
-                    Text('Email confirmed',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            )),
+                    Text(
+                      'Email confirmed',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
                     const SizedBox(height: 10),
                     Text(
                       'Your Sydex business account is ready. You can now sign in securely.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        height: 1.45,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                          (_) => false,
-                        ),
+                        onPressed: () =>
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => const WelcomeScreen(),
+                              ),
+                              (_) => false,
+                            ),
                         child: const Text('Continue to sign in'),
                       ),
                     ),
@@ -1099,7 +1119,7 @@ class WelcomeScreen extends StatelessWidget {
                 height: 30,
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
-                errorBuilder: (_, __, ___) => const Icon(
+                errorBuilder: (_, _, _) => const Icon(
                   Icons.account_balance_wallet_rounded,
                   color: Colors.white,
                   size: 22,
@@ -2030,10 +2050,8 @@ class _LoginScreenState extends State<LoginScreen>
 
         throw Exception('This account has an invalid role.');
       }
-    } on AuthException catch (error) {
-      _showError(error.message);
     } catch (error) {
-      _showError(error.toString().replaceFirst('Exception: ', ''));
+      _showError(LoginConnection.errorMessage(error));
     } finally {
       if (mounted) {
         setState(() {
@@ -2288,7 +2306,7 @@ class _LoginScreenState extends State<LoginScreen>
                           height: 26,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
-                          errorBuilder: (_, __, ___) => Icon(
+                          errorBuilder: (_, _, _) => Icon(
                             Icons.account_balance_wallet_rounded,
                             color: colors.primary,
                             size: 20,
@@ -2306,7 +2324,8 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ],
                   ),
-                  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) ...[
+                  if (!kIsWeb &&
+                      defaultTargetPlatform == TargetPlatform.windows) ...[
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
