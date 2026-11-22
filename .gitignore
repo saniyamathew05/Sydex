@@ -48,3 +48,23 @@ third_party/printing/android/.gradle/
 third_party/printing/android/build/
 # Widget Preview related
 .widget_preview/
+
+# Secrets and signing material: never commit these
+.env
+.env.*
+*.jks
+*.keystore
+**/android/key.properties
+*.pem
+*.p12
+*.pfx
+service-account*.json
+supabase/.temp/
+supabase/.branches/
+
+# Files that are not part of the app
+/*.pdf
+/*.dmg
+/*.exe
+/*_log.txt
+node_modules/
