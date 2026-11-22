@@ -53,7 +53,7 @@ class PaymentReceiptService {
   }) async {
     const width = 840;
     const height = 1260;
-    const green = Color(0xFF1F6F4A);
+    const green = Color(0xFF141414);
     const ink = Color(0xFF1C1C1C);
     const muted = Color(0xFF657066);
     final recorder = ui.PictureRecorder();
@@ -184,7 +184,7 @@ class PaymentReceiptService {
         Rect.fromLTWH(64, y, 712, 100),
         const Radius.circular(18),
       ),
-      Paint()..color = const Color(0xFFE9F2EC),
+      Paint()..color = const Color(0xFFF1F0ED),
     );
     _drawText(
       canvas,

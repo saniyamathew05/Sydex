@@ -195,7 +195,11 @@ class _SalesmanVisitAuditScreenState extends State<SalesmanVisitAuditScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
@@ -220,6 +224,8 @@ class _SalesmanVisitAuditScreenState extends State<SalesmanVisitAuditScreen> {
             ),
             Expanded(child: content),
           ],
+            ),
+          ),
         ),
       ),
     );

@@ -38,8 +38,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   Color get _greenBright => Theme.of(context).colorScheme.secondary;
   Color get _page => Theme.of(context).scaffoldBackgroundColor;
-  Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
-  Color get _border => Theme.of(context).colorScheme.outlineVariant;
 
   @override
   void initState() {
@@ -346,7 +344,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   return sum + (balance > 0 ? balance : 0);
                 },
               );
-              return Column(
+              return Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
@@ -514,58 +516,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           )
                         : Column(
                             children: [
-                              if (MediaQuery.sizeOf(context).width >= 900)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    22,
-                                    8,
-                                    22,
-                                    4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'CUSTOMER',
-                                          style: TextStyle(
-                                            color: _muted,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: 205,
-                                        child: Text(
-                                          'LAST PAYMENT',
-                                          style: TextStyle(
-                                            color: _muted,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: 125,
-                                        child: Text(
-                                          'BALANCE',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
-                                            color: _muted,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 64),
-                                    ],
-                                  ),
-                                ),
-                              if (MediaQuery.sizeOf(context).width >= 900)
-                                Divider(
-                                  height: 1,
-                                  color: isDark ? Colors.white12 : _border,
-                                ),
                               Expanded(
                                 child: ListView.separated(
                                   padding: const EdgeInsets.fromLTRB(
@@ -619,6 +569,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           ),
                   ),
                 ],
+                  ),
+                ),
               );
             },
           ),
@@ -635,6 +587,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   ) => DropdownButtonFormField<String>(
     initialValue: value,
     isDense: true,
+    isExpanded: true,
     decoration: InputDecoration(
       labelText: label,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),

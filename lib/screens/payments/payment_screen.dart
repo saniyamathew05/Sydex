@@ -29,7 +29,7 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  Color get emeraldForeground => Theme.of(context).brightness == Brightness.dark
+  Color get inkForeground => Theme.of(context).brightness == Brightness.dark
       ? Colors.white
       : Colors.black;
 
@@ -1063,7 +1063,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             decoration: BoxDecoration(
                               border: Border.all(color: colors.outline),
                               borderRadius: BorderRadius.circular(14),
-                              color: emeraldForeground,
+                              color: inkForeground,
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(14),

@@ -15,8 +15,8 @@ abstract final class SydexColors {
   static const lineStrong = Color(0xFFCFCBC4);
   static const muted = Color(0xFF66625C);
   static const faint = Color(0xFF8C877F);
-  static const money = Color(0xFF1F6F4A);
-  static const moneySoft = Color(0xFFE9F2EC);
+  static const money = Color(0xFF141414);
+  static const moneySoft = Color(0xFFF1F0ED);
   static const pending = Color(0xFF8A5300);
   static const pendingSoft = Color(0xFFFBF1E1);
   static const danger = Color(0xFFA61B1B);
@@ -65,10 +65,11 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     onPrimary: onPrimary,
     primaryContainer: tile,
     onPrimaryContainer: text,
-    secondary: dark ? const Color(0xFF6CC79B) : SydexColors.money,
+    // Money and "positive" states stay neutral: weight, not colour, marks them.
+    secondary: text,
     onSecondary: dark ? SydexColors.ink : Colors.white,
-    secondaryContainer: dark ? const Color(0xFF16291F) : SydexColors.moneySoft,
-    onSecondaryContainer: dark ? const Color(0xFFA9E3C6) : SydexColors.money,
+    secondaryContainer: tile,
+    onSecondaryContainer: text,
     tertiary: dark ? const Color(0xFFE0B36A) : SydexColors.pending,
     onTertiary: dark ? SydexColors.ink : Colors.white,
     tertiaryContainer: dark ? const Color(0xFF2E2414) : SydexColors.pendingSoft,

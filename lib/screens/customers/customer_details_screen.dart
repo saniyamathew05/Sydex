@@ -2234,13 +2234,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       const SizedBox(height: 16),
                       SydexReveal(
                         index: 2,
-                        child: GridView.count(
-                          crossAxisCount: 4,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 4,
-                          childAspectRatio: .72,
+                        child: SydexAutoGrid(
+                          minItemWidth: 70,
+                          itemHeight: 98,
+                          minColumns: 4,
+                          spacing: 4,
+                          runSpacing: 10,
                           children: [
                             SydexQuickAction(
                               icon: Icons.add_rounded,
@@ -2999,7 +2998,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                               isBouncedCheck ||
                               entry['is_bounced'] == true
                           ? Colors.red
-                          : Colors.green,
+                          : const Color(0xFF77736C),
                     ),
                   ),
                 ],

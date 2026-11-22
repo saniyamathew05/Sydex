@@ -603,11 +603,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
     }
 
     final payments = _filteredPayments;
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-
+    return SydexPageList(
+      maxWidth: 960,
+      top: 14,
+      bottom: 30,
       children: [
         _header(),
 
@@ -1173,7 +1172,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Colors.green.shade700,
+                          color: const Color(0xFF77736C),
                         ),
                       ),
                     ),
@@ -1559,7 +1558,7 @@ class _SalesmanPaymentDetailsScreenState
                   padding: const EdgeInsets.all(13),
 
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.12),
+                    color: const Color(0xFF77736C).withValues(alpha: 0.12),
 
                     shape: BoxShape.circle,
                   ),
@@ -1569,7 +1568,7 @@ class _SalesmanPaymentDetailsScreenState
 
                     size: 46,
 
-                    color: Colors.green,
+                    color: Color(0xFF77736C),
                   ),
                 ),
 
@@ -1706,7 +1705,7 @@ class _SalesmanPaymentDetailsScreenState
                 value: CurrencyFormatter.balanceAfter(remainingBalance),
 
                 valueColor: remainingBalance == 0
-                    ? Colors.green.shade700
+                    ? const Color(0xFF77736C)
                     : null,
               ),
             ],

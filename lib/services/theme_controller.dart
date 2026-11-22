@@ -15,11 +15,9 @@ class ThemeController {
 
   static const Map<String, Color> accentChoices = <String, Color>{
     'Ink': Color(0xFF141414),
-    'Forest': Color(0xFF075C42),
-    'Emerald': Color(0xFF087553),
-    'Teal': Color(0xFF0B6E69),
-    'Ocean': Color(0xFF1D5F82),
-    'Plum': Color(0xFF6B456D),
+    'Graphite': Color(0xFF3D4148),
+    'Ocean': Color(0xFF1D4E89),
+    'Plum': Color(0xFF5B3A64),
   };
 
   // Start fresh installs in Light mode. Existing explicit user choices are

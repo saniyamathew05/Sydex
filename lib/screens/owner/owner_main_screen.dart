@@ -2023,7 +2023,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   String _formatDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
-  String _money(double value) => '₹${value.abs().toStringAsFixed(2)}';
+  String _money(double value) => CurrencyFormatter.rupees(value.abs());
 
   double _amountForCurrentMethod(PaymentTransaction payment) {
     if (payment.isBounced) return 0;
@@ -2223,7 +2223,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             width: 128,
             child: Text('AMOUNT', textAlign: TextAlign.right),
           ),
-          const SizedBox(width: 76, child: Text('ACTION')),
+          const SizedBox(width: 16),
+          const SizedBox(
+            width: 68,
+            child: Text('ACTIONS', textAlign: TextAlign.right),
+          ),
         ],
       ),
     );
@@ -2302,10 +2306,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 4),
           SizedBox(
-            width: 76,
+            width: 80,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
                   tooltip: 'Edit payment',
@@ -2425,14 +2430,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             color: colors.primary,
             backgroundColor: colors.surface,
             onRefresh: TransactionService.loadTransactions,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(
-                isDesktop ? 24 : 20,
-                isDesktop ? 24 : 16,
-                isDesktop ? 24 : 20,
-                28,
-              ),
+            child: SydexPageList(
+              maxWidth: 1320,
+              top: isDesktop ? 24 : 16,
               children: [
                 SydexScreenHeader(
                   eyebrow: 'Chronological record',

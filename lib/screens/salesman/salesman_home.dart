@@ -781,9 +781,8 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: SydexPageList(
+        maxWidth: 1080,
         children: [
           reveal(
             SydexScreenHeader(
@@ -806,283 +805,285 @@ class _SalesmanHomeState extends State<SalesmanHome>
             ),
           ),
           const SizedBox(height: 18),
+          SydexTwoColumn(
+            primary: [
           reveal(
-            SydexHeroCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SydexEyebrow(
-                          'Today’s route',
-                          color: heroMuted,
-                        ),
-                      ),
-                      if ((selectedRouteName ?? '').isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            selectedRouteName!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text.rich(
-                    TextSpan(
+              SydexHeroCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        TextSpan(
-                          text: '$pending',
-                          style: const TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -.8,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '  customers remaining',
-                          style: TextStyle(fontSize: 15, color: heroMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: progress),
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, _) => LinearProgressIndicator(
-                        value: value,
-                        minHeight: 4,
-                        backgroundColor: Colors.white.withValues(alpha: .18),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _routeLoadError ??
-                              (route.isEmpty
-                                  ? 'No customers are assigned today.'
-                                  : '$visited visited'),
-                          style: TextStyle(fontSize: 12, color: heroMuted),
-                        ),
-                      ),
-                      Text(
-                        '${route.length} stops',
-                        style: TextStyle(fontSize: 12, color: heroMuted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => setState(() => selectedIndex = 1),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF141414),
-                            minimumSize: const Size(0, 42),
-                          ),
-                          child: const Text('Open route'),
-                        ),
-                      ),
-                      if (selectedRouteCustomerIds.isNotEmpty) ...[
-                        const SizedBox(width: 10),
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed: _finishRoute,
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              side: BorderSide(
-                                color: Colors.white.withValues(alpha: .3),
-                              ),
-                              minimumSize: const Size(0, 42),
-                            ),
-                            child: const Text('Finish route'),
+                          child: SydexEyebrow(
+                            'Today’s route',
+                            color: heroMuted,
                           ),
                         ),
+                        if ((selectedRouteName ?? '').isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              selectedRouteName!,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.5,
-              children: [
-                SydexStatTile(
-                  label: 'Collected today',
-                  value: CurrencyFormatter.rupees(collectedToday),
-                ),
-                SydexStatTile(
-                  label: 'Payments received',
-                  value: '$paymentCount',
-                  footnote: noPayment > 0 ? '$noPayment refused today' : null,
-                ),
-                SydexStatTile(
-                  label: 'Visits completed',
-                  value: '$visited',
-                  footnote: '$paid paid',
-                ),
-                SydexStatTile(
-                  label: 'Pending visits',
-                  value: '$pending',
-                  footnote:
-                      'To collect ${CurrencyFormatter.rupees(pendingCollection)}',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexCard(
-              onTap: _showPaymentQr,
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(11),
                     ),
-                    child: Icon(
-                      Icons.qr_code_2_rounded,
-                      color: colors.onSurface,
+                    const SizedBox(height: 8),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '$pending',
+                            style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.8,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '  customers remaining',
+                            style: TextStyle(fontSize: 15, color: heroMuted),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 14),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: progress),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => LinearProgressIndicator(
+                          value: value,
+                          minHeight: 4,
+                          backgroundColor: Colors.white.withValues(alpha: .18),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
                       children: [
-                        const Text(
-                          'Receive payment by QR',
-                          style: TextStyle(fontWeight: FontWeight.w500),
+                        Expanded(
+                          child: Text(
+                            _routeLoadError ??
+                                (route.isEmpty
+                                    ? 'No customers are assigned today.'
+                                    : '$visited visited'),
+                            style: TextStyle(fontSize: 12, color: heroMuted),
+                          ),
                         ),
                         Text(
-                          'UPI or net banking',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colors.onSurfaceVariant,
-                          ),
+                          '${route.length} stops',
+                          style: TextStyle(fontSize: 12, color: heroMuted),
                         ),
                       ],
                     ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: colors.outline),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Recent payments',
-              actionLabel: 'See all',
-              onAction: _openPayments,
-              child: recentPayments.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: Text(
-                          'No payments received yet',
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 12,
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => setState(() => selectedIndex = 1),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF141414),
+                              minimumSize: const Size(0, 42),
+                            ),
+                            child: const Text('Open route'),
                           ),
                         ),
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        for (var i = 0; i < recentPayments.length; i++) ...[
-                          if (i > 0)
-                            Divider(height: 1, color: colors.outlineVariant),
-                          InkWell(
-                            onTap: _openPayments,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
+                        if (selectedRouteCustomerIds.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _finishRoute,
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: .3),
+                                ),
+                                minimumSize: const Size(0, 42),
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          recentPayments[i].customerName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        Text(
-                                          _formatDate(
-                                            recentPayments[i].transactionDate,
-                                          ),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    CurrencyFormatter.rupees(
-                                      recentPayments[i].actualAmountReceived,
-                                    ),
-                                    style: TextStyle(
-                                      color: colors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              child: const Text('Finish route'),
                             ),
                           ),
                         ],
                       ],
                     ),
+                  ],
+                ),
+              ),
             ),
+          const SizedBox(height: 12),
+          reveal(
+              SydexAutoGrid(
+                minItemWidth: 150,
+                itemHeight: 104,
+                maxColumns: 4,
+                children: [
+                  SydexStatTile(
+                    label: 'Collected today',
+                    value: CurrencyFormatter.rupees(collectedToday),
+                  ),
+                  SydexStatTile(
+                    label: 'Payments received',
+                    value: '$paymentCount',
+                    footnote: noPayment > 0 ? '$noPayment refused today' : null,
+                  ),
+                  SydexStatTile(
+                    label: 'Visits completed',
+                    value: '$visited',
+                    footnote: '$paid paid',
+                  ),
+                  SydexStatTile(
+                    label: 'Pending visits',
+                    value: '$pending',
+                    footnote:
+                        'To collect ${CurrencyFormatter.rupees(pendingCollection)}',
+                  ),
+                ],
+              ),
+            ),
+            ],
+            secondary: [
+          reveal(
+              SydexCard(
+                onTap: _showPaymentQr,
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(
+                        Icons.qr_code_2_rounded,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Receive payment by QR',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            'UPI or net banking',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: colors.outline),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          reveal(
+              SydexSection(
+                title: 'Recent payments',
+                actionLabel: 'See all',
+                onAction: _openPayments,
+                child: recentPayments.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'No payments received yet',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (var i = 0; i < recentPayments.length; i++) ...[
+                            if (i > 0)
+                              Divider(height: 1, color: colors.outlineVariant),
+                            InkWell(
+                              onTap: _openPayments,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            recentPayments[i].customerName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            _formatDate(
+                                              recentPayments[i].transactionDate,
+                                            ),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colors.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.rupees(
+                                        recentPayments[i].actualAmountReceived,
+                                      ),
+                                      style: TextStyle(
+                                        color: colors.secondary,
+                                        fontWeight: FontWeight.w600,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
+            ),
+            ],
           ),
         ],
       ),
@@ -1100,7 +1101,11 @@ class _SalesmanHomeState extends State<SalesmanHome>
         )
         .key;
 
-    return Column(
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 960),
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
@@ -1209,6 +1214,8 @@ class _SalesmanHomeState extends State<SalesmanHome>
                 ),
         ),
       ],
+        ),
+      ),
     );
   }
 
@@ -1298,7 +1305,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
     return SalesmanRouteMapScreen(
       onBack: () => setState(() => selectedIndex = 0),
     );
-    const green = Color(0xFF1F6F4A);
+    const green = Color(0xFF141414);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
     final unvisitedCustomers = customers
@@ -2129,9 +2136,9 @@ class _PaymentQrPainter extends CustomPainter {
 class _SalesmanMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFFE9F0E8);
+    final bg = Paint()..color = const Color(0xFFEDECE8);
     canvas.drawRect(Offset.zero & size, bg);
-    final park = Paint()..color = const Color(0xFFD8E9D7);
+    final park = Paint()..color = const Color(0xFFDEDCD6);
     canvas.drawPath(
       Path()
         ..moveTo(size.width * .72, 0)
@@ -2196,7 +2203,7 @@ class _SalesmanMapPainter extends CustomPainter {
       canvas.drawPath(path, minor);
     }
     final route = Paint()
-      ..color = const Color(0xFF1F6F4A)
+      ..color = const Color(0xFF141414)
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -2708,7 +2715,7 @@ class _CustomerCard extends StatelessWidget {
 
                               color: hasBalance
                                   ? Theme.of(context).colorScheme.error
-                                  : Colors.green.shade700,
+                                  : const Color(0xFF77736C),
                             ),
                           ),
 
@@ -2722,7 +2729,7 @@ class _CustomerCard extends StatelessWidget {
 
                               color: hasBalance
                                   ? Theme.of(context).colorScheme.error
-                                  : Colors.green.shade700,
+                                  : const Color(0xFF77736C),
 
                               fontWeight: FontWeight.w600,
                             ),
@@ -2850,7 +2857,7 @@ class _PaymentPreviewCard extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w600,
 
-              color: Colors.green.shade700,
+              color: const Color(0xFF77736C),
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sydex_ui.dart';
 
 /// A destination can open a retained workspace page or a focused action.
 class WorkspaceDestination {
@@ -140,18 +141,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                       padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
                       child: Row(
                         children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: tile,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Image.asset(
-                              'assets/sydex_logo_transparent.png',
-                            ),
-                          ),
+                          const SydexLogoMark(size: 40),
                           if (!_collapsed) ...[
                             const SizedBox(width: 12),
                             Expanded(

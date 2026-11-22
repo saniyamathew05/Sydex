@@ -1063,7 +1063,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               _isSalesmanActive(
                                                 user['last_seen']?.toString(),
                                               )
-                                              ? Colors.green
+                                              ? const Color(0xFF77736C)
                                               : Colors.grey,
 
                                           shape: BoxShape.circle,
@@ -1084,7 +1084,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               _isSalesmanActive(
                                                 user['last_seen']?.toString(),
                                               )
-                                              ? Colors.green
+                                              ? const Color(0xFF77736C)
                                               : Colors.grey,
 
                                           fontWeight: FontWeight.w600,

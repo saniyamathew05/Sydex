@@ -13,9 +13,7 @@ import '../../services/currency_formatter.dart';
 import '../../services/supabase_pagination.dart';
 import '../../services/notification_read_store.dart';
 import '../../services/owner_display_settings.dart';
-import '../../widgets/horizon_motion.dart';
 import '../../widgets/desktop_workspace.dart';
-import '../../theme/sydex_theme.dart';
 import '../../services/payment_method_breakdown.dart';
 import '../../widgets/sydex_ui.dart';
 
@@ -69,15 +67,13 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   RealtimeChannel? _visitStatusChannel;
 
   Color get _ink => Theme.of(context).colorScheme.onSurface;
-  Color get _navy => Theme.of(context).colorScheme.onSurface;
   Color get _green => Theme.of(context).colorScheme.primary;
   Color get _line => Theme.of(context).colorScheme.outlineVariant;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
-  Color get _surface => Theme.of(context).colorScheme.surface;
   Color get _pageBackground => Theme.of(context).scaffoldBackgroundColor;
-  static const _red = Color(0xFFD92D36);
-  static const _orange = Color(0xFFEA8A26);
-  static const _blue = Color(0xFF2F8F57);
+  static const _red = Color(0xFFA61B1B);
+  static const _orange = Color(0xFF8A5300);
+  static const _blue = Color(0xFF77736C);
 
   int get _newSalesmanPaymentCount => _todaySalesmanPayments.values
       .expand((entry) => entry.paymentIds)
@@ -373,375 +369,17 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         );
     return Container(
       color: _pageBackground,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 900;
-          final medium = constraints.maxWidth >= 650;
-          final pad = wide ? 24.0 : 16.0;
-          if (!medium) {
-            return _buildMobileDashboard(
-              customers: customers,
-              receivable: receivable,
-              overdue: overdue,
-              recent: recent,
-              locations: locations,
-              days: days,
-              periodReceived: periodReceived,
-              periodPurchases: periodPurchases,
-              paymentCount: periodTransactions.length,
-              periodTransactions: periodTransactions,
-            );
-          }
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(pad, wide ? 18 : 16, pad, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: widget.onOpenCustomers,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: _surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _line),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search_rounded, color: _muted, size: 20),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Search customers, locations...',
-                          style: TextStyle(color: _muted, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_greeting()}, ${widget.userName} 👋',
-                            style: TextStyle(
-                              color: _ink,
-                              fontSize: wide ? 23 : 21,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.45,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Here’s your business overview for today.',
-                            style: TextStyle(color: _muted, fontSize: 11.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      height: 34,
-                      padding: const EdgeInsets.symmetric(horizontal: 9),
-                      decoration: BoxDecoration(
-                        color: _surface,
-                        border: Border.all(color: _line),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _period,
-                          isDense: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 16,
-                          ),
-                          style: TextStyle(color: _ink, fontSize: 11),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Today',
-                              child: Text('Today'),
-                            ),
-                            DropdownMenuItem(
-                              value: '7 days',
-                              child: Text('7 days'),
-                            ),
-                            DropdownMenuItem(
-                              value: '30 days',
-                              child: Text('30 days'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Custom',
-                              child: Text('Custom'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'This week',
-                              child: Text('This week'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'This month',
-                              child: Text('This month'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == 'Custom') {
-                              showDateRangePicker(
-                                context: context,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now().add(
-                                  const Duration(days: 365),
-                                ),
-                                initialDateRange: _customPeriod,
-                              ).then((range) {
-                                if (!mounted || range == null) return;
-                                setState(() {
-                                  _customPeriod = range;
-                                  _period = 'Custom';
-                                });
-                              });
-                            } else if (value != null) {
-                              setState(() => _period = value);
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        IconButton(
-                          tooltip: 'Notifications',
-                          onPressed: widget.onOpenNotifications,
-                          icon: _refreshing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.notifications_none_rounded,
-                                  color: _navy,
-                                  size: 21,
-                                ),
-                        ),
-                        if (_newSalesmanPaymentCount > 0)
-                          Positioned(
-                            right: 5,
-                            top: 2,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _red,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$_newSalesmanPaymentCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                if (wide)
-                  SizedBox(
-                    height: 174,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          flex: 5,
-                          child: _OwnerReceivableHero(
-                            value: _money(receivable),
-                            customers: customers.length,
-                            overdue: _money(overdue),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 7,
-                          child: GridView.count(
-                            crossAxisCount: 3,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 1.42,
-                            children: [
-                              _MetricCard(
-                                title: 'Today’s collections',
-                                value: _money(periodReceived),
-                                foot: '${periodTransactions.length} payments',
-                                icon: Icons.download_rounded,
-                                color: _green,
-                                bg: const Color(0xFFF1F0ED),
-                              ),
-                              _MetricCard(
-                                title: 'New purchases',
-                                value: _money(periodPurchases),
-                                foot: 'In selected period',
-                                icon: Icons.shopping_cart_outlined,
-                                color: _orange,
-                                bg: const Color(0xFFFFF0DE),
-                              ),
-                              _MetricCard(
-                                title: 'Active customers',
-                                value: '${customers.length}',
-                                foot: 'Across $_locationCount locations',
-                                icon: Icons.groups_2_outlined,
-                                color: _blue,
-                                bg: const Color(0xFFF1F0ED),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else ...[
-                  _OwnerReceivableHero(
-                    value: _money(receivable),
-                    customers: customers.length,
-                    overdue: _money(overdue),
-                  ),
-                  const SizedBox(height: 10),
-                  GridView.count(
-                    crossAxisCount: medium ? 3 : 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.65,
-                    children: [
-                      _MetricCard(
-                        title: 'Collections',
-                        value: _money(periodReceived),
-                        foot: '${periodTransactions.length} payments',
-                        icon: Icons.download_rounded,
-                        color: _green,
-                        bg: const Color(0xFFF1F0ED),
-                      ),
-                      _MetricCard(
-                        title: 'New purchases',
-                        value: _money(periodPurchases),
-                        foot: 'In selected period',
-                        icon: Icons.shopping_cart_outlined,
-                        color: _orange,
-                        bg: const Color(0xFFFFF0DE),
-                      ),
-                      _MetricCard(
-                        title: 'Active customers',
-                        value: '${customers.length}',
-                        foot: 'Across $_locationCount locations',
-                        icon: Icons.groups_2_outlined,
-                        color: _blue,
-                        bg: const Color(0xFFF1F0ED),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _quickAction(
-                      Icons.person_add_alt_1_rounded,
-                      'Add customer',
-                      widget.onAddCustomer,
-                    ),
-                    _quickAction(
-                      Icons.shopping_cart_outlined,
-                      'Record purchase',
-                      widget.onRecordPurchase,
-                    ),
-                    _quickAction(
-                      Icons.route_rounded,
-                      'Create route',
-                      widget.onOpenRoute,
-                    ),
-                    _quickAction(
-                      Icons.receipt_long_rounded,
-                      'View ledger',
-                      widget.onOpenPayments,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 6,
-                        child: _panel(child: _paymentsChart(days)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 4,
-                        child: _panel(child: _recentPayments(recent)),
-                      ),
-                    ],
-                  )
-                else ...[
-                  _panel(child: _paymentsChart(days)),
-                  const SizedBox(height: 12),
-                  _panel(child: _recentPayments(recent)),
-                ],
-                const SizedBox(height: 14),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 6,
-                        child: _panel(
-                          child: _salesmanActivity(
-                            _todaySalesmanActivity,
-                            customers,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 4,
-                        child: _panel(child: _locationWiseDues(locations)),
-                      ),
-                    ],
-                  )
-                else ...[
-                  _panel(
-                    child: _salesmanActivity(_todaySalesmanActivity, customers),
-                  ),
-                  const SizedBox(height: 12),
-                  _panel(child: _locationWiseDues(locations)),
-                ],
-                if (_visitLoadError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Salesman activity is unavailable until visit tracking is configured.',
-                    style: TextStyle(color: _muted, fontSize: 10),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
+      child: _buildMobileDashboard(
+        customers: customers,
+        receivable: receivable,
+        overdue: overdue,
+        recent: recent,
+        locations: locations,
+        days: days,
+        periodReceived: periodReceived,
+        periodPurchases: periodPurchases,
+        paymentCount: periodTransactions.length,
+        periodTransactions: periodTransactions,
       ),
     );
   }
@@ -852,9 +490,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      child: SydexPageList(
         children: [
           reveal(
             SydexScreenHeader(
@@ -888,220 +524,226 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             ),
           ),
           const SizedBox(height: 16),
+          SydexTwoColumn(
+            gap: 16,
+            primary: [
           reveal(
-            SydexHeroCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SydexEyebrow(
-                          _periodLabel(),
-                          color: Colors.white.withValues(alpha: .62),
-                        ),
-                      ),
-                      if (_refreshing)
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+              SydexHeroCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SydexEyebrow(
+                            _periodLabel(),
+                            color: Colors.white.withValues(alpha: .62),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _money(periodReceived),
-                      style: const TextStyle(
-                        fontSize: 38,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -1,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        if (_refreshing)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _money(periodReceived),
+                        style: const TextStyle(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -1,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$paymentCount payments',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Colors.white.withValues(alpha: .62),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$paymentCount payments',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white.withValues(alpha: .62),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  SydexMiniBars(values: bars, height: 64),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SydexHeroTile(
-                          label: 'Cash',
-                          value: _money(methods['cash']!),
+                    const SizedBox(height: 16),
+                    SydexMiniBars(values: bars, height: 64),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SydexHeroTile(
+                            label: 'Cash',
+                            value: _money(methods['cash']!),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SydexHeroTile(
-                          label: 'Cheque',
-                          value: _money(methods['cheque']!),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SydexHeroTile(
+                            label: 'Cheque',
+                            value: _money(methods['cheque']!),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SydexHeroTile(
-                          label: 'Online',
-                          value: _money(methods['online']!),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SydexHeroTile(
+                            label: 'Online',
+                            value: _money(methods['online']!),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.12,
-              children: [
-                SydexStatTile(
-                  icon: Icons.schedule_rounded,
-                  label: 'Outstanding',
-                  value: _money(receivable),
-                  footnote: 'Overdue ${_money(overdue)}',
-                  onTap: widget.onOpenCustomers,
-                ),
-                SydexStatTile(
-                  icon: Icons.groups_2_outlined,
-                  label: 'Active customers',
-                  value: '${customers.length}',
-                  footnote: 'Across $_locationCount locations',
-                  onTap: widget.onOpenCustomers,
-                ),
-                SydexStatTile(
-                  icon: Icons.shopping_cart_outlined,
-                  label: 'New purchases',
-                  value: _money(periodPurchases),
-                  footnote: 'In selected period',
-                ),
-                SydexStatTile(
-                  icon: Icons.check_rounded,
-                  label: 'Payments',
-                  value: '$paymentCount',
-                  footnote: 'In selected period',
-                  onTap: widget.onOpenPayments,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Quick actions',
-              child: GridView.count(
-                crossAxisCount: 4,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 4,
-                childAspectRatio: .7,
+            const SizedBox(height: 12),
+            reveal(
+              SydexAutoGrid(
+                minItemWidth: 150,
+                itemHeight: 132,
+                maxColumns: 4,
                 children: [
-                  SydexQuickAction(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: 'Receive payment',
-                    onTap: widget.onReceivePayment ?? widget.onOpenPayments,
+                  SydexStatTile(
+                    icon: Icons.schedule_rounded,
+                    label: 'Outstanding',
+                    value: _money(receivable),
+                    footnote: 'Overdue ${_money(overdue)}',
+                    onTap: widget.onOpenCustomers,
                   ),
-                  SydexQuickAction(
-                    icon: Icons.add_rounded,
-                    label: 'Add sale',
-                    onTap: widget.onRecordPurchase,
+                  SydexStatTile(
+                    icon: Icons.groups_2_outlined,
+                    label: 'Active customers',
+                    value: '${customers.length}',
+                    footnote: 'Across $_locationCount locations',
+                    onTap: widget.onOpenCustomers,
                   ),
-                  SydexQuickAction(
-                    icon: Icons.person_add_alt_1_outlined,
-                    label: 'Add customer',
-                    onTap: widget.onAddCustomer,
+                  SydexStatTile(
+                    icon: Icons.shopping_cart_outlined,
+                    label: 'New purchases',
+                    value: _money(periodPurchases),
+                    footnote: 'In selected period',
                   ),
-                  SydexQuickAction(
-                    icon: Icons.route_outlined,
-                    label: 'Routes',
-                    onTap: widget.onOpenRoute,
-                  ),
-                  SydexQuickAction(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'View collections',
+                  SydexStatTile(
+                    icon: Icons.check_rounded,
+                    label: 'Payments',
+                    value: '$paymentCount',
+                    footnote: 'In selected period',
                     onTap: widget.onOpenPayments,
                   ),
-                  SydexQuickAction(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Reports',
-                    onTap: widget.onOpenReports,
-                  ),
-                  SydexQuickAction(
-                    icon: Icons.location_on_outlined,
-                    label: 'Visit audit',
-                    onTap: widget.onOpenVisitAudit,
-                  ),
-                  SydexQuickAction(
-                    icon: Icons.document_scanner_outlined,
-                    label: 'Old card import',
-                    onTap: widget.onOpenCardImport,
-                  ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Salesman activity',
-              actionLabel: widget.onOpenSalesmen == null ? 'View map' : 'Routes',
-              onAction: widget.onOpenSalesmen ?? widget.onOpenVisitAudit,
-              child: _salesmanActivity(_todaySalesmanActivity, customers),
-            ),
-          ),
-          if (_visitLoadError != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Salesman activity is unavailable until visit tracking is configured.',
-              style: TextStyle(color: _muted, fontSize: 11),
-            ),
-          ],
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Recent payments',
-              actionLabel: 'See all',
-              onAction: widget.onOpenPayments,
-              child: _recentPayments(recent),
-            ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Location-wise due',
-              child: _locationWiseDues(
-                Map<String, double>.fromEntries(locations.entries.take(5)),
+            const SizedBox(height: 12),
+            reveal(
+              SydexSection(
+                title: 'Quick actions',
+                child: SydexAutoGrid(
+                  minItemWidth: 70,
+                  itemHeight: 98,
+                  minColumns: 4,
+                  spacing: 4,
+                  runSpacing: 12,
+                  children: [
+                    SydexQuickAction(
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Receive payment',
+                      onTap: widget.onReceivePayment ?? widget.onOpenPayments,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.add_rounded,
+                      label: 'Add sale',
+                      onTap: widget.onRecordPurchase,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.person_add_alt_1_outlined,
+                      label: 'Add customer',
+                      onTap: widget.onAddCustomer,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.route_outlined,
+                      label: 'Routes',
+                      onTap: widget.onOpenRoute,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'View collections',
+                      onTap: widget.onOpenPayments,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Reports',
+                      onTap: widget.onOpenReports,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.location_on_outlined,
+                      label: 'Visit audit',
+                      onTap: widget.onOpenVisitAudit,
+                    ),
+                    SydexQuickAction(
+                      icon: Icons.document_scanner_outlined,
+                      label: 'Old card import',
+                      onTap: widget.onOpenCardImport,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          reveal(
-            SydexSection(
-              title: 'Payments overview',
-              subtitle: '$_period · $paymentCount payments',
-              child: _paymentsChart(days),
+            const SizedBox(height: 12),
+            reveal(
+              SydexSection(
+                title: 'Payments overview',
+                subtitle: '$_period · $paymentCount payments',
+                actionLabel: 'See all',
+                onAction: widget.onOpenPayments,
+                child: _paymentsChart(days),
+              ),
             ),
+            ],
+            secondary: [
+          reveal(
+              SydexSection(
+                title: 'Salesman activity',
+                actionLabel: widget.onOpenSalesmen == null ? 'View map' : 'Routes',
+                onAction: widget.onOpenSalesmen ?? widget.onOpenVisitAudit,
+                child: _salesmanActivity(_todaySalesmanActivity, customers),
+              ),
+            ),
+            if (_visitLoadError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Salesman activity is unavailable until visit tracking is configured.',
+                style: TextStyle(color: _muted, fontSize: 11),
+              ),
+            ],
+            const SizedBox(height: 12),
+            reveal(
+              SydexSection(
+                title: 'Recent payments',
+                actionLabel: 'See all',
+                onAction: widget.onOpenPayments,
+                child: _recentPayments(recent),
+              ),
+            ),
+            const SizedBox(height: 12),
+            reveal(
+              SydexSection(
+                title: 'Location-wise due',
+                actionLabel: 'See all',
+                onAction: widget.onOpenCustomers,
+                child: _locationWiseDues(
+                  Map<String, double>.fromEntries(locations.entries.take(5)),
+                ),
+              ),
+            ),
+            ],
           ),
         ],
       ),
@@ -1135,77 +777,16 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     });
   }
 
-  Widget _panel({required Widget child}) => Container(
-    decoration: BoxDecoration(
-      color: _surface,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: _line),
-    ),
-    padding: const EdgeInsets.all(14),
-    child: child,
-  );
 
-  Widget _quickAction(IconData icon, String label, VoidCallback? onPressed) {
-    return HorizonPressable(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        height: 44,
-        child: IgnorePointer(
-          child: OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 18, color: _green),
-            label: Text(label),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _ink,
-              backgroundColor: _surface,
-              side: BorderSide(color: _line),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
+  // Every panel sits inside a SydexSection that already shows the title and
+  // action, so the inner header is intentionally empty.
   Widget _panelHeader(
     String title, {
     String action = '',
     VoidCallback? onAction,
-  }) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          title,
-          style: TextStyle(
-            color: _ink,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
-      if (action.isNotEmpty)
-        TextButton(
-          onPressed: onAction,
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(30, 24),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Text(
-            action,
-            style: TextStyle(
-              color: _green,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-    ],
-  );
+  }) => const SizedBox.shrink();
+
 
   Widget _paymentsChart(List<_DayTotals> days) {
     final receivedTotal = days.fold<double>(
@@ -1690,7 +1271,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Widget _locationWiseDues(Map<String, double> locations) {
     final entries = locations.entries.take(4).toList();
     final maxDue = entries.isEmpty ? 1.0 : entries.first.value;
-    final colors = [_green, Color(0xFFFF6269), Color(0xFFFFBC43), _blue];
+    final colors = [_ink, _ink, _blue, _blue];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1730,12 +1311,12 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       e.key,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: _ink, fontSize: 10),
+                      style: TextStyle(color: _ink, fontSize: 13),
                     ),
                   ),
                   const SizedBox(width: 8),
                   SizedBox(
-                    width: 70,
+                    width: 90,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
@@ -1752,8 +1333,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   Text(
                     _money(e.value),
                     style: TextStyle(
-                      color: i == 0 ? _red : (i == 1 ? _orange : _ink),
-                      fontSize: 9.5,
+                      color: _ink,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1803,180 +1384,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   ][month - 1];
 }
 
-class _OwnerReceivableHero extends StatelessWidget {
-  const _OwnerReceivableHero({
-    required this.value,
-    required this.customers,
-    required this.overdue,
-  });
 
-  final String value;
-  final int customers;
-  final String overdue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: SydexColors.hero(context),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -8,
-            top: -12,
-            child: Icon(Icons.eco_rounded, size: 104, color: Colors.white12),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  SizedBox(width: 9),
-                  Text(
-                    'Total receivable',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Icon(
-                    Icons.visibility_outlined,
-                    color: Colors.white70,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Across $customers customers',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Overdue: $overdue',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    required this.foot,
-    required this.icon,
-    required this.color,
-    required this.bg,
-  });
-  final String title;
-  final String value;
-  final String foot;
-  final IconData icon;
-  final Color color;
-  final Color bg;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? color.withValues(alpha: .16)
-          : bg.withValues(alpha: .55),
-      borderRadius: BorderRadius.circular(11),
-      border: Border.all(color: color.withValues(alpha: .08)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Container(
-              width: 29,
-              height: 29,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 17),
-            ),
-          ],
-        ),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 19,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -.4,
-            ),
-          ),
-        ),
-        Text(
-          foot,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 8.5,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class _SalesmanTodayPayments {
   double received = 0;

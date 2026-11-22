@@ -98,17 +98,11 @@ class _ReportsContentState extends State<_ReportsContent> {
 
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 600;
-
               return ListView(
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 12 : 24,
-
-                  compact ? 14 : 24,
-
-                  compact ? 12 : 24,
-
-                  40,
+                padding: sydexPageInsets(
+                  constraints.maxWidth,
+                  top: 16,
+                  bottom: 40,
                 ),
 
                 children: [
@@ -201,7 +195,6 @@ class _ReportsContentState extends State<_ReportsContent> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 850;
 
         final cards = [
           SydexStatTile(
@@ -226,46 +219,11 @@ class _ReportsContentState extends State<_ReportsContent> {
           ),
         ];
 
-        if (isWide) {
-          return Row(
-            children: [
-              Expanded(child: cards[0]),
-
-              const SizedBox(width: 14),
-
-              Expanded(child: cards[1]),
-
-              const SizedBox(width: 14),
-
-              Expanded(child: cards[2]),
-
-              const SizedBox(width: 14),
-
-              Expanded(child: cards[3]),
-            ],
-          );
-        }
-
-        return GridView.builder(
-          shrinkWrap: true,
-
-          physics: const NeverScrollableScrollPhysics(),
-
-          itemCount: cards.length,
-
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-
-            crossAxisSpacing: 10,
-
-            mainAxisSpacing: 10,
-
-            childAspectRatio: constraints.maxWidth < 380 ? 1.05 : 1.2,
-          ),
-
-          itemBuilder: (context, index) {
-            return cards[index];
-          },
+        return SydexAutoGrid(
+          minItemWidth: 160,
+          itemHeight: 128,
+          maxColumns: 4,
+          children: cards,
         );
       },
     );

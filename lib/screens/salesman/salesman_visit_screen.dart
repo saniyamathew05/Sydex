@@ -323,7 +323,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
         ? 'Refused today'
         : 'Not visited';
     final statusColor = status == 'paid'
-        ? Colors.green
+        ? const Color(0xFF77736C)
         : status == 'rejected'
         ? theme.colorScheme.error
         : theme.colorScheme.outline;

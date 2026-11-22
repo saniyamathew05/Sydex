@@ -21,6 +21,7 @@ import 'services/login_connection.dart';
 import 'services/business_date_service.dart';
 import 'services/currency_formatter.dart';
 import 'theme/sydex_theme.dart';
+import 'widgets/sydex_ui.dart';
 import 'theme/workspace_theme.dart';
 
 Future<void> main() async {
@@ -539,28 +540,7 @@ class WelcomeScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: isWide
-                    ? Colors.white.withValues(alpha: .14)
-                    : scheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Image.asset(
-                'assets/sydex_logo_transparent.png',
-                width: 30,
-                height: 30,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (_, _, _) => Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: onHero,
-                  size: 22,
-                ),
-              ),
-            ),
+            SydexLogoMark(size: 40, inverted: isWide),
             const SizedBox(width: 12),
             Text(
               'Sydex',
@@ -1346,7 +1326,7 @@ class _FeatureCustomerRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: cleared ? const Color(0xFF16845A) : const Color(0xFFC44747),
+            color: cleared ? const Color(0xFF77736C) : const Color(0xFFC44747),
           ),
         ),
       ],
@@ -1720,26 +1700,7 @@ class _LoginScreenState extends State<LoginScreen>
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
                       const SizedBox(width: 4),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: colors.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Image.asset(
-                          'assets/sydex_logo_transparent.png',
-                          width: 26,
-                          height: 26,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
-                          errorBuilder: (_, _, _) => Icon(
-                            Icons.account_balance_wallet_rounded,
-                            color: colors.primary,
-                            size: 20,
-                          ),
-                        ),
-                      ),
+                      const SydexLogoMark(size: 36),
                       const SizedBox(width: 10),
                       Text(
                         'Sydex',

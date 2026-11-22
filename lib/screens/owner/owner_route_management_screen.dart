@@ -1785,7 +1785,11 @@ class _OwnerRouteManagementScreenState
       backgroundColor: colors.surfaceContainerLowest,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
@@ -2150,6 +2154,8 @@ class _OwnerRouteManagementScreenState
           : _buildMapPage(),
             ),
           ],
+            ),
+          ),
         ),
       ),
     );
@@ -2462,7 +2468,7 @@ class _OwnerRouteManagementScreenState
                             _ => 'Pending',
                           };
                           final statusColor = switch (statusLabel) {
-                            'Visited' => const Color(0xFF1F6F4A),
+                            'Visited' => const Color(0xFF77736C),
                             'Refused today' => const Color(0xFFA61B1B),
                             _ => const Color(0xFF8A5300),
                           };
@@ -2678,7 +2684,7 @@ class _OwnerRouteManagementScreenState
                               size: 42,
                               color: rejected
                                   ? Colors.red
-                                  : Colors.green.shade700,
+                                  : const Color(0xFF77736C),
                             ),
                           ),
                         );

@@ -129,7 +129,7 @@ class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
                     width: 48, height: 56,
                     child: GestureDetector(
                       onTap: () => setState(() => _selectedCustomerId = row['id'].toString()),
-                      child: Icon(Icons.location_on, size: 44, color: row['id'].toString() == _selectedCustomerId ? Colors.orange : (_visited.contains(row['id'].toString()) ? Colors.blue : Colors.green.shade700)),
+                      child: Icon(Icons.location_on, size: 44, color: row['id'].toString() == _selectedCustomerId ? Colors.orange : (_visited.contains(row['id'].toString()) ? Colors.blue : const Color(0xFF77736C))),
                     ),
                   )),
                   ]),

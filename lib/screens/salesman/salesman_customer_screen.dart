@@ -362,7 +362,7 @@ class _SalesmanCustomerDetailsScreenState
                     '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: isSale ? Colors.red : Colors.green,
+                      color: isSale ? Colors.red : const Color(0xFF77736C),
                     ),
                   ),
                   IconButton(
@@ -610,9 +610,9 @@ class _SalesmanCustomerDetailsScreenState
               }
             },
 
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-
+            child: SydexPageList(
+              maxWidth: 920,
+              top: 4,
               children: [
                 SydexReveal(
                   child: Column(
@@ -819,12 +819,11 @@ class _SalesmanCustomerDetailsScreenState
                 const SizedBox(height: 16),
                 SydexReveal(
                   index: 4,
-                  child: GridView.count(
-                    crossAxisCount: 4,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 4,
-                    childAspectRatio: .74,
+                  child: SydexAutoGrid(
+                    minItemWidth: 70,
+                    itemHeight: 98,
+                    minColumns: 4,
+                    spacing: 4,
                     children: [
                       SydexQuickAction(
                         icon: Icons.call_outlined,
@@ -1630,9 +1629,9 @@ class _PaymentCardState extends State<_PaymentCard> {
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
 
         leading: CircleAvatar(
-          backgroundColor: Colors.green.withValues(alpha: 0.12),
+          backgroundColor: const Color(0xFF77736C).withValues(alpha: 0.12),
 
-          child: const Icon(Icons.check_circle_outline, color: Colors.green),
+          child: const Icon(Icons.check_circle_outline, color: Color(0xFF77736C)),
         ),
 
         title: Text(
@@ -1704,12 +1703,12 @@ class _PaymentCardState extends State<_PaymentCard> {
               const Icon(
                 Icons.cloud_done_outlined,
                 size: 18,
-                color: Colors.green,
+                color: Color(0xFF77736C),
               ),
               const SizedBox(width: 4),
               const Text(
                 'Server confirmed',
-                style: TextStyle(color: Colors.green, fontSize: 12),
+                style: TextStyle(color: Color(0xFF77736C), fontSize: 12),
               ),
             ],
           ),

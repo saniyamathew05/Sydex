@@ -28,6 +28,188 @@ class _FitHeight extends StatelessWidget {
   );
 }
 
+/// Breakpoints shared by every screen.
+abstract final class SydexBreakpoints {
+  /// Two-column page layouts start here (tablet landscape, desktop).
+  static const wide = 980.0;
+
+  /// Page content never grows wider than this.
+  static const maxContent = 1180.0;
+}
+
+/// Horizontal padding that keeps content centred and capped at [maxWidth]
+/// on large windows, with a 20 px gutter on phones.
+EdgeInsets sydexPageInsets(
+  double availableWidth, {
+  double maxWidth = SydexBreakpoints.maxContent,
+  double top = 16,
+  double bottom = 28,
+}) {
+  final side = availableWidth > maxWidth + 40
+      ? (availableWidth - maxWidth) / 2
+      : (availableWidth >= 700 ? 28.0 : 20.0);
+  return EdgeInsets.fromLTRB(side, top, side, bottom);
+}
+
+/// A scrolling page whose content is centred and width-capped on large
+/// windows. Use it in place of a page-level ListView.
+class SydexPageList extends StatelessWidget {
+  const SydexPageList({
+    super.key,
+    required this.children,
+    this.maxWidth = SydexBreakpoints.maxContent,
+    this.top = 16,
+    this.bottom = 28,
+    this.controller,
+    this.physics = const AlwaysScrollableScrollPhysics(),
+  });
+
+  final List<Widget> children;
+  final double maxWidth;
+  final double top;
+  final double bottom;
+  final ScrollController? controller;
+  final ScrollPhysics? physics;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => ListView(
+      controller: controller,
+      physics: physics,
+      padding: sydexPageInsets(
+        constraints.maxWidth,
+        maxWidth: maxWidth,
+        top: top,
+        bottom: bottom,
+      ),
+      children: children,
+    ),
+  );
+}
+
+/// Grid that fits as many columns as the width allows (never fewer than
+/// [minColumns]), with a fixed tile height so tiles never stretch or
+/// overflow on any screen size.
+class SydexAutoGrid extends StatelessWidget {
+  const SydexAutoGrid({
+    super.key,
+    required this.children,
+    required this.minItemWidth,
+    required this.itemHeight,
+    this.minColumns = 2,
+    this.maxColumns = 8,
+    this.spacing = 10,
+    this.runSpacing,
+  });
+
+  final List<Widget> children;
+  final double minItemWidth;
+  final double itemHeight;
+  final int minColumns;
+  final int maxColumns;
+  final double spacing;
+  final double? runSpacing;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final fit = ((constraints.maxWidth + spacing) / (minItemWidth + spacing))
+          .floor();
+      final columns = fit.clamp(minColumns, maxColumns);
+      return GridView(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: runSpacing ?? spacing,
+          mainAxisExtent: itemHeight,
+        ),
+        children: children,
+      );
+    },
+  );
+}
+
+/// Places [primary] and [secondary] side by side on wide windows and
+/// stacks them on phones.
+class SydexTwoColumn extends StatelessWidget {
+  const SydexTwoColumn({
+    super.key,
+    required this.primary,
+    required this.secondary,
+    this.breakpoint = SydexBreakpoints.wide,
+    this.gap = 16,
+    this.primaryFlex = 3,
+    this.secondaryFlex = 2,
+  });
+
+  final List<Widget> primary;
+  final List<Widget> secondary;
+  final double breakpoint;
+  final double gap;
+  final int primaryFlex;
+  final int secondaryFlex;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < breakpoint) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [...primary, ...secondary],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: primaryFlex,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: primary,
+            ),
+          ),
+          SizedBox(width: gap),
+          Expanded(
+            flex: secondaryFlex,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: secondary,
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// The Sydex logo: an ink rounded square with a white rising line.
+class SydexLogoMark extends StatelessWidget {
+  const SydexLogoMark({super.key, this.size = 36, this.inverted = false});
+  final double size;
+
+  /// White square with an ink line, for use on dark backgrounds.
+  final bool inverted;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = inverted || dark ? Colors.white : SydexColors.ink;
+    final foreground = inverted || dark ? SydexColors.ink : Colors.white;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(size * .28),
+      ),
+      child: Icon(Icons.show_chart_rounded, size: size * .56, color: foreground),
+    );
+  }
+}
+
 /// Small uppercase label used above values and sections.
 class SydexEyebrow extends StatelessWidget {
   const SydexEyebrow(this.text, {super.key, this.color});

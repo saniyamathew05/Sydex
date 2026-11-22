@@ -54,8 +54,9 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        child: SydexPageList(
+          maxWidth: 860,
+          top: 14,
           children: [
             SydexScreenHeader(
               eyebrow: 'Payment and account notifications',
