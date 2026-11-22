@@ -1,3 +1,5 @@
+import 'currency_formatter.dart';
+
 /// Reads the compact method allocation saved in a payment's method note.
 class PaymentMethodBreakdown {
   static const marker = 'Split amounts:';
@@ -29,10 +31,18 @@ class PaymentMethodBreakdown {
   static bool includes(String? note, String method) =>
       parse(note).containsKey(method.toLowerCase());
 
-  static String? display(String? note) {
-    final amounts = parseOrdered(note);
-    if (amounts.isEmpty) return null;
-    String title(String method) => method
+  static String methodLabel(String method) {
+    switch (method.trim().toLowerCase()) {
+      case 'cash':
+        return 'Cash';
+      case 'cheque':
+        return 'Cheque';
+      case 'neft':
+        return 'NEFT';
+      case 'gpay':
+        return 'GPay';
+    }
+    return method
         .split('_')
         .map(
           (part) => part.isEmpty
@@ -40,12 +50,20 @@ class PaymentMethodBreakdown {
               : '${part[0].toUpperCase()}${part.substring(1)}',
         )
         .join(' ');
-    return amounts
-        .map(
-          (entry) =>
-              '${title(entry.method)} ₹${entry.amount.toStringAsFixed(2)}',
-        )
-        .join(' + ');
+  }
+
+  /// One "Method ₹amount" line per method used in a split payment, or an
+  /// empty list when the payment used a single method.
+  static List<String> lines(String? note) => parseOrdered(note)
+      .map(
+        (entry) =>
+            '${methodLabel(entry.method)} ${CurrencyFormatter.rupees(entry.amount)}',
+      )
+      .toList(growable: false);
+
+  static String? display(String? note) {
+    final parts = lines(note);
+    return parts.isEmpty ? null : parts.join(' + ');
   }
 
   static String? additionalNote(String? note) {

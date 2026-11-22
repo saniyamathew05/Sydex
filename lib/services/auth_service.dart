@@ -176,18 +176,15 @@ class AuthService {
 
     final companyName = metadata['company_name']?.toString().trim();
     final ownerName = metadata['name']?.toString().trim();
-    if (companyName == null ||
-        companyName.isEmpty ||
-        ownerName == null ||
-        ownerName.isEmpty) {
+    if (companyName == null || companyName.isEmpty) {
       return;
     }
 
-    await _supabase.rpc('register_company', params: {'p_name': companyName});
-    await _supabase.from('profiles').upsert({
-      'id': user.id,
-      'name': ownerName,
-      'role': 'owner',
-    });
+    // The server creates the company, the owner membership and the owner
+    // profile in one transaction. The client never writes its own role.
+    await _supabase.rpc(
+      'register_company',
+      params: {'p_name': companyName, 'p_owner_name': ownerName},
+    );
   }
 }

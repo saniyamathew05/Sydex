@@ -28,6 +28,7 @@ import '../payments/payment_screen.dart';
 
 import '../purchases/add_purchase_screen.dart';
 import '../../services/currency_formatter.dart';
+import '../../widgets/edit_payment_dialog.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -1038,190 +1039,34 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     await _refreshCustomerData();
   }
 
-  Future<void> _editReceivedPayment(Map<String, dynamic> entry) async {
+  Future<void> _editReceivedPayment(
+    Map<String, dynamic> entry, {
+    bool dateOnly = false,
+  }) async {
     final paymentId = entry['id']?.toString();
     if (paymentId == null || paymentId.isEmpty) return;
-
-    final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
-    final discount = (entry['discount'] as num?)?.toDouble() ?? 0;
-    final amountController = TextEditingController(
-      text: amount.toStringAsFixed(2),
+    final result = await showEditPaymentDialog(
+      context,
+      amount: (entry['amount'] as num?)?.toDouble() ?? 0,
+      discount: (entry['discount'] as num?)?.toDouble() ?? 0,
+      notes: entry['notes']?.toString() ?? '',
+      method: entry['payment_method']?.toString() ?? 'cash',
+      methodNote: entry['payment_method_note']?.toString() ?? '',
+      transactionDate:
+          DateTime.tryParse(entry['transaction_date']?.toString() ?? '') ??
+          DateTime.now(),
+      dateOnly: dateOnly,
     );
-    final discountController = TextEditingController(
-      text: discount.toStringAsFixed(2),
-    );
-    final notesController = TextEditingController(
-      text: entry['notes']?.toString() ?? '',
-    );
-    final methodNoteController = TextEditingController(
-      text: entry['payment_method_note']?.toString() ?? '',
-    );
-    var method = (entry['payment_method']?.toString() ?? 'cash').toLowerCase();
-    const methods = ['cash', 'cheque', 'neft', 'gpay'];
-    if (!methods.contains(method)) method = 'cash';
-    final formKey = GlobalKey<FormState>();
-    DateTime paymentDate;
-    try {
-      paymentDate = DateTime.parse(
-        entry['transaction_date'].toString(),
-      ).toLocal();
-    } catch (_) {
-      paymentDate = DateTime.now();
-    }
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Edit received payment'),
-          content: SizedBox(
-            width: 440,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Settlement amount (₹)',
-                      ),
-                      validator: (value) {
-                        final parsed = double.tryParse((value ?? '').trim());
-                        return parsed == null || parsed <= 0
-                            ? 'Enter an amount greater than zero'
-                            : null;
-                      },
-                    ),
-                    TextFormField(
-                      controller: discountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Discount (₹)',
-                      ),
-                      validator: (value) {
-                        final parsed = double.tryParse((value ?? '').trim());
-                        final enteredAmount =
-                            double.tryParse(amountController.text.trim()) ?? 0;
-                        return parsed == null ||
-                                parsed < 0 ||
-                                parsed >= enteredAmount
-                            ? 'Discount must be less than amount'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: paymentDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                          helpText: 'Select payment date',
-                        );
-                        if (picked != null) {
-                          setDialogState(() {
-                            paymentDate = DateTime(
-                              picked.year,
-                              picked.month,
-                              picked.day,
-                              paymentDate.hour,
-                              paymentDate.minute,
-                              paymentDate.second,
-                            );
-                          });
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Payment Date',
-                          prefixIcon: Icon(Icons.calendar_today_outlined),
-                        ),
-                        child: Text(_formatDate(paymentDate)),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: method,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(
-                          value: 'cheque',
-                          child: Text('Cheque'),
-                        ),
-                        DropdownMenuItem(value: 'neft', child: Text('NEFT')),
-                        DropdownMenuItem(
-                          value: 'gpay',
-                          child: Text('GPay / Online'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => method = value);
-                      },
-                    ),
-                    TextFormField(
-                      controller: methodNoteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method note',
-                      ),
-                    ),
-                    TextFormField(
-                      controller: notesController,
-                      decoration: const InputDecoration(labelText: 'Notes'),
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(dialogContext, {
-                  'amount': double.parse(amountController.text.trim()),
-                  'discount': double.parse(discountController.text.trim()),
-                  'notes': notesController.text,
-                  'method': method,
-                  'methodNote': methodNoteController.text,
-                  'transactionDate': paymentDate,
-                });
-              },
-              child: const Text('Save changes'),
-            ),
-          ],
-        ),
-      ),
-    );
-    amountController.dispose();
-    discountController.dispose();
-    notesController.dispose();
-    methodNoteController.dispose();
     if (result == null || !mounted) return;
 
     final success = await TransactionService.updatePayment(
       paymentId: paymentId,
-      amount: result['amount'] as double,
-      discount: result['discount'] as double,
-      notes: result['notes'] as String,
-      paymentMethod: result['method'] as String,
-      paymentMethodNote: result['methodNote'] as String,
-      transactionDate: result['transactionDate'] as DateTime,
+      amount: result.amount,
+      discount: result.discount,
+      notes: result.notes,
+      paymentMethod: result.method,
+      paymentMethodNote: result.methodNote,
+      transactionDate: result.transactionDate,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2065,6 +1910,52 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     )));
     amount.dispose(); notes.dispose();
     if (result == true) await _refreshAfterPurchaseChange();
+  }
+
+  Future<void> _changeEntryDate(Map<String, dynamic> entry) async {
+    final entryId = entry['id']?.toString();
+    if (entryId == null || entryId.isEmpty) return;
+    final current =
+        DateTime.tryParse(
+          entry['transaction_date']?.toString() ?? '',
+        )?.toLocal() ??
+        DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Change entry date',
+    );
+    if (picked == null || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'update_entry_date',
+        params: {
+          'p_entry_id': entryId,
+          'p_transaction_date': DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            current.hour,
+            current.minute,
+            current.second,
+          ).toUtc().toIso8601String(),
+        },
+      );
+      await _refreshAfterPurchaseChange();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Date updated.')));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not change the date: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _deleteReceivedPayment(Map<String, dynamic> entry) async {
@@ -3296,6 +3187,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       tooltip: 'Edit received payment',
                       onPressed: () => _editReceivedPayment(entry),
                       icon: const Icon(Icons.edit_outlined),
+                    ),
+
+                  if (_isOwner &&
+                      (isBouncedCheck ||
+                          (type == 'payment' && entry['is_bounced'] == true)))
+                    IconButton(
+                      tooltip: 'Change date',
+                      onPressed: () => _changeEntryDate(entry),
+                      icon: const Icon(Icons.edit_calendar_outlined),
                     ),
 
                   if (_isOwner &&

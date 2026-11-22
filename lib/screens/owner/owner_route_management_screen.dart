@@ -473,9 +473,10 @@ class _OwnerRouteManagementScreenState
           .insert({
             'company_id': companyId,
             'route_name': name,
-            'locations': <String>[],
+            'locations': _locationsForSelectedCustomers(),
+            'customer_ids': _selectedCustomerIds.toList(),
           })
-          .select('id, route_name, locations, updated_at, company_id')
+          .select('id, route_name, locations, customer_ids, updated_at, company_id')
           .single();
       if (!mounted) return;
       setState(() {
@@ -486,10 +487,13 @@ class _OwnerRouteManagementScreenState
           ),
         );
         _selectedRouteId = row['id'].toString();
-        _selectedCustomerIds = <String>{};
         _routeNameController.clear();
       });
-      _message('Route created. Select its locations below.');
+      _message(
+        _selectedCustomerIds.isEmpty
+            ? 'Route created. Add its customers below.'
+            : 'Route created with ${_selectedCustomerIds.length} customers.',
+      );
     } catch (error) {
       debugPrint('Create route failed: $error');
       _message(
@@ -776,8 +780,12 @@ class _OwnerRouteManagementScreenState
     Set<String> selected,
     List<Customer> eligible,
   ) async {
-    final selectedCustomers = eligible
-        .where((customer) => selected.contains(customer.id))
+    // Show customers in route order (the order they were selected), which is
+    // the same order and numbering the salesman sees.
+    final byId = {for (final customer in eligible) customer.id: customer};
+    final selectedCustomers = selected
+        .map((id) => byId[id])
+        .whereType<Customer>()
         .toList();
     await showDialog<void>(
       context: parentContext,
@@ -796,6 +804,17 @@ class _OwnerRouteManagementScreenState
                       final customer = selectedCustomers[index];
                       return ListTile(
                         dense: true,
+                        leading: SizedBox(
+                          width: 32,
+                          child: Text(
+                            '${index + 1}.',
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
                         title: Text(customer.businessName),
                         subtitle: Text(customer.location),
                         trailing: IconButton(
@@ -842,6 +861,7 @@ class _OwnerRouteManagementScreenState
     // would accidentally add every customer in it.
     final selectedLocations = <String>{};
     var searchQuery = '';
+    var applied = false;
 
     await showDialog<void>(
       context: context,
@@ -948,6 +968,7 @@ class _OwnerRouteManagementScreenState
                       ...selectedIds,
                     },
                   );
+                  applied = selectedIds.isNotEmpty;
                   Navigator.pop(dialogContext);
                 },
                 child: const Text('Use locations'),
@@ -957,6 +978,9 @@ class _OwnerRouteManagementScreenState
         },
       ),
     );
+    if (applied && mounted && _selectedRoute != null) {
+      await _saveTemplateLocations();
+    }
   }
 
   Future<void> _assignForToday() async {
@@ -1939,12 +1963,20 @@ class _OwnerRouteManagementScreenState
                                   onPressed: _saving
                                       ? null
                                       : () async {
+                                          final before = _selectedCustomerIds
+                                              .length;
                                           await _showSelectedCustomers(
                                             context,
                                             _selectedCustomerIds,
                                             CustomerService.customers,
                                           );
-                                          if (mounted) setState(() {});
+                                          if (!mounted) return;
+                                          setState(() {});
+                                          if (_selectedCustomerIds.length !=
+                                                  before &&
+                                              _selectedRoute != null) {
+                                            await _saveTemplateLocations();
+                                          }
                                         },
                                   icon: const Icon(Icons.visibility_outlined),
                                   label: const Text('View selection'),
@@ -1981,7 +2013,7 @@ class _OwnerRouteManagementScreenState
                                   ? null
                                   : _saveTemplateLocations,
                               icon: const Icon(Icons.save_outlined),
-                              label: Text('Save customer selection'),
+                              label: const Text('Save route'),
                             ),
                             OutlinedButton.icon(
                               onPressed: _saving || _selectedRoute == null
@@ -2394,34 +2426,42 @@ class _OwnerRouteManagementScreenState
                               .join();
                           return ListTile(
                             contentPadding: const EdgeInsetsDirectional.only(
-                              start: 56,
+                              start: 16,
                               end: 16,
                             ),
-                            leading: CircleAvatar(
-                              child: Text(initials.isEmpty ? '?' : initials),
-                            ),
-                            title: Row(
+                            leading: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (serialNumber != null) ...[
-                                  Text(
-                                    '$serialNumber.',
+                                SizedBox(
+                                  width: 32,
+                                  child: Text(
+                                    serialNumber == null
+                                        ? ''
+                                        : '$serialNumber.',
+                                    textAlign: TextAlign.end,
                                     style: TextStyle(
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w700,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                ],
-                                Expanded(
+                                ),
+                                const SizedBox(width: 10),
+                                CircleAvatar(
                                   child: Text(
-                                    customer.businessName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    initials.isEmpty ? '?' : initials,
                                   ),
                                 ),
                               ],
+                            ),
+                            title: Text(
+                              customer.businessName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

@@ -34,6 +34,7 @@ import 'salesman_visit_audit_screen.dart';
 import 'owner_route_management_screen.dart';
 import 'owner_notifications_screen.dart';
 import 'owner_ai_assistant_screen.dart';
+import '../../widgets/edit_payment_dialog.dart';
 
 class OwnerMainScreen extends StatefulWidget {
   final String userName;
@@ -2186,171 +2187,24 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   Future<void> _editPayment(PaymentTransaction payment) async {
-    final amountController = TextEditingController(
-      text: payment.amount.toStringAsFixed(2),
+    final result = await showEditPaymentDialog(
+      context,
+      amount: payment.amount,
+      discount: payment.discount,
+      notes: payment.notes,
+      method: payment.paymentMethod,
+      methodNote: payment.paymentMethodNote,
+      transactionDate: payment.transactionDate,
     );
-    final discountController = TextEditingController(
-      text: payment.discount.toStringAsFixed(2),
-    );
-    final notesController = TextEditingController(text: payment.notes);
-    final methodNoteController = TextEditingController(
-      text: payment.paymentMethodNote,
-    );
-    var method = payment.paymentMethod.trim().toLowerCase();
-    const methods = ['cash', 'cheque', 'neft', 'gpay'];
-    if (!methods.contains(method)) method = 'cash';
-    var paymentDate = payment.transactionDate.toLocal();
-    final formKey = GlobalKey<FormState>();
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Edit received payment'),
-          content: SizedBox(
-            width: 440,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Settlement amount (₹)',
-                      ),
-                      validator: (v) {
-                        final n = double.tryParse((v ?? '').trim());
-                        return n == null || n <= 0
-                            ? 'Enter an amount greater than zero'
-                            : null;
-                      },
-                    ),
-                    TextFormField(
-                      controller: discountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Discount (₹)',
-                      ),
-                      validator: (v) {
-                        final n = double.tryParse((v ?? '').trim());
-                        final a =
-                            double.tryParse(amountController.text.trim()) ?? 0;
-                        return n == null || n < 0 || n >= a
-                            ? 'Discount must be less than amount'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: paymentDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                          helpText: 'Select payment date',
-                        );
-                        if (picked != null) {
-                          setDialogState(() {
-                            paymentDate = DateTime(
-                              picked.year,
-                              picked.month,
-                              picked.day,
-                              paymentDate.hour,
-                              paymentDate.minute,
-                              paymentDate.second,
-                            );
-                          });
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Payment Date',
-                          prefixIcon: Icon(Icons.calendar_today_outlined),
-                        ),
-                        child: Text(_formatDate(paymentDate)),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: method,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(
-                          value: 'cheque',
-                          child: Text('Cheque'),
-                        ),
-                        DropdownMenuItem(value: 'neft', child: Text('NEFT')),
-                        DropdownMenuItem(
-                          value: 'gpay',
-                          child: Text('GPay / Online'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => method = value);
-                      },
-                    ),
-                    TextFormField(
-                      controller: methodNoteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method note',
-                      ),
-                    ),
-                    TextFormField(
-                      controller: notesController,
-                      decoration: const InputDecoration(labelText: 'Notes'),
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(dialogContext, {
-                  'amount': double.parse(amountController.text.trim()),
-                  'discount': double.parse(discountController.text.trim()),
-                  'notes': notesController.text,
-                  'method': method,
-                  'methodNote': methodNoteController.text,
-                  'transactionDate': paymentDate,
-                });
-              },
-              child: const Text('Save changes'),
-            ),
-          ],
-        ),
-      ),
-    );
-    amountController.dispose();
-    discountController.dispose();
-    notesController.dispose();
-    methodNoteController.dispose();
     if (result == null || !mounted) return;
     final success = await TransactionService.updatePayment(
       paymentId: payment.id,
-      amount: result['amount'] as double,
-      discount: result['discount'] as double,
-      notes: result['notes'] as String,
-      paymentMethod: result['method'] as String,
-      paymentMethodNote: result['methodNote'] as String,
-      transactionDate: result['transactionDate'] as DateTime,
+      amount: result.amount,
+      discount: result.discount,
+      notes: result.notes,
+      paymentMethod: result.method,
+      paymentMethodNote: result.methodNote,
+      transactionDate: result.transactionDate,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2424,7 +2278,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           const SizedBox(width: 106, child: Text('DATE')),
           const Expanded(flex: 3, child: Text('CUSTOMER')),
           const Expanded(flex: 2, child: Text('ENTERED BY')),
-          const SizedBox(width: 100, child: Text('METHOD')),
+          const SizedBox(width: 180, child: Text('METHOD')),
           const Expanded(flex: 2, child: Text('NOTES')),
           const SizedBox(
             width: 128,
@@ -2437,9 +2291,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   Widget _desktopLedgerRow(PaymentTransaction payment, ColorScheme colors) {
-    final method =
-        PaymentMethodBreakdown.display(payment.paymentMethodNote) ??
-        (payment.paymentMethod.trim().isEmpty ? '—' : payment.paymentMethod);
+    final splitLines = PaymentMethodBreakdown.lines(payment.paymentMethodNote);
+    final method = payment.paymentMethod.trim().isEmpty
+        ? '—'
+        : PaymentMethodBreakdown.methodLabel(payment.paymentMethod);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       child: Row(
@@ -2470,8 +2325,21 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           SizedBox(
-            width: 100,
-            child: Text(method, maxLines: 2, overflow: TextOverflow.ellipsis),
+            width: 180,
+            child: splitLines.isEmpty
+                ? Text(method, maxLines: 1, overflow: TextOverflow.ellipsis)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final line in splitLines)
+                        Text(
+                          line,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                    ],
+                  ),
           ),
           Expanded(
             flex: 2,
@@ -3103,15 +2971,16 @@ class _PaymentTile extends StatelessWidget {
                     ),
                   ),
 
-                  if (PaymentMethodBreakdown.display(payment.paymentMethodNote)
-                      case final splitDetails?) ...[
+                  for (final splitLine in PaymentMethodBreakdown.lines(
+                    payment.paymentMethodNote,
+                  )) ...[
                     const SizedBox(height: 3),
                     Text(
-                      splitDetails,
+                      splitLine,
                       style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
+                        color: colors.onSurface,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],

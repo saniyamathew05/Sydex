@@ -487,8 +487,10 @@ class _SalesmanHomeState extends State<SalesmanHome>
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not finish the route. Please try again.'),
+        SnackBar(
+          content: Text(
+            'Could not finish the route: ${error is PostgrestException ? error.message : error}',
+          ),
         ),
       );
     }
@@ -1168,7 +1170,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                       separatorBuilder: (_, _) => Divider(
                         height: 1,
                         thickness: 0.6,
-                        indent: 47,
+                        indent: 81,
                         color: colors.outlineVariant,
                       ),
                       itemBuilder: (context, index) {
@@ -1209,6 +1211,22 @@ class _SalesmanHomeState extends State<SalesmanHome>
                             ),
                             child: Row(
                               children: [
+                                SizedBox(
+                                  width: 26,
+                                  child: Text(
+                                    '${selectedRouteCustomerIds.indexOf(customer.id) + 1}.',
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      color: colors.onSurfaceVariant,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Container(
                                   width: 35,
                                   height: 35,

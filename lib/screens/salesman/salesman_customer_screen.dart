@@ -36,15 +36,60 @@ class _SalesmanCustomerDetailsScreenState
   late Customer _customer;
   bool _savingPhone = false;
 
-  Future<void> _editTransactionDate(Map<String, dynamic> entry, {required bool payment}) async {
-    var date = DateTime.tryParse(entry['transaction_date']?.toString() ?? '')?.toLocal() ?? DateTime.now();
-    final picked = await showDatePicker(context: context, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
-    if (picked == null || !mounted) return;
-    await Supabase.instance.client.rpc(
-      payment ? 'update_payment_date' : 'update_return_date',
-      params: {payment ? 'p_payment_id' : 'p_entry_id': entry['id'], 'p_transaction_date': picked.toUtc().toIso8601String()},
+  /// Changes the date of any entry (sale, payment, return). The server
+  /// recalculates the running balances afterwards.
+  Future<void> _editTransactionDate(
+    Map<String, dynamic> entry, {
+    bool payment = false,
+  }) async {
+    final entryId = entry['id']?.toString();
+    if (entryId == null || entryId.isEmpty) return;
+    final date =
+        DateTime.tryParse(
+          entry['transaction_date']?.toString() ?? '',
+        )?.toLocal() ??
+        DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: date,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Change entry date',
     );
-    await _loadSaleHistory();
+    if (picked == null || !mounted) return;
+    final newDate = DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+      date.hour,
+      date.minute,
+      date.second,
+    );
+    try {
+      await Supabase.instance.client.rpc(
+        'update_entry_date',
+        params: {
+          'p_entry_id': entryId,
+          'p_transaction_date': newDate.toUtc().toIso8601String(),
+        },
+      );
+      await TransactionService.loadTransactions();
+      await TransactionService.loadCustomerBalances();
+      await _loadCustomerHistory();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Date updated.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not change the date: ${error is PostgrestException ? error.message : error}',
+          ),
+        ),
+      );
+    }
   }
 
   List<Map<String, dynamic>> get _saleEntries => _ledgerEntries
@@ -307,13 +352,26 @@ class _SalesmanCustomerDetailsScreenState
         subtitle: Text(
           '${dateLabel.isEmpty ? 'Date unavailable' : dateLabel}${isRefusal ? '\n${entry['notes'] ?? 'Customer refused payment'}\n${CurrencyFormatter.currentAmountDue(TransactionService.getCustomerBalance(_customer.id))}' : ''}',
         ),
-        trailing: isRefusal ? null : Text(
-          '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: isRefusal ? color : (isSale ? Colors.red : Colors.green),
-          ),
-        ),
+        trailing: isRefusal
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isSale ? Colors.red : Colors.green,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Change date',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+                    onPressed: () => _editTransactionDate(entry),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -764,9 +822,7 @@ class _SalesmanCustomerDetailsScreenState
                   height: 54,
 
                   child: FilledButton.icon(
-                    onPressed: balance <= 0
-                        ? null
-                        : () async {
+                    onPressed: () async {
                             final paymentSaved = await Navigator.push<bool>(
                               context,
                               MaterialPageRoute(

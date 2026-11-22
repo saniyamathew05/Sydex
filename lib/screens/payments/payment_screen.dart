@@ -680,7 +680,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         );
       } else {
         _showMessage(
-          'Could not save the payment. Please try again.',
+          'Could not save the payment: ${error is PostgrestException ? error.message : message.replaceFirst('Exception: ', '')}',
 
           isError: true,
         );

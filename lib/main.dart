@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard, KeyEvent;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -78,15 +79,119 @@ class BusinessPaymentApp extends StatefulWidget {
   State<BusinessPaymentApp> createState() => _BusinessPaymentAppState();
 }
 
-class _BusinessPaymentAppState extends State<BusinessPaymentApp> {
+class _BusinessPaymentAppState extends State<BusinessPaymentApp>
+    with WidgetsBindingObserver {
+  /// Signed-in users are logged out after this long without any interaction.
+  static const _idleLimit = Duration(minutes: 5);
+
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  Timer? _idleTimer;
+  DateTime _lastActivity = DateTime.now();
+  bool _signingOut = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    _restartIdleTimer();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    _idleTimer?.cancel();
     super.dispose();
+  }
+
+  bool _onKeyEvent(KeyEvent event) {
+    _recordActivity();
+    return false;
+  }
+
+  void _recordActivity() {
+    final now = DateTime.now();
+    // Pointer moves fire very often; restarting the timer once a second is
+    // plenty for a five-minute limit.
+    if (now.difference(_lastActivity) < const Duration(seconds: 1)) return;
+    _lastActivity = now;
+    _restartIdleTimer();
+  }
+
+  void _restartIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(_idleLimit, () {
+      if (DateTime.now().difference(_lastActivity) >= _idleLimit) {
+        unawaited(
+          _signOutForSecurity(
+            'You were signed out after 5 minutes of inactivity.',
+          ),
+        );
+      } else {
+        _restartIdleTimer();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // Timers do not run while a mobile app is in the background, so
+        // check the elapsed time when the app comes back.
+        if (DateTime.now().difference(_lastActivity) >= _idleLimit) {
+          unawaited(
+            _signOutForSecurity(
+              'You were signed out after 5 minutes of inactivity.',
+            ),
+          );
+        } else {
+          _restartIdleTimer();
+        }
+      case AppLifecycleState.detached:
+        // The app is closing: drop the local session. Every launch also
+        // starts signed out (see main), in case the OS kills the process
+        // before this runs.
+        unawaited(
+          Supabase.instance.client.auth
+              .signOut(scope: SignOutScope.local)
+              .catchError((_) {}),
+        );
+      default:
+        break;
+    }
+  }
+
+  Future<void> _signOutForSecurity(String message) async {
+    if (_signingOut) return;
+    if (Supabase.instance.client.auth.currentUser == null) {
+      _lastActivity = DateTime.now();
+      _restartIdleTimer();
+      return;
+    }
+    _signingOut = true;
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      debugPrint('Automatic sign-out could not reach the server: $error');
+      try {
+        await Supabase.instance.client.auth.signOut(
+          scope: SignOutScope.local,
+        );
+      } catch (_) {}
+    }
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthGate()),
+      (route) => false,
+    );
+    _messengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+    _signingOut = false;
+    _lastActivity = DateTime.now();
+    _restartIdleTimer();
   }
 
   @override
@@ -115,6 +220,15 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp> {
 
           darkTheme: workspaceTheme(_buildDarkTheme(accent)),
 
+          navigatorKey: _navigatorKey,
+          scaffoldMessengerKey: _messengerKey,
+          builder: (context, child) => Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _recordActivity(),
+            onPointerMove: (_) => _recordActivity(),
+            onPointerSignal: (_) => _recordActivity(),
+            child: child ?? const SizedBox.shrink(),
+          ),
           home: const AuthGate(),
         ),
       ),
@@ -2729,8 +2843,17 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                                   setState(() => _obscure = !_obscure),
                             ),
                           ),
-                      validator: (v) =>
-                          v!.length < 12 ? 'Use at least 12 characters' : null,
+                      validator: (v) {
+                        final value = v ?? '';
+                        if (value.length < 12) {
+                          return 'Use at least 12 characters';
+                        }
+                        if (!RegExp(r'[A-Za-z]').hasMatch(value) ||
+                            !RegExp(r'[0-9]').hasMatch(value)) {
+                          return 'Include at least one letter and one number';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 18),
                     SizedBox(
