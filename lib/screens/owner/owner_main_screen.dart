@@ -21,6 +21,7 @@ import '../../models/transaction.dart';
 import '../../services/customer_service.dart';
 
 import '../../services/transaction_service.dart';
+import '../../services/currency_formatter.dart';
 import '../../services/payment_method_breakdown.dart';
 
 import '../settings/settings_screen.dart';
@@ -2014,6 +2015,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: colors.onErrorContainer),
                 ),
+                Text(
+                  CurrencyFormatter.currentAmountDue(
+                    TransactionService.getCustomerBalance(
+                      row['customer_id']?.toString() ?? '',
+                    ),
+                  ),
+                  style: TextStyle(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2035,6 +2047,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       );
     } catch (error) {
       debugPrint('Could not sync hidden payment visibility: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not hide payment: $error')),
+        );
+      }
       return;
     }
     await TransactionService.loadTransactions();

@@ -89,6 +89,9 @@ class CurrencyFormatter {
       ? 'Owed to customer: ${rupees(balance.abs())}'
       : 'Amount due: ${rupees(balance)}';
 
+  static String currentAmountDue(num balance) =>
+      'Current amount due: ${rupees(balance < 0 ? 0 : balance)}';
+
   /// Formats a ledger balance without displaying an unexplained negative.
   /// Negative balances represent customer credit/advance, not money due.
   static String balanceAfter(num balance) =>

@@ -83,8 +83,10 @@ class SalesmanVisitService {
       if (assignedIds.isNotEmpty) return assignedIds;
 
       // Customer IDs are the authoritative assignment. Empty means no customers assigned.
-    } catch (_) {
-      // The customer_ids column is optional for older deployed databases.
+    } on PostgrestException catch (error) {
+      // Only an older schema without customer_ids is an empty compatibility
+      // result. Network/auth failures must reach the UI so they can be retried.
+      if (error.code != '42703' && error.code != 'PGRST204') rethrow;
     }
     return <String>[];
   }

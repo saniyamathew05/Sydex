@@ -971,7 +971,10 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
             customerName,
             style: TextStyle(fontWeight: FontWeight.w800, color: error),
           ),
-          subtitle: Text('Payment refused • ${_formatDate(date)}\n$note'),
+          subtitle: Text(
+            'Payment refused • ${_formatDate(date)}\n$note\n'
+            '${CurrencyFormatter.currentAmountDue(TransactionService.getCustomerBalance(payment['customer_id']?.toString() ?? ''))}',
+          ),
           trailing: Text(
             'Refused',
             style: TextStyle(fontWeight: FontWeight.w800, color: error),

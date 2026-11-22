@@ -73,8 +73,15 @@ class _BusinessInformationScreenState extends State<BusinessInformationScreen> {
     });
 
     try {
+      final companyId = (await _supabase.rpc('current_company_id'))
+          ?.toString()
+          .trim();
+      if (companyId == null || companyId.isEmpty) {
+        throw StateError('This account is not linked to a business.');
+      }
       await _supabase.from('business_settings').upsert({
         'id': 1,
+        'company_id': companyId,
 
         'business_name': _businessNameController.text.trim(),
 
@@ -94,7 +101,7 @@ class _BusinessInformationScreenState extends State<BusinessInformationScreen> {
       Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
-        _showSnackBar('Could not save business information.');
+        _showSnackBar('Could not save business information: $error');
       }
     } finally {
       if (mounted) {

@@ -83,7 +83,9 @@ class _OwnerRouteManagementScreenState
   }
 
   int get _selectedCustomerCount {
-    final knownIds = CustomerService.customers.map((customer) => customer.id).toSet();
+    final knownIds = CustomerService.customers
+        .map((customer) => customer.id)
+        .toSet();
     return _selectedCustomerIds.where(knownIds.contains).length;
   }
 
@@ -260,8 +262,8 @@ class _OwnerRouteManagementScreenState
         final ids = raw is List
             ? raw.map((e) => e.toString()).toList()
             : raw is String
-                ? _decodeCustomerIds(raw).toList()
-                : const <String>[];
+            ? _decodeCustomerIds(raw).toList()
+            : const <String>[];
         if (id.isNotEmpty) {
           queuedAssignments.putIfAbsent(id, () => <String>[]).addAll(ids);
         }
@@ -570,71 +572,52 @@ class _OwnerRouteManagementScreenState
 
   Future<void> _saveTemplateLocations() async {
     final route = _selectedRoute;
-    if (route == null) return;
+    if (route == null || _saving) return;
+    final customerIds = _selectedCustomerIds.toList();
+    final locations = _locationsForSelectedCustomers();
     setState(() => _saving = true);
     try {
-      if (_selectedCustomerIds.isEmpty) {
-        _message('Select at least one customer first.');
-        return;
-      }
-      final locations = _locationsForSelectedCustomers();
-      await _client
+      final savedRoute = await _client
           .from('salesman_route_templates')
           .update({
             'locations': locations,
-            'customer_ids': _selectedCustomerIds.toList(),
+            'customer_ids': customerIds,
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
-          .eq('id', route['id'].toString());
+          .eq('id', route['id'].toString())
+          .select('id, locations, customer_ids')
+          .single();
       if (!mounted) return;
       setState(() {
         final index = _routes.indexWhere(
           (r) => r['id'].toString() == route['id'].toString(),
         );
         if (index >= 0) {
-          _routes[index] = {
-            ..._routes[index],
-            'locations': locations,
-            'customer_ids': _selectedCustomerIds.toList(),
-          };
+          _routes[index] = {..._routes[index], ...savedRoute};
         }
       });
-      _message('Default locations saved for ${route['route_name']}.');
+      _message('Customer selection saved for ${route['route_name']}.');
     } catch (error) {
       debugPrint('Save route locations failed: $error');
-      _message('Could not save these locations. Please try again.');
+      _message('Could not save the customer selection. Please try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _selectRouteCustomers() async {
-    final eligible =
-        CustomerService.customers
-            .where(
-              (customer) =>
-                  // A route should only be assigned from customers who
-                  // currently owe money. A customer whose balance reaches
-                  // zero after today's payment remains visible to the
-                  // salesman through today's visit/status record. Existing
-                  // assignments to other salesmen do not exclude a customer.
-                  TransactionService.getCustomerBalance(customer.id) > 0,
-            )
-            .toList()
-          ..sort(
-            (a, b) => a.businessName.toLowerCase().compareTo(
-              b.businessName.toLowerCase(),
-            ),
-          );
-    // Start with the current route selection so individual customer choices
-    // can be added to customers already included through locations.
-    // Keep the counter tied to real, currently selectable customers. Stale
-    // IDs from older route records must not inflate the displayed count.
-    final eligibleIds = eligible.map((customer) => customer.id).toSet();
-    final selected = Set<String>.from(_selectedCustomerIds)
-      ..retainAll(eligibleIds);
+    if (_saving) return;
+    final eligible = List<Customer>.from(CustomerService.customers)
+      ..sort(
+        (a, b) => a.businessName.toLowerCase().compareTo(
+          b.businessName.toLowerCase(),
+        ),
+      );
+    // Editing must preserve saved IDs even when a customer is not currently
+    // in the active customer list. Only an explicit removal changes membership.
+    final selected = Set<String>.from(_selectedCustomerIds);
     var searchQuery = '';
-    await showDialog<void>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -682,11 +665,7 @@ class _OwnerRouteManagementScreenState
                   const SizedBox(height: 10),
                   if (eligible.isEmpty)
                     const Expanded(
-                      child: Center(
-                        child: Text(
-                          'No customers with a pending balance found.',
-                        ),
-                      ),
+                      child: Center(child: Text('No active customers found.')),
                     )
                   else if (filteredEligible.isEmpty)
                     const Expanded(
@@ -701,6 +680,7 @@ class _OwnerRouteManagementScreenState
                           final otherSalesmen =
                               _otherSalesmenAssignedToCustomer(customer.id);
                           return CheckboxListTile(
+                            key: ValueKey(customer.id),
                             value: selected.contains(customer.id),
                             title: Text(customer.businessName),
                             subtitle: Column(
@@ -776,8 +756,7 @@ class _OwnerRouteManagementScreenState
               ),
               FilledButton(
                 onPressed: () {
-                  setState(() => _selectedCustomerIds = selected);
-                  Navigator.pop(dialogContext);
+                  Navigator.pop(dialogContext, true);
                 },
                 child: const Text('Save selection'),
               ),
@@ -786,10 +765,8 @@ class _OwnerRouteManagementScreenState
         },
       ),
     );
-    // Persist the exact checkbox selection immediately. Previously the dialog
-    // only changed local state, so reopening the route could fall back to its
-    // location list and show an unrelated customer count.
-    if (mounted && _selectedRoute != null && _selectedCustomerIds.isNotEmpty) {
+    if (confirmed == true && mounted) {
+      setState(() => _selectedCustomerIds = Set<String>.from(selected));
       await _saveTemplateLocations();
     }
   }
@@ -1896,6 +1873,7 @@ class _OwnerRouteManagementScreenState
                           const Text('Create your first route to get started.')
                         else
                           DropdownButtonFormField<String>(
+                            key: ValueKey(_selectedRouteId),
                             initialValue: _selectedRouteId,
                             decoration: const InputDecoration(
                               labelText: 'Saved route',
@@ -1958,11 +1936,16 @@ class _OwnerRouteManagementScreenState
                           trailing: _selectedCustomerCount == 0
                               ? null
                               : TextButton.icon(
-                                  onPressed: () => _showSelectedCustomers(
-                                    context,
-                                    _selectedCustomerIds,
-                                    CustomerService.customers,
-                                  ),
+                                  onPressed: _saving
+                                      ? null
+                                      : () async {
+                                          await _showSelectedCustomers(
+                                            context,
+                                            _selectedCustomerIds,
+                                            CustomerService.customers,
+                                          );
+                                          if (mounted) setState(() {});
+                                        },
                                   icon: const Icon(Icons.visibility_outlined),
                                   label: const Text('View selection'),
                                 ),
@@ -1972,7 +1955,7 @@ class _OwnerRouteManagementScreenState
                           runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: _selectedRoute == null
+                              onPressed: _saving || _selectedRoute == null
                                   ? null
                                   : _selectRouteCustomers,
                               icon: const Icon(Icons.people_alt_outlined),
@@ -1994,10 +1977,7 @@ class _OwnerRouteManagementScreenState
                           runSpacing: 8,
                           children: [
                             FilledButton.icon(
-                              onPressed:
-                                  _saving ||
-                                      _selectedRoute == null ||
-                                      _selectedCustomerIds.isEmpty
+                              onPressed: _saving || _selectedRoute == null
                                   ? null
                                   : _saveTemplateLocations,
                               icon: const Icon(Icons.save_outlined),

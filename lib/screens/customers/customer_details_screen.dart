@@ -91,11 +91,28 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   Future<void> _hideHistoryEntry(Map<String, dynamic> entry) async {
     final id = entry['id']?.toString();
     if (id == null || id.isEmpty) return;
-    if (entry['entry_type']?.toString() != 'payment') return;
-    await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
-      'p_payment_id': id,
-      'p_hidden': true,
-    });
+    if (entry['entry_type']?.toString() != 'payment') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only payments can be hidden. Use Delete to remove this entry.'),
+        ),
+      );
+      return;
+    }
+    try {
+      await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+        'p_payment_id': id,
+        'p_hidden': true,
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not hide entry: $error')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
     setState(() => _hiddenHistoryIds.add(id));
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -201,11 +218,34 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   Future<void> _finishHistorySelection() async {
     if (_selectedHistoryIds.isNotEmpty) {
+      final paymentIds = ledgerEntries
+          .where((entry) => entry['entry_type']?.toString() == 'payment')
+          .map((entry) => entry['id']?.toString())
+          .whereType<String>()
+          .toSet();
+      var skipped = 0;
       for (final id in _selectedHistoryIds) {
-        await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
-          'p_payment_id': id,
-          'p_hidden': true,
-        });
+        if (!paymentIds.contains(id)) {
+          skipped++;
+          continue;
+        }
+        try {
+          await Supabase.instance.client.rpc('set_payment_hidden_from_ledger', params: {
+            'p_payment_id': id,
+            'p_hidden': true,
+          });
+        } catch (_) {
+          skipped++;
+        }
+      }
+      if (skipped > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$skipped selected entr${skipped == 1 ? 'y was' : 'ies were'} not hidden. Only payments can be hidden.',
+            ),
+          ),
+        );
       }
       await _loadHiddenHistory();
       if (mounted) {
@@ -1565,28 +1605,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     final isPaid = _isPurchaseFullyPaid(entry);
     final isAccidental = _isAccidentalPurchase(entry);
 
-    if (!isPaid && !isAccidental) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This purchase has a payment recorded. It can be removed only after it has been fully paid.',
-          ),
-        ),
-      );
-      return;
-    }
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(isPaid ? 'Remove Paid Sale?' : 'Delete Accidental Sale?'),
+          title: const Text('Delete Sale?'),
           content: Text(
             isPaid
-                ? 'This purchase has already been fully paid. It will be removed from the customer transaction history. The payment records will remain unchanged.'
-                : 'This purchase has no payment recorded after it. It looks like an accidental purchase entry. Delete it permanently from the customer transaction history?',
+                ? 'This sale has already been fully paid. It will be removed and the customer balance recalculated. Payment records stay unchanged.'
+                : isAccidental
+                ? 'This sale has no payment recorded after it. Delete it permanently and recalculate the customer balance?'
+                : 'Payments were recorded after this sale. Deleting it will recalculate the balance, which may turn into an advance (credit) for the customer. Continue?',
           ),
           actions: [
             TextButton(
@@ -2020,10 +2049,60 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
         ListTile(title: const Text('Return date'), subtitle: Text(_formatDate(date)), onTap: () async { final picked = await showDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100)); if (picked != null) setState(() => date = picked); }),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () async { await Supabase.instance.client.rpc('update_return', params: {'p_entry_id': entry['id'], 'p_amount': double.tryParse(amount.text) ?? 0, 'p_notes': notes.text.trim(), 'p_transaction_date': date.toUtc().toIso8601String()}); if (dialogContext.mounted) Navigator.pop(dialogContext, true); }, child: const Text('Save'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () async {
+        final parsed = double.tryParse(amount.text.trim().replaceAll(',', ''));
+        if (parsed == null || parsed <= 0) {
+          ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Enter a valid return amount.')));
+          return;
+        }
+        try {
+          await Supabase.instance.client.rpc('update_return', params: {'p_entry_id': entry['id'], 'p_amount': parsed, 'p_notes': notes.text.trim(), 'p_transaction_date': date.toUtc().toIso8601String()});
+          if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+        } catch (error) {
+          if (dialogContext.mounted) ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('Could not update return: $error')));
+        }
+      }, child: const Text('Save'))],
     )));
     amount.dispose(); notes.dispose();
-    if (result == true) await _refreshCustomerData();
+    if (result == true) await _refreshAfterPurchaseChange();
+  }
+
+  Future<void> _deleteReceivedPayment(Map<String, dynamic> entry) async {
+    final paymentId = (entry['related_payment_id'] ?? entry['id'])?.toString();
+    if (paymentId == null || paymentId.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete payment?'),
+        content: Text(
+          'Delete the payment of ${_money((entry['amount'] as num?)?.toDouble() ?? 0)}? The customer balance and all later balances will be recalculated.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final success = await TransactionService.deletePayment(paymentId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Payment deleted and balance recalculated.'
+              : (TransactionService.errorMessage ??
+                    'Could not delete the payment.'),
+        ),
+      ),
+    );
+    if (success) await _refreshAfterPurchaseChange();
   }
 
   Future<void> _deleteSalesReturn(Map<String, dynamic> entry) async {
@@ -3169,23 +3248,19 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             ),
                           ),
                           PopupMenuItem<String>(
-                            value: 'delete_accidental',
-                            enabled: isAccidental,
-                            child: const ListTile(
+                            value: isPaid ? 'remove_paid' : 'delete_accidental',
+                            child: ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: Icon(Icons.delete_outline),
-                              title: Text('Delete Accidental Sale'),
-                            ),
-                          ),
-                          if (isPaid)
-                            const PopupMenuItem<String>(
-                              value: 'remove_paid',
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.remove_circle_outline),
-                                title: Text('Remove Paid Sale'),
+                              leading: const Icon(Icons.delete_outline),
+                              title: Text(
+                                isPaid
+                                    ? 'Remove Paid Sale'
+                                    : isAccidental
+                                    ? 'Delete Accidental Sale'
+                                    : 'Delete Sale',
                               ),
                             ),
+                          ),
                         ];
                       },
                     ),
@@ -3208,14 +3283,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Edit sales return')),
                         ),
                         const PopupMenuItem<String>(
-                          value: 'hide',
-                          child: ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.visibility_off_outlined),
-                            title: Text('Remove from customer history'),
-                          ),
-                        ),
-                        const PopupMenuItem<String>(
                           value: 'delete',
                           child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline), title: Text('Delete sales return')),
                         ),
@@ -3229,6 +3296,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       tooltip: 'Edit received payment',
                       onPressed: () => _editReceivedPayment(entry),
                       icon: const Icon(Icons.edit_outlined),
+                    ),
+
+                  if (_isOwner &&
+                      type == 'payment' &&
+                      entry['is_bounced'] != true)
+                    IconButton(
+                      tooltip: 'Delete payment',
+                      onPressed: () => _deleteReceivedPayment(entry),
+                      icon: const Icon(Icons.delete_outline),
                     ),
 
                   if (!isPurchase &&
@@ -3260,7 +3336,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ),
 
                   Text(
-                    isPurchase || isBouncedCheck
+                    isRefusal
+                        ? CurrencyFormatter.currentAmountDue(currentBalance)
+                        : isPurchase || isBouncedCheck
                         ? '+${_money(displayedAmount)}'
                         : '-${_money(displayedAmount)}',
 
@@ -3292,6 +3370,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 _detailRow('Outcome', 'Customer refused payment'),
+                const SizedBox(height: 8),
+                _detailRow(
+                  'Current amount due',
+                  _money(currentBalance < 0 ? 0 : currentBalance),
+                ),
                 if (notes.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   _detailRow('Note', notes),

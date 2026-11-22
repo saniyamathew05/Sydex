@@ -305,12 +305,10 @@ class _SalesmanCustomerDetailsScreenState
           ),
         ),
         subtitle: Text(
-          '${dateLabel.isEmpty ? 'Date unavailable' : dateLabel}${isRefusal ? '\n${entry['notes'] ?? 'Customer refused payment'}' : ''}',
+          '${dateLabel.isEmpty ? 'Date unavailable' : dateLabel}${isRefusal ? '\n${entry['notes'] ?? 'Customer refused payment'}\n${CurrencyFormatter.currentAmountDue(TransactionService.getCustomerBalance(_customer.id))}' : ''}',
         ),
-        trailing: Text(
-          isRefusal
-              ? '—'
-              : '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
+        trailing: isRefusal ? null : Text(
+          '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             color: isRefusal ? color : (isSale ? Colors.red : Colors.green),
@@ -1227,7 +1225,8 @@ class _SalesmanCustomerDetailsScreenState
                             ),
                           ),
                           subtitle: Text(
-                            'Refused on $dateLabel${note.isEmpty ? '' : '\n$note'}',
+                            'Refused on $dateLabel${note.isEmpty ? '' : '\n$note'}\n'
+                            '${CurrencyFormatter.currentAmountDue(balance)}',
                           ),
                         ),
                       );

@@ -37,7 +37,8 @@ class SalesmanHome extends StatefulWidget {
   State<SalesmanHome> createState() => _SalesmanHomeState();
 }
 
-class _SalesmanHomeState extends State<SalesmanHome> {
+class _SalesmanHomeState extends State<SalesmanHome>
+    with WidgetsBindingObserver {
   final TextEditingController searchController = TextEditingController();
 
   final SupabaseClient supabase = Supabase.instance.client;
@@ -47,6 +48,9 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   String customerStatusFilter = 'All';
 
   bool isLoading = true;
+  bool _loadRunning = false;
+  bool _reloadRequested = false;
+  String? _routeLoadError;
 
   List<String> selectedRouteLocations = <String>[];
   List<String> selectedRouteCustomerIds = <String>[];
@@ -66,11 +70,19 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
 
     _startPresenceMonitoring();
 
     _startForceLogoutListener();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_forcedLogoutInProgress) {
+      _loadData();
+    }
   }
 
   void _startPresenceMonitoring() {
@@ -167,6 +179,11 @@ class _SalesmanHomeState extends State<SalesmanHome> {
   }
 
   Future<void> _loadData() async {
+    if (_loadRunning) {
+      _reloadRequested = true;
+      return;
+    }
+    _loadRunning = true;
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -177,9 +194,14 @@ class _SalesmanHomeState extends State<SalesmanHome> {
     await TransactionService.loadTransactions();
 
     try {
-      selectedRouteLocations = await SalesmanVisitService.loadTodayRoute();
-      selectedRouteCustomerIds =
+      final locations = await SalesmanVisitService.loadTodayRoute();
+      final customerIds =
           await SalesmanVisitService.loadTodayCustomerIdsInOrder();
+      selectedRouteLocations = locations;
+      selectedRouteCustomerIds = customerIds;
+      _routeLoadError = CustomerService.errorMessage == null
+          ? null
+          : 'Could not refresh customers. Pull down to retry.';
       try {
         selectedRouteName =
             await SalesmanVisitService.loadRouteNameForCustomerIds(
@@ -193,6 +215,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
       todaysCustomerStatuses = await SalesmanVisitService.loadTodayStatuses();
     } catch (error) {
+      _routeLoadError = 'Could not refresh your route. Pull down to retry.';
       debugPrint('Could not load route/status data: $error');
     }
 
@@ -214,11 +237,16 @@ class _SalesmanHomeState extends State<SalesmanHome> {
       }
     }
 
+    _loadRunning = false;
     if (!mounted) return;
 
     setState(() {
       isLoading = false;
     });
+    if (_reloadRequested) {
+      _reloadRequested = false;
+      unawaited(_loadData());
+    }
   }
 
   List<Customer> get routeCustomers {
@@ -894,9 +922,10 @@ class _SalesmanHomeState extends State<SalesmanHome> {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  route.isEmpty
-                      ? 'No customers are assigned today.'
-                      : '$pending customers remaining',
+                  _routeLoadError ??
+                      (route.isEmpty
+                          ? 'No customers are assigned today.'
+                          : '$pending customers remaining'),
                   style: TextStyle(
                     fontSize: 12,
                     color: colors.onSurfaceVariant,
@@ -1920,6 +1949,7 @@ class _SalesmanHomeState extends State<SalesmanHome> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _presenceTimer?.cancel();
 
     _forceLogoutChannel?.unsubscribe();
