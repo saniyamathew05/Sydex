@@ -35,6 +35,8 @@ import 'owner_route_management_screen.dart';
 import 'owner_notifications_screen.dart';
 import 'owner_ai_assistant_screen.dart';
 import '../../widgets/edit_payment_dialog.dart';
+import '../../theme/sydex_theme.dart';
+import '../../widgets/sydex_ui.dart';
 
 class OwnerMainScreen extends StatefulWidget {
   final String userName;
@@ -127,10 +129,24 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
     });
   }
 
+  bool _desktopLayout = false;
+
   void _openReports() {
-    setState(() {
-      _selectedIndex = 3;
-    });
+    if (_desktopLayout) {
+      setState(() => _selectedIndex = 3);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OwnerReportsScreen()),
+    );
+  }
+
+  void _openCardImport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OldCardImportScreen()),
+    );
   }
 
   Future<void> _openVisitAudit() async {
@@ -257,64 +273,8 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
 
-    // The MaterialApp owns the active brand accent. Reusing it here keeps
-    // every owner page in sync with the saved business appearance.
-    final colors = baseTheme.colorScheme;
-
-    final polishedTheme = baseTheme.copyWith(
-      colorScheme: colors,
-
-      scaffoldBackgroundColor: colors.surfaceContainerLowest,
-
-      appBarTheme: baseTheme.appBarTheme.copyWith(
-        backgroundColor: colors.surfaceContainerLowest,
-
-        surfaceTintColor: Colors.transparent,
-
-        elevation: 0,
-
-        scrolledUnderElevation: 0,
-
-        titleTextStyle: TextStyle(
-          color: colors.onSurface,
-
-          fontSize: 20,
-
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-
-      navigationBarTheme: NavigationBarThemeData(
-        height: 64,
-
-        backgroundColor: colors.surface,
-
-        indicatorColor: Colors.transparent,
-
-        elevation: 8,
-
-        labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(
-            fontSize: 10,
-
-            fontWeight: FontWeight.w700,
-
-            color: colors.onSurface,
-          ),
-        ),
-      ),
-
-      cardTheme: baseTheme.cardTheme.copyWith(
-        elevation: 0,
-
-        margin: EdgeInsets.zero,
-
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.outlineVariant),
-        ),
-      ),
-    );
+    // The Sydex theme already defines every surface; use it unchanged.
+    final polishedTheme = baseTheme;
 
     final pages = [
       OwnerDashboard(
@@ -326,6 +286,11 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
         onOpenNotifications: _openNotifications,
         onOpenVisitAudit: _openVisitAudit,
         onOpenRoute: _openPlaces,
+        onOpenReports: _openReports,
+        onOpenAssistant: _openAIAssistant,
+        onReceivePayment: _openReceivePayment,
+        onOpenCardImport: _openCardImport,
+        onOpenSalesmen: _openSalesmen,
       ),
 
       const CustomersScreen(),
@@ -333,6 +298,8 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
       const PaymentsScreen(),
 
       const OwnerReportsScreen(),
+
+      SettingsScreen(role: 'owner', userName: widget.userName),
     ];
 
     _visitedDesktopPages.add(_selectedIndex);
@@ -346,6 +313,11 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
         onOpenRoute: _openPlaces,
         onAddCustomer: _openAddCustomer,
         onRecordPurchase: _openAddPurchase,
+        onOpenReports: _openReports,
+        onOpenAssistant: _openAIAssistant,
+        onReceivePayment: _openReceivePayment,
+        onOpenCardImport: _openCardImport,
+        onOpenSalesmen: _openSalesmen,
       ),
       const CustomersScreen(),
       const PaymentsScreen(),
@@ -376,6 +348,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
           // desktop window does not force the wide sidebar layout.
           final isDesktop =
               constraints.maxWidth >= (isNativeDesktop ? 900 : 1100);
+          _desktopLayout = isDesktop;
           if (isDesktop) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -450,47 +423,40 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
               ),
             );
           }
+          // Phone layout: each tab draws its own header; the bottom bar
+          // follows the Sydex design (Home, Customers, Payments, Routes, More).
+          final navIndex = _showMobileRoutes
+              ? 3
+              : switch (_selectedIndex) {
+                  1 => 1,
+                  2 => 2,
+                  4 => 4,
+                  _ => 0,
+                };
           return Scaffold(
-            appBar: AppBar(
-              automaticallyImplyLeading: false,
-              title: const Text(
-                'Sydex',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              actions: [
-                IconButton(
-                  tooltip: 'Settings',
-                  onPressed: _openSettings,
-                  icon: const Icon(Icons.settings_outlined),
-                ),
-                const SizedBox(width: 8),
-              ],
+            body: SafeArea(
+              bottom: false,
+              child: _showMobileRoutes
+                  ? const OwnerRouteManagementScreen(
+                      page: OwnerRoutePage.places,
+                    )
+                  : IndexedStack(
+                      index: _selectedIndex.clamp(0, pages.length - 1),
+                      children: pages,
+                    ),
             ),
-            body: _showMobileRoutes
-                ? const OwnerRouteManagementScreen(page: OwnerRoutePage.places)
-                : IndexedStack(
-                    index: _selectedIndex.clamp(0, 3),
-                    children: pages,
-                  ),
-            floatingActionButton: FloatingActionButton.small(
-              heroTag: 'sydie-mobile-fab',
-              tooltip: 'Open Sydie assistant',
-              onPressed: _openAIAssistant,
-              child: const Icon(Icons.auto_awesome_rounded, size: 19),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             bottomNavigationBar: NavigationBar(
-              selectedIndex: _showMobileRoutes ? 4 : _selectedIndex.clamp(0, 3),
+              selectedIndex: navIndex,
               onDestinationSelected: (index) {
                 setState(() {
-                  _showMobileRoutes = index == 4;
-                  if (index < 4) _selectedIndex = index;
+                  _showMobileRoutes = index == 3;
+                  if (index != 3) _selectedIndex = index;
                 });
               },
               destinations: const [
                 NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard_rounded),
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
                   label: 'Home',
                 ),
                 NavigationDestination(
@@ -504,14 +470,14 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
                   label: 'Payments',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.bar_chart_outlined),
-                  selectedIcon: Icon(Icons.bar_chart_rounded),
-                  label: 'Reports',
-                ),
-                NavigationDestination(
                   icon: Icon(Icons.route_outlined),
                   selectedIcon: Icon(Icons.route_rounded),
                   label: 'Routes',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.grid_view_outlined),
+                  selectedIcon: Icon(Icons.grid_view_rounded),
+                  label: 'More',
                 ),
               ],
             ),
@@ -613,7 +579,7 @@ class _OwnerHomeContent extends StatelessWidget {
             const Text(
               'Business Overview',
 
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -677,7 +643,7 @@ class _OwnerHomeContent extends StatelessWidget {
 
                               fontSize: 16,
 
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
 
@@ -787,7 +753,7 @@ class _OwnerHomeContent extends StatelessWidget {
 
                               fontSize: 18,
 
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
 
@@ -903,7 +869,7 @@ class _PaymentCustomerPickerState extends State<_PaymentCustomerPicker> {
                       style: TextStyle(
                         fontSize: 20,
 
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
 
                         color: colors.onSurface,
                       ),
@@ -1035,7 +1001,7 @@ class _PaymentCustomerPickerState extends State<_PaymentCustomerPicker> {
 
                                             fontSize: 14,
 
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
 
@@ -1072,7 +1038,7 @@ class _PaymentCustomerPickerState extends State<_PaymentCustomerPicker> {
 
                                           fontSize: 13,
 
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
 
@@ -1139,29 +1105,10 @@ class _DashboardSummary extends StatelessWidget {
           padding: const EdgeInsets.all(22),
 
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-
-              end: Alignment.bottomRight,
-
-              colors: [
-                colors.primary,
-
-                Color.lerp(colors.primary, Colors.black, 0.38)!,
-              ],
-            ),
+            color: SydexColors.hero(context),
 
             borderRadius: BorderRadius.circular(22),
 
-            boxShadow: [
-              BoxShadow(
-                color: colors.primary.withValues(alpha: 0.18),
-
-                blurRadius: 22,
-
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
 
           child: Column(
@@ -1236,7 +1183,7 @@ class _DashboardSummary extends StatelessWidget {
 
                   fontSize: 33,
 
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
 
                   letterSpacing: -1,
                 ),
@@ -1382,7 +1329,7 @@ class _PrimaryActionCard extends StatelessWidget {
 
                         fontSize: 14,
 
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
 
@@ -1611,7 +1558,7 @@ class _TodayCard extends StatelessWidget {
 
                   fontSize: 16,
 
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -1747,7 +1694,7 @@ class _SmallStatCard extends StatelessWidget {
 
                     fontSize: 14,
 
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -1861,7 +1808,7 @@ class _TodayStat extends StatelessWidget {
 
                 fontSize: 13,
 
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -1984,18 +1931,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         ? customer['business_name']?.toString() ?? 'Customer'
         : 'Customer';
     final date = row['status_date']?.toString() ?? '';
-    return Container(
-      margin: const EdgeInsets.only(top: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.errorContainer,
-        border: Border(bottom: BorderSide(color: colors.surface)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.block_outlined, color: colors.error, size: 22),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2005,36 +1945,35 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: colors.error,
-                    fontWeight: FontWeight.w800,
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14.5,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  'Refused • $date • ${row['note'] ?? 'Customer refused payment'}',
+                  '$date · ${row['note'] ?? 'Customer refused payment'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.onErrorContainer),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   CurrencyFormatter.currentAmountDue(
                     TransactionService.getCustomerBalance(
                       row['customer_id']?.toString() ?? '',
                     ),
                   ),
-                  style: TextStyle(
-                    color: colors.onErrorContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            'Refused',
-            style: TextStyle(color: colors.error, fontWeight: FontWeight.w800),
-          ),
+          const SydexBadge('Refused', tone: SydexTone.negative),
         ],
       ),
     );
@@ -2358,7 +2297,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: colors.primary,
               ),
             ),
@@ -2408,25 +2347,32 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     final colors = theme.colorScheme;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
+    const dateOptions = <String, String>{
+      'All dates': 'all',
+      'Today': 'today',
+      'This week': 'week',
+      'This month': 'month',
+      'Date range…': 'date',
+    };
+    const methodOptions = <String, String>{
+      'All methods': 'all',
+      'Cash': 'cash',
+      'Cheque': 'cheque',
+      'NEFT': 'neft',
+      'GPay': 'gpay',
+      'Online': 'online',
+      'Refused': 'refused',
+    };
+    String labelFor(Map<String, String> options, String value) =>
+        options.entries
+            .firstWhere(
+              (entry) => entry.value == value,
+              orElse: () => options.entries.first,
+            )
+            .key;
+
     return Scaffold(
       backgroundColor: colors.surfaceContainerLowest,
-      appBar: AppBar(
-        title: const Text(
-          'Payment Ledger',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        backgroundColor: colors.surfaceContainerLowest,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Refresh ledger',
-            onPressed: TransactionService.loadTransactions,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: ValueListenableBuilder<int>(
         valueListenable: TransactionService.dataVersion,
         builder: (context, version, child) {
@@ -2481,185 +2427,111 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             onRefresh: TransactionService.loadTransactions,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(isDesktop ? 24 : 14),
+              padding: EdgeInsets.fromLTRB(
+                isDesktop ? 24 : 20,
+                isDesktop ? 24 : 16,
+                isDesktop ? 24 : 20,
+                28,
+              ),
               children: [
-                Text(
-                  'A chronological record of customer payments. '
-                  'Scroll the table sideways to see all columns.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: isDesktop ? 330 : double.infinity,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          labelText: 'Search ledger',
-                          hintText: 'Customer, method, or note',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _searchQuery.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear search',
-                                  onPressed: _searchController.clear,
-                                  icon: const Icon(Icons.clear_rounded),
-                                ),
-                          filled: true,
-                          fillColor: colors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
+                SydexScreenHeader(
+                  eyebrow: 'Chronological record',
+                  title: 'Payments',
+                  actions: [
+                    SydexIconButton(
+                      icon: Icons.refresh_rounded,
+                      tooltip: 'Refresh ledger',
+                      onPressed: TransactionService.loadTransactions,
                     ),
-                    SizedBox(
-                      width: isDesktop ? 190 : 155,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _dateFilter,
-                        decoration: InputDecoration(
-                          labelText: 'Date range',
-                          filled: true,
-                          fillColor: colors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'all',
-                            child: Text('All dates'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'today',
-                            child: Text('Today'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'week',
-                            child: Text('This week'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'month',
-                            child: Text('This month'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'date',
-                            child: Text('Choose date range…'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          if (value == 'date') {
-                            _chooseDate();
-                          } else {
-                            setState(() {
-                              _dateFilter = value;
-                              _selectedDateRange = null;
-                              _selectedDate = null;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: isDesktop ? 180 : 155,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _methodFilter,
-                        decoration: InputDecoration(
-                          labelText: 'Payment method',
-                          filled: true,
-                          fillColor: colors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'all',
-                            child: Text('All methods'),
-                          ),
-                          DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                          DropdownMenuItem(
-                            value: 'cheque',
-                            child: Text('Cheque'),
-                          ),
-                          DropdownMenuItem(value: 'neft', child: Text('NEFT')),
-                          DropdownMenuItem(value: 'gpay', child: Text('GPay')),
-                          DropdownMenuItem(
-                            value: 'online',
-                            child: Text('Online'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'refused',
-                            child: Text('Refused'),
-                          ),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _methodFilter = value ?? 'all'),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _dateFilter = 'all';
-                          _methodFilter = 'all';
-                          _selectedDate = null;
-                          _selectedDateRange = null;
-                        });
-                      },
-                      icon: const Icon(Icons.filter_alt_off_rounded),
-                      label: const Text('Reset'),
-                    ),
-                    if (_dateFilter == 'date' && _selectedDateRange != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          'Dates: ${_formatDate(_selectedDateRange!.start)} – ${_formatDate(_selectedDateRange!.end)}',
-                          style: TextStyle(color: colors.onSurfaceVariant),
-                        ),
-                      ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 620;
-                    final statChildren = [
-                      _LedgerSummaryItem(
-                        label: 'Payments shown',
-                        value: '${timeline.length}',
-                        icon: Icons.receipt_long_rounded,
-                        colors: colors,
-                      ),
-                      _LedgerSummaryItem(
+                const SizedBox(height: 16),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isDesktop ? 420 : double.infinity,
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Customer, method, or note',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              onPressed: _searchController.clear,
+                              icon: const Icon(Icons.clear_rounded),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SydexChoiceChips(
+                  options: dateOptions.keys.toList(),
+                  selected: labelFor(dateOptions, _dateFilter),
+                  onSelected: (label) {
+                    final value = dateOptions[label]!;
+                    if (value == 'date') {
+                      _chooseDate();
+                    } else {
+                      setState(() {
+                        _dateFilter = value;
+                        _selectedDateRange = null;
+                        _selectedDate = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                SydexChoiceChips(
+                  options: methodOptions.keys.toList(),
+                  selected: labelFor(methodOptions, _methodFilter),
+                  onSelected: (label) =>
+                      setState(() => _methodFilter = methodOptions[label]!),
+                ),
+                if (_dateFilter == 'date' && _selectedDateRange != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Dates: ${_formatDate(_selectedDateRange!.start)} – ${_formatDate(_selectedDateRange!.end)}',
+                            style: TextStyle(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _dateFilter = 'all';
+                              _methodFilter = 'all';
+                              _selectedDate = null;
+                              _selectedDateRange = null;
+                            });
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SydexStatTile(
                         label: 'Total received',
                         value: _money(total),
-                        icon: Icons.south_west_rounded,
-                        colors: colors,
                       ),
-                    ];
-                    return compact
-                        ? Column(
-                            children: [
-                              statChildren[0],
-                              const SizedBox(height: 10),
-                              statChildren[1],
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(child: statChildren[0]),
-                              const SizedBox(width: 12),
-                              Expanded(child: statChildren[1]),
-                            ],
-                          );
-                  },
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SydexStatTile(
+                        label: 'Payments shown',
+                        value: '${timeline.length}',
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 18),
                 if (TransactionService.isLoading &&
@@ -2725,23 +2597,39 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     ),
                   )
                 else
-                  ...timeline.map(
-                    (entry) => entry.payment != null
-                        ? _PaymentTile(
-                            payment: entry.payment!,
-                            date: _formatDate(
-                              entry.payment!.transactionDate.toLocal(),
-                            ),
-                            displayedReceived: _amountForCurrentMethod(
-                              entry.payment!,
-                            ),
-                            selectedMethod: _methodFilter,
-                            colors: colors,
-                            onEdit: () => _editPayment(entry.payment!),
-                            onHide: () => _hidePayment(entry.payment!),
-                            onDelete: () => _deletePayment(entry.payment!),
-                          )
-                        : _buildRefusedPaymentCard(entry.refused!, colors),
+                  SydexCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < timeline.length; i++) ...[
+                          if (i > 0)
+                            Divider(height: 1, color: colors.outlineVariant),
+                          timeline[i].payment != null
+                              ? _PaymentTile(
+                                  payment: timeline[i].payment!,
+                                  date: _formatDate(
+                                    timeline[i].payment!.transactionDate
+                                        .toLocal(),
+                                  ),
+                                  displayedReceived: _amountForCurrentMethod(
+                                    timeline[i].payment!,
+                                  ),
+                                  selectedMethod: _methodFilter,
+                                  colors: colors,
+                                  onEdit: () =>
+                                      _editPayment(timeline[i].payment!),
+                                  onHide: () =>
+                                      _hidePayment(timeline[i].payment!),
+                                  onDelete: () =>
+                                      _deletePayment(timeline[i].payment!),
+                                )
+                              : _buildRefusedPaymentCard(
+                                  timeline[i].refused!,
+                                  colors,
+                                ),
+                        ],
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -2803,7 +2691,7 @@ class _LedgerSummaryItem extends StatelessWidget {
                   style: TextStyle(
                     color: colors.onSurface,
                     fontSize: 19,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -2854,193 +2742,161 @@ class _PaymentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final splitLines = PaymentMethodBreakdown.parseOrdered(
+      payment.paymentMethodNote,
+    );
+    String money(double value) => CurrencyFormatter.rupees(value);
     return GestureDetector(
       onLongPress: onHide,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-
-        padding: const EdgeInsets.all(15),
-
-        decoration: BoxDecoration(
-          color: colors.surface,
-
-          borderRadius: BorderRadius.circular(17),
-
-          border: Border.all(color: colors.outlineVariant),
-        ),
-
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-            Container(
-              width: 42,
-
-              height: 42,
-
-              decoration: BoxDecoration(
-                color: colors.primaryContainer,
-
-                borderRadius: BorderRadius.circular(12),
-              ),
-
-              child: Icon(
-                Icons.payments_outlined,
-
-                color: colors.onPrimaryContainer,
-
-                size: 20,
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          payment.customerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        money(displayedReceived),
+                        style: TextStyle(
+                          color: colors.secondary,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
                   Text(
-                    payment.customerName,
-
+                    '$date · Received by ${payment.receivedBy}',
                     maxLines: 1,
-
                     overflow: TextOverflow.ellipsis,
-
-                    style: TextStyle(
-                      color: colors.onSurface,
-
-                      fontSize: 14,
-
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    'Received by: ${payment.receivedBy}',
-
-                    maxLines: 1,
-
-                    overflow: TextOverflow.ellipsis,
-
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
-
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
                   ),
-
-                  const SizedBox(height: 3),
-                  Text(
-                    '${payment.reference} • Server confirmed',
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 11,
+                  const SizedBox(height: 8),
+                  if (splitLines.length > 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          for (final part in splitLines)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      PaymentMethodBreakdown.methodLabel(
+                                        part.method,
+                                      ),
+                                      style: const TextStyle(fontSize: 12.5),
+                                    ),
+                                  ),
+                                  Text(
+                                    money(part.amount),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        SydexBadge(
+                          PaymentMethodBreakdown.methodLabel(
+                            payment.paymentMethod.isEmpty
+                                ? 'cash'
+                                : payment.paymentMethod,
+                          ),
+                        ),
+                        Text(
+                          payment.reference,
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-
-                  const SizedBox(height: 3),
-
-                  Text(
-                    date,
-
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-
-                      fontSize: 11,
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    selectedMethod == 'all'
-                        ? 'Settlement: ₹${payment.amount.toStringAsFixed(2)}  •  '
-                              'Received: ₹${displayedReceived.toStringAsFixed(2)}'
-                        : 'Received via ${selectedMethod.toUpperCase()}: '
-                              '₹${displayedReceived.toStringAsFixed(2)}',
-
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-
-                      fontSize: 10.5,
-
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  for (final splitLine in PaymentMethodBreakdown.lines(
-                    payment.paymentMethodNote,
-                  )) ...[
-                    const SizedBox(height: 3),
+                  if (selectedMethod == 'all' &&
+                      (payment.amount - displayedReceived).abs() >= .01) ...[
+                    const SizedBox(height: 6),
                     Text(
-                      splitLine,
+                      'Settlement ${money(payment.amount)}',
                       style: TextStyle(
-                        color: colors.onSurface,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        color: colors.onSurfaceVariant,
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
-
                   if (payment.discount > 0) ...[
-                    const SizedBox(height: 3),
-
+                    const SizedBox(height: 2),
                     Text(
-                      'Discount given: ₹${payment.discount.toStringAsFixed(2)}',
-
-                      style: TextStyle(
-                        color: colors.error,
-
-                        fontSize: 10.5,
-
-                        fontWeight: FontWeight.w600,
-                      ),
+                      'Discount given ${money(payment.discount)}',
+                      style: TextStyle(color: colors.error, fontSize: 11.5),
                     ),
                   ],
                 ],
               ),
             ),
-
-            const SizedBox(width: 6),
-
+            const SizedBox(width: 4),
             PopupMenuButton<String>(
               tooltip: 'Payment actions',
-
               onSelected: (value) {
                 if (value == 'hide') onHide();
                 if (value == 'delete') onDelete();
                 if (value == 'edit') onEdit();
               },
-
               itemBuilder: (context) => const [
+                PopupMenuItem<String>(value: 'edit', child: Text('Edit payment')),
                 PopupMenuItem<String>(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit_outlined),
-                      SizedBox(width: 10),
-                      Text('Edit Payment'),
-                    ],
-                  ),
+                  value: 'hide',
+                  child: Text('Hide from ledger'),
                 ),
                 PopupMenuItem<String>(
                   value: 'delete',
-
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline_rounded),
-
-                      SizedBox(width: 10),
-
-                      Text('Delete Payment'),
-                    ],
-                  ),
+                  child: Text('Delete payment'),
                 ),
               ],
-
               icon: Icon(
                 Icons.more_vert_rounded,
                 color: colors.onSurfaceVariant,
@@ -3107,7 +2963,7 @@ class _EmptyPayments extends StatelessWidget {
 
                 fontSize: 17,
 
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
 

@@ -11,6 +11,7 @@ import 'customer_details_screen.dart';
 import '../payments/payment_screen.dart';
 import '../purchases/add_purchase_screen.dart';
 import '../../widgets/horizon_motion.dart';
+import '../../widgets/sydex_ui.dart';
 
 /// Sydex customer directory.
 /// Keeps the existing CustomerService and TransactionService data flow.
@@ -35,10 +36,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
   String? _selectedGroupId;
   Set<String> _selectedGroupCustomerIds = const {};
 
-  Color get _green => Theme.of(context).colorScheme.primary;
   Color get _greenBright => Theme.of(context).colorScheme.secondary;
   Color get _page => Theme.of(context).scaffoldBackgroundColor;
-  Color get _ink => Theme.of(context).colorScheme.onSurface;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
   Color get _border => Theme.of(context).colorScheme.outlineVariant;
 
@@ -325,50 +324,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final background = isDark
         ? Theme.of(context).scaffoldBackgroundColor
         : _page;
-    final surface = Theme.of(context).colorScheme.surface;
     final foreground = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
       backgroundColor: background,
-      appBar: AppBar(
-        backgroundColor: surface,
-        foregroundColor: foreground,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: 20,
-        title: Text(
-          'Customers',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 21,
-            letterSpacing: -0.4,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: FilledButton.icon(
-              onPressed: _addCustomer,
-              style: FilledButton.styleFrom(
-                backgroundColor: _green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              icon: const Icon(Icons.add_rounded, size: 19),
-              label: Text(
-                'Add Customer',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         color: _greenBright,
         onRefresh: _loadData,
@@ -378,10 +337,35 @@ class _CustomersScreenState extends State<CustomersScreen> {
             valueListenable: TransactionService.dataVersion,
             builder: (context, _, _) {
               final customers = _filteredCustomers;
+              final totalDue = CustomerService.customers.fold<double>(
+                0,
+                (sum, customer) {
+                  final balance = TransactionService.getCustomerBalance(
+                    customer.id,
+                  );
+                  return sum + (balance > 0 ? balance : 0);
+                },
+              );
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                    child: SydexScreenHeader(
+                      eyebrow:
+                          '${CustomerService.customers.length} active · ${CurrencyFormatter.rupees(totalDue, decimals: 0)} due',
+                      title: 'Customers',
+                      actions: [
+                        SydexIconButton(
+                          icon: Icons.add_rounded,
+                          tooltip: 'Add customer',
+                          onPressed: _addCustomer,
+                          filled: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                     child: Column(
                       children: [
                         TextField(
@@ -390,32 +374,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           style: TextStyle(color: foreground, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Search by name, phone or location...',
-                            hintStyle: TextStyle(color: _muted, fontSize: 13),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: _muted,
-                              size: 21,
-                            ),
+                            prefixIcon: const Icon(Icons.search_rounded),
                             suffixIcon: _searchQuery.isEmpty
                                 ? null
                                 : IconButton(
+                                    tooltip: 'Clear search',
                                     onPressed: _searchController.clear,
                                     icon: const Icon(Icons.close_rounded),
                                   ),
-                            filled: true,
-                            fillColor: surface,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                              horizontal: 14,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: _border),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: _green, width: 1.4),
-                            ),
                           ),
                         ),
                         if (_searchQuery.isEmpty &&
@@ -448,26 +414,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       ],
                     ),
                   ),
-                  SizedBox(
-                    height: 42,
-                    child: Scrollbar(
-                      controller: _locationsScrollController,
-                      thumbVisibility: true,
-                      trackVisibility: true,
-                      thickness: 7,
-                      radius: const Radius.circular(8),
-                      child: ListView.separated(
-                        controller: _locationsScrollController,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 4,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _locations.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final location = _locations[index];
-                          final selected = location == _selectedLocation;
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+                    child: Builder(
+                      builder: (context) {
+                        String labelOf(String location) {
                           final count = location == 'All'
                               ? CustomerService.customers.length
                               : CustomerService.customers
@@ -477,34 +428,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                           location.toLowerCase(),
                                     )
                                     .length;
-                          return ChoiceChip(
-                            selected: selected,
-                            showCheckmark: false,
-                            label: Text('$location ($count)'),
-                            labelStyle: TextStyle(
-                              color: selected ? Colors.white : _ink,
-                              fontSize: 12,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                            selectedColor: _greenBright,
-                            backgroundColor: surface,
-                            side: BorderSide(
-                              color: selected ? _greenBright : _border,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            onSelected: (_) =>
-                                setState(() => _selectedLocation = location),
-                          );
-                        },
-                      ),
+                          return '$location ($count)';
+                        }
+
+                        final labels = {
+                          for (final location in _locations)
+                            labelOf(location): location,
+                        };
+                        return SydexChoiceChips(
+                          options: labels.keys.toList(),
+                          selected: labelOf(_selectedLocation),
+                          onSelected: (label) => setState(
+                            () => _selectedLocation = labels[label] ?? 'All',
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
                     child: Column(
                       children: [
                         Row(
@@ -537,26 +479,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         ),
                         if (_groups.isNotEmpty) ...[
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String?>(
-                            initialValue: _selectedGroupId,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Customer group',
-                              prefixIcon: Icon(Icons.folder_outlined),
-                            ),
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('All customer groups'),
-                              ),
-                              ..._groups.map(
-                                (group) => DropdownMenuItem<String?>(
-                                  value: group.id,
-                                  child: Text(group.name),
-                                ),
-                              ),
-                            ],
-                            onChanged: _selectGroup,
+                          Builder(
+                            builder: (context) {
+                              const all = 'All customer groups';
+                              final names = <String, String?>{
+                                all: null,
+                                for (final group in _groups) group.name: group.id,
+                              };
+                              final selected = names.entries
+                                  .firstWhere(
+                                    (entry) => entry.value == _selectedGroupId,
+                                    orElse: () => names.entries.first,
+                                  )
+                                  .key;
+                              return SydexChoiceChips(
+                                options: names.keys.toList(),
+                                selected: selected,
+                                onSelected: (name) => _selectGroup(names[name]),
+                              );
+                            },
                           ),
                         ],
                       ],
@@ -628,17 +569,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               Expanded(
                                 child: ListView.separated(
                                   padding: const EdgeInsets.fromLTRB(
-                                    18,
-                                    4,
-                                    18,
+                                    20,
+                                    6,
+                                    20,
                                     24,
                                   ),
                                   itemCount: customers.length,
-                                  separatorBuilder: (_, _) => Divider(
-                                    height: 1,
-                                    color: isDark ? Colors.white12 : _border,
-                                    indent: 58,
-                                  ),
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 10),
                                   itemBuilder: (context, index) {
                                     final customer = customers[index];
                                     final balance =
@@ -738,170 +676,100 @@ class _CustomerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final foreground = Theme.of(context).colorScheme.onSurface;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final scheme = Theme.of(context).colorScheme;
-    final primary = scheme.primary;
-    final surface = Theme.of(context).colorScheme.surface;
-    final desktop = MediaQuery.sizeOf(context).width >= 900;
-    final initials = customer.businessName.trim().isEmpty
-        ? '?'
-        : customer.businessName
-              .trim()
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((p) => p[0])
-              .join()
-              .toUpperCase();
     final due = balance > 0;
-    return Material(
-      color: surface,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 13),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? const [Color(0xFF155A3A), Color(0xFF123023)]
-                        : const [Color(0xFFDDF3E5), Color(0xFFC9E5D1)],
-                  ),
-                ),
-                child: Text(
-                  initials,
+    final balanceLabel = balance < 0
+        ? 'Advance'
+        : balance == 0
+        ? 'Settled'
+        : 'Due';
+    return SydexCard(
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+      child: Row(
+        children: [
+          SydexAvatar(customer.businessName, size: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  customer.businessName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                    color: foreground,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      customer.businessName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: foreground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 13,
-                          color: muted,
-                        ),
-                        const SizedBox(width: 3),
-                        Flexible(
-                          child: Text(
-                            customer.location,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: muted, fontSize: 11),
-                          ),
-                        ),
-                        Text(
-                          '  ·  ',
-                          style: TextStyle(color: muted, fontSize: 11),
-                        ),
-                        Flexible(
-                          child: Text(
-                            customer.phone,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: muted, fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  [customer.location, customer.phone]
+                      .where((part) => part.trim().isNotEmpty)
+                      .join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: muted, fontSize: 12),
                 ),
-              ),
-              if (desktop) ...[
-                const SizedBox(width: 18),
-                SizedBox(
-                  width: 205,
-                  child: Text(
-                    lastPayment,
-                    style: TextStyle(color: muted, fontSize: 10),
-                    maxLines: 2,
-                  ),
-                ),
-                const SizedBox(width: 18),
-              ],
-              if (!desktop) ...[
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 92,
-                  child: Text(
+                if (lastPayment.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
                     lastPayment,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(color: muted, fontSize: 10),
-                  ),
-                ),
-              ],
-              SizedBox(
-                width: desktop ? 125 : null,
-                child: Text(
-                  balance < 0
-                      ? 'To give ${_money(balance.abs())}'
-                      : _money(balance),
-                  textAlign: desktop ? TextAlign.right : TextAlign.left,
-                  style: TextStyle(
-                    color: due ? scheme.error : scheme.tertiary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              if (!desktop) const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                tooltip: 'Customer options',
-                icon: Icon(Icons.more_vert_rounded, size: 19, color: muted),
-                onSelected: (value) {
-                  if (value == 'delete') onDelete();
-                  if (value == 'view') onTap();
-                  if (value == 'payment') onPayment();
-                  if (value == 'purchase') onPurchase();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'view', child: Text('View customer')),
-                  PopupMenuItem(
-                    value: 'payment',
-                    child: Text('Record payment'),
-                  ),
-                  PopupMenuItem(
-                    value: 'purchase',
-                    child: Text('Record new purchase'),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Remove customer'),
+                    style: TextStyle(color: muted, fontSize: 11),
                   ),
                 ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _money(balance.abs()),
+                style: TextStyle(
+                  color: balance < 0 ? scheme.secondary : foreground,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.5,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-              Icon(Icons.chevron_right_rounded, color: muted, size: 20),
+              const SizedBox(height: 2),
+              Text(
+                balanceLabel,
+                style: TextStyle(
+                  color: due ? scheme.error : muted,
+                  fontSize: 11,
+                ),
+              ),
             ],
           ),
-        ),
+          PopupMenuButton<String>(
+            tooltip: 'Customer options',
+            icon: Icon(Icons.more_vert_rounded, size: 20, color: muted),
+            onSelected: (value) {
+              if (value == 'delete') onDelete();
+              if (value == 'view') onTap();
+              if (value == 'payment') onPayment();
+              if (value == 'purchase') onPurchase();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'view', child: Text('View customer')),
+              PopupMenuItem(value: 'payment', child: Text('Record payment')),
+              PopupMenuItem(
+                value: 'purchase',
+                child: Text('Record new purchase'),
+              ),
+              PopupMenuItem(value: 'delete', child: Text('Remove customer')),
+            ],
+          ),
+        ],
       ),
     );
   }

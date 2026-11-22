@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/owner/owner_main_screen.dart';
 
 import 'screens/salesman/salesman_home.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 
 import 'services/theme_controller.dart';
 import 'services/history_display_settings.dart';
@@ -19,7 +20,7 @@ import 'services/auth_service.dart';
 import 'services/login_connection.dart';
 import 'services/business_date_service.dart';
 import 'services/currency_formatter.dart';
-import 'theme/horizon_tokens.dart';
+import 'theme/sydex_theme.dart';
 import 'theme/workspace_theme.dart';
 
 Future<void> main() async {
@@ -62,6 +63,7 @@ Future<void> main() async {
   await OwnerDisplaySettings.load();
   await CurrencyFormatter.load();
   await BusinessDateService.load();
+  await OnboardingStore.load();
 
   runApp(const BusinessPaymentApp());
 }
@@ -216,9 +218,9 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
               ? Duration.zero
               : const Duration(milliseconds: 220),
 
-          theme: workspaceTheme(_buildLightTheme(accent)),
+          theme: workspaceTheme(buildSydexTheme(Brightness.light, accent)),
 
-          darkTheme: workspaceTheme(_buildDarkTheme(accent)),
+          darkTheme: workspaceTheme(buildSydexTheme(Brightness.dark, accent)),
 
           navigatorKey: _navigatorKey,
           scaffoldMessengerKey: _messengerKey,
@@ -235,691 +237,6 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
     );
   }
 
-  // ==========================================================
-
-  // LIGHT THEME
-
-  // ==========================================================
-
-  ThemeData _buildLightTheme(Color primary) {
-    final secondary = primary.withValues(alpha: .88);
-    final primaryContainer = Color.alphaBlend(
-      primary.withValues(alpha: .14),
-      Colors.white,
-    );
-    final onPrimaryContainer = Color.lerp(primary, Colors.black, .32)!;
-
-    const background = HorizonTokens.background;
-
-    const surface = Color(0xFFFFFFFF);
-
-    const border = HorizonTokens.border;
-
-    const textPrimary = HorizonTokens.text;
-
-    const textSecondary = HorizonTokens.muted;
-
-    final colorScheme = ColorScheme.light(
-      primary: primary,
-
-      onPrimary: Colors.white,
-
-      primaryContainer: primaryContainer,
-
-      onPrimaryContainer: onPrimaryContainer,
-
-      secondary: secondary,
-
-      onSecondary: Colors.white,
-
-      secondaryContainer: primaryContainer,
-
-      onSecondaryContainer: onPrimaryContainer,
-
-      surface: surface,
-
-      onSurface: textPrimary,
-
-      surfaceContainerLowest: Colors.white,
-
-      surfaceContainerLow: const Color(0xFFFAFCFA),
-
-      surfaceContainer: const Color(0xFFF3F7F4),
-
-      surfaceContainerHigh: const Color(0xFFEAF3EC),
-
-      surfaceContainerHighest: const Color(0xFFE2EDE4),
-
-      onSurfaceVariant: textSecondary,
-
-      outline: const Color(0xFFBFCFC2),
-
-      outlineVariant: border,
-
-      error: const Color(0xFFDC2626),
-
-      onError: Colors.white,
-
-      errorContainer: const Color(0xFFFEE2E2),
-
-      onErrorContainer: const Color(0xFF7F1D1D),
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-
-      brightness: Brightness.light,
-
-      colorScheme: colorScheme,
-
-      textTheme: HorizonTokens.textTheme(
-        ThemeData.light().textTheme,
-      ).apply(bodyColor: textPrimary, displayColor: textPrimary),
-
-      primaryTextTheme: ThemeData.light().primaryTextTheme.apply(
-        bodyColor: Colors.white,
-        displayColor: Colors.white,
-      ),
-
-      iconTheme: const IconThemeData(color: textSecondary),
-
-      listTileTheme: const ListTileThemeData(
-        textColor: textPrimary,
-        iconColor: textSecondary,
-      ),
-
-      popupMenuTheme: const PopupMenuThemeData(
-        color: surface,
-        textStyle: TextStyle(color: textPrimary),
-      ),
-
-      tooltipTheme: const TooltipThemeData(
-        decoration: BoxDecoration(
-          color: Color(0xFF071B12),
-          borderRadius: BorderRadius.all(Radius.circular(8)),
-        ),
-        textStyle: TextStyle(color: Colors.white),
-      ),
-
-      dataTableTheme: const DataTableThemeData(
-        headingTextStyle: TextStyle(
-          color: textPrimary,
-          fontWeight: FontWeight.w700,
-        ),
-        dataTextStyle: TextStyle(color: textPrimary),
-      ),
-
-      chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFFF3F7F4),
-        labelStyle: const TextStyle(color: textPrimary),
-        secondaryLabelStyle: const TextStyle(color: textPrimary),
-        side: const BorderSide(color: border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-
-      scaffoldBackgroundColor: background,
-
-      appBarTheme: const AppBarTheme(
-        backgroundColor: surface,
-
-        foregroundColor: textPrimary,
-
-        elevation: 0,
-
-        centerTitle: false,
-
-        surfaceTintColor: Colors.transparent,
-      ),
-
-      cardTheme: CardThemeData(
-        color: surface,
-
-        elevation: 0,
-
-        margin: EdgeInsets.zero,
-
-        surfaceTintColor: Colors.transparent,
-
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusCard),
-
-          side: const BorderSide(color: border),
-        ),
-      ),
-
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-
-        fillColor: const Color(0xFFF4F7F3),
-
-        floatingLabelBehavior: FloatingLabelBehavior.auto,
-
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-
-          vertical: 15,
-        ),
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: border),
-        ),
-
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: border),
-        ),
-
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: BorderSide(color: primary, width: 2),
-        ),
-
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: Color(0xFFDC2626)),
-        ),
-
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
-        ),
-
-        labelStyle: const TextStyle(color: textSecondary),
-
-        hintStyle: const TextStyle(color: Color(0xFF94A3A0)),
-
-        prefixIconColor: textSecondary,
-
-        suffixIconColor: textSecondary,
-      ),
-
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-
-          foregroundColor: Colors.white,
-
-          disabledBackgroundColor: const Color(0xFFCBD5D1),
-
-          disabledForegroundColor: const Color(0xFF657066),
-
-          elevation: 0,
-
-          minimumSize: const Size(0, 50),
-
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-          ),
-
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-
-          minimumSize: const Size(0, 50),
-
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-
-          side: const BorderSide(color: border),
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-          ),
-
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primary,
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primary,
-
-        foregroundColor: Colors.white,
-
-        elevation: 3,
-      ),
-
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-
-        indicatorColor: primaryContainer,
-
-        elevation: 0,
-
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TextStyle(
-              fontSize: 12,
-
-              fontWeight: FontWeight.w700,
-
-              color: primary,
-            );
-          }
-
-          return TextStyle(
-            fontSize: 12,
-
-            fontWeight: FontWeight.w500,
-
-            color: textSecondary,
-          );
-        }),
-
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: primary);
-          }
-
-          return const IconThemeData(color: textSecondary);
-        }),
-      ),
-
-      dividerTheme: const DividerThemeData(
-        color: border,
-
-        thickness: 1,
-
-        space: 1,
-      ),
-
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-
-        backgroundColor: const Color(0xFF071B12),
-
-        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
-
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-
-      dialogTheme: DialogThemeData(
-        backgroundColor: surface,
-
-        surfaceTintColor: Colors.transparent,
-
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      ),
-
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: surface,
-
-        surfaceTintColor: Colors.transparent,
-
-        showDragHandle: true,
-      ),
-
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
-    );
-  }
-
-  // ==========================================================
-
-  // DARK THEME
-
-  // ==========================================================
-
-  ThemeData _buildDarkTheme(Color accent) {
-    final primary = Color.lerp(accent, Colors.white, .42)!;
-
-    final secondary = Color.lerp(accent, Colors.white, .25)!;
-
-    const background = HorizonTokens.navy;
-
-    const surface = HorizonTokens.navySoft;
-
-    final primaryContainer = Color.alphaBlend(
-      accent.withValues(alpha: .34),
-      surface,
-    );
-
-    const border = Color(0xFF345245);
-
-    const textPrimary = Color(0xFFF3F7F4);
-
-    const textSecondary = Color(0xFFC0D0C4);
-
-    final colorScheme = ColorScheme.dark(
-      primary: primary,
-
-      onPrimary: const Color(0xFF063D28),
-
-      primaryContainer: primaryContainer,
-
-      onPrimaryContainer: const Color(0xFFDDF3E5),
-
-      secondary: secondary,
-
-      onSecondary: const Color(0xFF063D28),
-
-      secondaryContainer: primaryContainer,
-
-      onSecondaryContainer: const Color(0xFFDDF3E5),
-
-      surface: surface,
-
-      onSurface: textPrimary,
-
-      surfaceContainerLowest: const Color(0xFF071B12),
-
-      surfaceContainerLow: const Color(0xFF0D2A1D),
-
-      surfaceContainer: const Color(0xFF102B20),
-
-      surfaceContainerHigh: const Color(0xFF173729),
-
-      surfaceContainerHighest: const Color(0xFF1C4431),
-
-      onSurfaceVariant: textSecondary,
-
-      outline: const Color(0xFF73917E),
-
-      outlineVariant: border,
-
-      error: const Color(0xFFF87171),
-
-      onError: const Color(0xFF450A0A),
-
-      errorContainer: const Color(0xFF4C1D1D),
-
-      onErrorContainer: const Color(0xFFFECACA),
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-
-      brightness: Brightness.dark,
-
-      colorScheme: colorScheme,
-
-      textTheme: HorizonTokens.textTheme(
-        ThemeData.dark().textTheme,
-      ).apply(bodyColor: textPrimary, displayColor: textPrimary),
-
-      primaryTextTheme: ThemeData.dark().primaryTextTheme.apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
-      ),
-
-      iconTheme: const IconThemeData(color: textSecondary),
-
-      listTileTheme: const ListTileThemeData(
-        textColor: textPrimary,
-        iconColor: textSecondary,
-      ),
-
-      popupMenuTheme: const PopupMenuThemeData(
-        color: surface,
-        textStyle: TextStyle(color: textPrimary),
-      ),
-
-      tooltipTheme: const TooltipThemeData(
-        decoration: BoxDecoration(
-          color: Color(0xFF1C4431),
-          borderRadius: BorderRadius.all(Radius.circular(8)),
-        ),
-        textStyle: TextStyle(color: textPrimary),
-      ),
-
-      dataTableTheme: const DataTableThemeData(
-        headingTextStyle: TextStyle(
-          color: textPrimary,
-          fontWeight: FontWeight.w700,
-        ),
-        dataTextStyle: TextStyle(color: textPrimary),
-      ),
-
-      chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF173729),
-        labelStyle: const TextStyle(color: textPrimary),
-        secondaryLabelStyle: const TextStyle(color: textPrimary),
-        side: const BorderSide(color: border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-
-      scaffoldBackgroundColor: background,
-
-      appBarTheme: const AppBarTheme(
-        backgroundColor: background,
-
-        foregroundColor: textPrimary,
-
-        elevation: 0,
-
-        centerTitle: false,
-
-        surfaceTintColor: Colors.transparent,
-      ),
-
-      cardTheme: CardThemeData(
-        color: surface,
-
-        elevation: 0,
-
-        margin: EdgeInsets.zero,
-
-        surfaceTintColor: Colors.transparent,
-
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusCard),
-
-          side: const BorderSide(color: border),
-        ),
-      ),
-
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-
-        fillColor: const Color(0xFF102B20),
-
-        floatingLabelBehavior: FloatingLabelBehavior.auto,
-
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-
-          vertical: 15,
-        ),
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: border),
-        ),
-
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: border),
-        ),
-
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: BorderSide(color: primary, width: 2),
-        ),
-
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: Color(0xFFF87171)),
-        ),
-
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-
-          borderSide: const BorderSide(color: Color(0xFFF87171), width: 2),
-        ),
-
-        labelStyle: const TextStyle(color: textSecondary),
-
-        hintStyle: const TextStyle(color: Color(0xFFC0D0C4)),
-
-        prefixIconColor: textSecondary,
-
-        suffixIconColor: textSecondary,
-      ),
-
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-
-          foregroundColor: const Color(0xFF063D28),
-
-          disabledBackgroundColor: const Color(0xFF345245),
-
-          disabledForegroundColor: const Color(0xFFE0ECE2),
-
-          elevation: 0,
-
-          minimumSize: const Size(0, 50),
-
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(HorizonTokens.radiusSmall),
-          ),
-
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-        ),
-      ),
-
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-
-          minimumSize: const Size(0, 50),
-
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-
-          side: const BorderSide(color: border),
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primary,
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primary,
-
-        foregroundColor: Color(0xFF063D28),
-
-        elevation: 3,
-      ),
-
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-
-        indicatorColor: primaryContainer,
-
-        elevation: 0,
-
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TextStyle(
-              fontSize: 12,
-
-              fontWeight: FontWeight.w700,
-
-              color: primary,
-            );
-          }
-
-          return TextStyle(
-            fontSize: 12,
-
-            fontWeight: FontWeight.w500,
-
-            color: textSecondary,
-          );
-        }),
-
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: primary);
-          }
-
-          return const IconThemeData(color: textSecondary);
-        }),
-      ),
-
-      dividerTheme: const DividerThemeData(
-        color: border,
-
-        thickness: 1,
-
-        space: 1,
-      ),
-
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-
-        backgroundColor: const Color(0xFF1C4431),
-
-        contentTextStyle: const TextStyle(
-          color: Color(0xFFF3F7F4),
-
-          fontSize: 13,
-        ),
-
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-
-      dialogTheme: DialogThemeData(
-        backgroundColor: surface,
-
-        surfaceTintColor: Colors.transparent,
-
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      ),
-
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: surface,
-
-        surfaceTintColor: Colors.transparent,
-
-        showDragHandle: true,
-      ),
-
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
-    );
-  }
 }
 
 // ============================================================
@@ -1081,6 +398,9 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_emailConfirmed) return const EmailConfirmedScreen();
+    if (!OnboardingStore.seen.value && !isLoading) {
+      return OnboardingScreen(onFinished: () => setState(() {}));
+    }
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -1108,13 +428,6 @@ class EmailConfirmedScreen extends StatelessWidget {
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: colors.outlineVariant),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .07),
-                      blurRadius: 28,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1128,7 +441,7 @@ class EmailConfirmedScreen extends StatelessWidget {
                     Text(
                       'Email confirmed',
                       style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -1205,12 +518,18 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = ThemeController.accentColor.value;
-    final heroColor = Color.lerp(accent, Colors.black, .30)!;
-    const actionSurface = Color(0xFFFAFAF7);
-    const actionText = Color(0xFF17251E);
-    const actionMuted = Color(0xFF65736B);
+    final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.sizeOf(context);
     final isWide = size.width >= 760;
+    // Wide screens keep a dark brand panel; phones use the light layout.
+    final heroColor = isWide ? SydexColors.hero(context) : scheme.surfaceContainerLowest;
+    final onHero = isWide ? Colors.white : scheme.onSurface;
+    final onHeroMuted = isWide
+        ? Colors.white.withValues(alpha: .72)
+        : scheme.onSurfaceVariant;
+    final actionSurface = scheme.surfaceContainerLowest;
+    final actionText = scheme.onSurface;
+    final actionMuted = scheme.onSurfaceVariant;
     final isCompactPhone = !isWide && size.height < 720;
     final heroContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1224,7 +543,9 @@ class WelcomeScreen extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .14),
+                color: isWide
+                    ? Colors.white.withValues(alpha: .14)
+                    : scheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Image.asset(
@@ -1233,41 +554,39 @@ class WelcomeScreen extends StatelessWidget {
                 height: 30,
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
-                errorBuilder: (_, _, _) => const Icon(
+                errorBuilder: (_, _, _) => Icon(
                   Icons.account_balance_wallet_rounded,
-                  color: Colors.white,
+                  color: onHero,
                   size: 22,
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'Sydex',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
+                color: onHero,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        if (isWide) const Spacer() else const SizedBox(height: 20),
-        const Text(
+        if (isWide) const Spacer() else const SizedBox(height: 44),
+        Text(
           'Your business.\nBeautifully balanced.',
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 30,
+            color: onHero,
+            fontSize: isWide ? 34 : 34,
             height: 1.08,
-            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 12),
         Text(
           'A clear view of collections, balances, and customers.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: .78),
-            fontSize: 15,
-          ),
+          style: TextStyle(color: onHeroMuted, fontSize: 15),
         ),
         if (isWide) ...[
           const SizedBox(height: 26),
@@ -1294,33 +613,30 @@ class WelcomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                isWide
-                    ? 'Every payment. Every customer. In one place.'
-                    : 'Keep your business moving.',
-                style: TextStyle(
-                  color: actionText,
-                  fontSize: isWide ? 27 : 23,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
+              if (isWide) ...[
+                Text(
+                  'Every payment. Every customer. In one place.',
+                  style: TextStyle(
+                    color: actionText,
+                    fontSize: 27,
+                    height: 1.15,
+                    letterSpacing: -.6,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              SizedBox(height: isWide ? 12 : 8),
-              Text(
-                'Manage customer balances, record collections, and keep your business moving.',
-                style: const TextStyle(color: actionMuted, height: 1.45),
-              ),
-              SizedBox(height: isWide ? 28 : 18),
+                const SizedBox(height: 12),
+                Text(
+                  'Manage customer balances, record collections, and keep your business moving.',
+                  style: TextStyle(color: actionMuted, height: 1.45),
+                ),
+                const SizedBox(height: 28),
+              ],
               SizedBox(
                 width: double.infinity,
                 height: isWide ? 50 : 48,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                  ),
                   onPressed: () => _openRegistration(context),
-                  child: const Text('Get Started'),
+                  child: const Text('Get started'),
                 ),
               ),
               SizedBox(height: isWide ? 10 : 8),
@@ -1328,12 +644,8 @@ class WelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: isWide ? 50 : 48,
                 child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accent,
-                    side: BorderSide(color: accent.withValues(alpha: .48)),
-                  ),
                   onPressed: () => _openSignIn(context),
-                  child: const Text('Sign In'),
+                  child: const Text('Sign in'),
                 ),
               ),
               SizedBox(height: isWide ? 18 : 12),
@@ -1362,8 +674,8 @@ class WelcomeScreen extends StatelessWidget {
               )
             : Column(
                 children: [
-                  Expanded(flex: 6, child: hero),
-                  Expanded(flex: 5, child: actions),
+                  Expanded(child: hero),
+                  actions,
                 ],
               ),
       ),
@@ -1394,21 +706,27 @@ class _MobileWelcomeBenefits extends StatelessWidget {
                 vertical: compact ? 6 : 8,
               ),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .13),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: .16)),
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(item.$1, size: 15, color: Colors.white),
+                  Icon(
+                    item.$1,
+                    size: 15,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     item.$2,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -1540,7 +858,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               'TODAY’S COLLECTIONS',
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: Colors.black.withValues(alpha: .52),
               ),
             ),
@@ -1576,7 +894,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                 'NEW PURCHASE',
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black54,
                 ),
               ),
@@ -1584,7 +902,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               const Text(
                 'Atlas Supplies',
                 style: TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
               ),
@@ -1599,7 +917,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                   'Total  8,000',
                   style: TextStyle(
                     color: widget.accent,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1614,7 +932,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
               'TODAY’S ROUTE',
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: Colors.black54,
               ),
             ),
@@ -1694,7 +1012,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                     'RECEIVE PAYMENT',
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black54,
                     ),
                   ),
@@ -1703,7 +1021,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                     'Payment QR',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
@@ -1740,7 +1058,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
             value,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
@@ -1848,7 +1166,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
             value,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: positive ? widget.accent : Colors.black87,
             ),
           ),
@@ -1869,7 +1187,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
           label.toUpperCase(),
           style: const TextStyle(
             fontSize: 9,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: Colors.black54,
           ),
         ),
@@ -1878,7 +1196,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
           value,
           style: const TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
         ),
@@ -1932,7 +1250,7 @@ class _WelcomeFeatureCarouselState extends State<_WelcomeFeatureCarousel> {
                               style: const TextStyle(
                                 color: Colors.black54,
                                 fontSize: 10,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 3),
@@ -2007,7 +1325,7 @@ class _FeatureCustomerRow extends StatelessWidget {
             name.characters.first,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
@@ -2027,7 +1345,7 @@ class _FeatureCustomerRow extends StatelessWidget {
           amount,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: cleared ? const Color(0xFF16845A) : const Color(0xFFC44747),
           ),
         ),
@@ -2260,39 +1578,34 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Phones show the form directly on the page; wide screens keep a card.
+    final framed = MediaQuery.sizeOf(context).width >= 760;
     final card = Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.outlineVariant),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: .05),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-      ),
+      padding: framed ? const EdgeInsets.all(28) : EdgeInsets.zero,
+      decoration: framed
+          ? BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colors.outlineVariant),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Please enter your details',
-            style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Welcome back',
+            'Welcome back.',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -.6,
+              fontSize: framed ? 30 : 36,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -1,
+              height: 1.05,
               color: colors.onSurface,
             ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Sign in to your business ledger.',
+            style: TextStyle(fontSize: 15, color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 28),
           TextField(
@@ -2432,7 +1745,7 @@ class _LoginScreenState extends State<LoginScreen>
                         'Sydex',
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           color: colors.onSurface,
                         ),
                       ),
@@ -2556,7 +1869,7 @@ class _GoogleMark extends StatelessWidget {
       style: TextStyle(
         color: Color(0xFF4285F4),
         fontSize: 20,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -2715,12 +2028,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color.lerp(colors.primary, Colors.black, .22)!,
-                            colors.primary,
-                          ],
-                        ),
+                        color: SydexColors.hero(context),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Column(
@@ -2737,7 +2045,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           SizedBox(height: 6),
@@ -2756,7 +2064,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       'Business details',
                       style: TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: colors.onSurface,
                       ),
                     ),

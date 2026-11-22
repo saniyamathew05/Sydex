@@ -7,6 +7,7 @@ import '../../services/purchase_service.dart';
 import '../../services/currency_formatter.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
+import '../../widgets/sydex_ui.dart';
 
 class AddPurchaseScreen extends StatefulWidget {
   final Customer? initialCustomer;
@@ -323,19 +324,19 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_outlined, color: scheme.primary),
+            Icon(Icons.calendar_today_outlined, color: scheme.onSurface),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12)),
+                  Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                   const SizedBox(height: 2),
-                  Text(value, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text(value, style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600, fontSize: 15)),
                 ],
               ),
             ),
-            Icon(Icons.edit_calendar_outlined, color: scheme.primary, size: 20),
+            Icon(Icons.edit_calendar_outlined, color: scheme.onSurfaceVariant, size: 20),
           ],
         ),
       ),
@@ -348,152 +349,68 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
     final customer = _selectedCustomer;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
+    final original = double.tryParse(_amountController.text.trim()) ?? 0;
+    final afterDiscount = double.tryParse(
+          _finalAmountController.text.trim().isEmpty
+              ? _amountController.text.trim()
+              : _finalAmountController.text.trim(),
+        ) ??
+        0;
+    final discount = (original - afterDiscount).clamp(0, double.infinity);
 
+    return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'New Sale',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        titleSpacing: 4,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SydexEyebrow('Record new purchase'),
+            SizedBox(height: 2),
+            Text(
+              'New sale',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ),
-
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 35),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 650),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // HEADER
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.orange.shade700,
-                          Colors.orange.shade400,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.add_shopping_cart_rounded,
-                            color: Colors.white,
-                            size: 29,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'New Sale',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              SizedBox(height: 5),
-                              Text(
-                                'Record a new sale for this customer.',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _transactionDateSummary(
-                    context,
-                    label: 'Sale date',
-                    value: _formatSelectedDate(),
-                    onTap: _isSaving ? null : _selectDate,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Customer',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    'Choose the customer whose account should be updated.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  InkWell(
-                    onTap: _isSaving ? null : _selectCustomer,
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: colorScheme.outline.withValues(alpha: 0.10),
-                        ),
-                      ),
+                  SydexReveal(
+                    child: SydexCard(
+                      onTap: _isSaving ? null : _selectCustomer,
+                      padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.10,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              customer == null
-                                  ? Icons.person_search_rounded
-                                  : Icons.storefront_outlined,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-
-                          const SizedBox(width: 13),
-
+                          customer == null
+                              ? Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_search_rounded,
+                                    size: 20,
+                                  ),
+                                )
+                              : SydexAvatar(customer.businessName),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: customer == null
                                 ? const Text(
                                     'Select a customer',
                                     style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   )
                                 : Column(
@@ -505,352 +422,159 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on_outlined,
-                                            size: 14,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              customer.location,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _isLoadingBalance
+                                            ? customer.location
+                                            : '${customer.location} · ${_currentBalance < 0 ? 'advance' : 'due'} ${CurrencyFormatter.rupees(_currentBalance.abs())}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ),
                           ),
-
-                          const SizedBox(width: 8),
-
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  if (customer != null) ...[
-                    const SizedBox(height: 16),
-
-                    // CURRENT BALANCE
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.12,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.account_balance_wallet_outlined,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-
-                          const SizedBox(width: 13),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _currentBalance < 0
-                                      ? 'Customer Advance'
-                                      : 'Current Amount Due',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                _isLoadingBalance
-                                    ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: colorScheme.primary,
-                                        ),
-                                      )
-                                    : Text(
-                                        CurrencyFormatter.rupees(
-                                          _currentBalance.abs(),
-                                        ),
-                                        style: TextStyle(
-                                          fontSize: 25,
-                                          fontWeight: FontWeight.w800,
-                                          color: colorScheme.onPrimaryContainer,
-                                        ),
-                                      ),
-                              ],
+                          Text(
+                            customer == null ? 'Choose' : 'Change',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-
-                  const SizedBox(height: 28),
-
-                  const Text(
-                    'Sale Details',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
                   ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    'Enter the original sale amount and the amount after discount.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    enabled: !_isSaving,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Original Sale Amount',
-                      hintText: '0.00',
-                      prefixText: '₹ ',
-                      prefixIcon: const Icon(Icons.payments_outlined),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: colorScheme.outline.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Colors.orange.shade700,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _finalAmountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    enabled: !_isSaving,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Amount After Discount',
-                      hintText: '0.00',
-                      prefixText: '₹ ',
-                      prefixIcon: const Icon(Icons.payments_outlined),
-                      helperText:
-                          'Leave blank for no discount. Discount: ₹${((double.tryParse(_amountController.text.trim()) ?? 0) - (double.tryParse(_finalAmountController.text.trim().isEmpty ? _amountController.text.trim() : _finalAmountController.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} · This amount is added to the balance.',
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: colorScheme.outline.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Colors.orange.shade700,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  InkWell(
-                    onTap: _isSaving ? null : _selectDate,
-                    borderRadius: BorderRadius.circular(16),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Change sale date',
-                        prefixIcon: const Icon(Icons.calendar_today_outlined),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.08),
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        _formatSelectedDate(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 3,
-                    enabled: !_isSaving,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      labelText: 'Note',
-                      hintText: 'Optional note about this sale',
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(bottom: 42),
-                        child: Icon(Icons.notes_outlined),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: colorScheme.outline.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Colors.orange.shade700,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // INFO BOX
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(13),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 22),
+                  SydexReveal(
+                    index: 1,
+                    child: Column(
                       children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 18,
-                          color: Colors.orange.shade800,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'This sale will increase the customer\'s outstanding balance.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.4,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        const SydexEyebrow('Sale amount'),
+                        TextField(
+                          controller: _amountController,
+                          textAlign: TextAlign.center,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
+                          enabled: !_isSaving,
+                          onChanged: (_) => setState(() {}),
+                          style: const TextStyle(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -1.2,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: '₹0',
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            SydexBadge(
+                              'Discount ${CurrencyFormatter.rupees(discount)}',
+                            ),
+                            SydexBadge(
+                              'Net ${CurrencyFormatter.rupees(afterDiscount)}',
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 26),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton.icon(
-                      onPressed: _isSaving ? null : _savePurchase,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.orange.shade700,
+                  const SizedBox(height: 22),
+                  SydexReveal(
+                    index: 2,
+                    child: TextField(
+                      controller: _finalAmountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.add_shopping_cart_rounded),
-                      label: Text(
-                        _isSaving ? 'Saving Sale...' : 'Add Sale',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      enabled: !_isSaving,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Amount after discount',
+                        hintText: 'Leave blank for no discount',
+                        prefixText: '₹ ',
+                        helperText: 'This amount is added to the balance.',
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SydexReveal(
+                    index: 3,
+                    child: _transactionDateSummary(
+                      context,
+                      label: 'Sale date',
+                      value: _formatSelectedDate(),
+                      onTap: _isSaving ? null : _selectDate,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SydexReveal(
+                    index: 4,
+                    child: TextField(
+                      controller: _notesController,
+                      maxLines: 3,
+                      enabled: !_isSaving,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'New order / note',
+                        hintText: 'Optional note about this sale',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This sale will increase the customer\'s outstanding balance.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLowest,
+            border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+          ),
+          child: FilledButton.icon(
+            onPressed: _isSaving ? null : _savePurchase,
+            icon: _isSaving
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.onPrimary,
+                    ),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: Text(_isSaving ? 'Saving sale...' : 'Save sale'),
           ),
         ),
       ),
@@ -929,7 +653,7 @@ class _CustomerSelectionSheetState extends State<_CustomerSelectionSheet> {
                 const Expanded(
                   child: Text(
                     'Select Customer',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
                 IconButton(
@@ -1036,7 +760,7 @@ class _CustomerSelectionSheetState extends State<_CustomerSelectionSheet> {
                                         initial,
                                         style: TextStyle(
                                           color: colorScheme.primary,
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),

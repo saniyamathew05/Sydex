@@ -129,7 +129,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
               Text(
                 'Protect your account',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),

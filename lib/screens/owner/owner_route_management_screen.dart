@@ -18,6 +18,7 @@ import '../../services/customer_service.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/transaction_service.dart';
 import '../customers/customer_details_screen.dart';
+import '../../widgets/sydex_ui.dart';
 
 /// Owner tools for reusable named routes and per-day location assignments.
 /// Requires the SQL migration in owner_route_management_schema.sql.
@@ -1782,21 +1783,56 @@ class _OwnerRouteManagementScreenState
 
     return Scaffold(
       backgroundColor: colors.surfaceContainerLowest,
-      appBar: AppBar(
-        title: Text(switch (widget.page) {
-          OwnerRoutePage.places => 'Places & Routes',
-          OwnerRoutePage.salesmen => 'Salesmen & Assigned Routes',
-          OwnerRoutePage.map => 'Route Map View',
-        }),
-        actions: [
-          IconButton(
-            onPressed: _load,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: _loading
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+              child: SydexScreenHeader(
+                eyebrow: switch (widget.page) {
+                  OwnerRoutePage.places => 'Places & routes',
+                  OwnerRoutePage.salesmen => 'Salesmen & assigned routes',
+                  OwnerRoutePage.map => 'Route map view',
+                },
+                title: switch (widget.page) {
+                  OwnerRoutePage.places => 'Routes',
+                  OwnerRoutePage.salesmen => 'Salesmen',
+                  OwnerRoutePage.map => 'Route map',
+                },
+                leading: Navigator.of(context).canPop()
+                    ? SydexIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      )
+                    : null,
+                actions: [
+                  if (widget.page == OwnerRoutePage.places)
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const OwnerRouteManagementScreen(
+                            page: OwnerRoutePage.salesmen,
+                          ),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      child: const Text('Salesmen'),
+                    ),
+                  SydexIconButton(
+                    icon: Icons.refresh_rounded,
+                    tooltip: 'Refresh',
+                    onPressed: _load,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(
@@ -1817,8 +1853,11 @@ class _OwnerRouteManagementScreenState
             )
           : widget.page == OwnerRoutePage.places
           ? ListView(
-              padding: EdgeInsets.all(
-                MediaQuery.sizeOf(context).width < 600 ? 12 : 20,
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
+                8,
+                MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
+                24,
               ),
               children: [
                 Card(
@@ -1830,7 +1869,7 @@ class _OwnerRouteManagementScreenState
                         Text(
                           'Create a reusable route',
                           style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 12),
                         LayoutBuilder(
@@ -1885,7 +1924,7 @@ class _OwnerRouteManagementScreenState
                         Text(
                           'Set up who to visit',
                           style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -2039,7 +2078,7 @@ class _OwnerRouteManagementScreenState
                         Text(
                           'Assign route to salesmen',
                           style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -2109,58 +2148,56 @@ class _OwnerRouteManagementScreenState
           : widget.page == OwnerRoutePage.salesmen
           ? _buildSalesmenPage()
           : _buildMapPage(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildSalesmenPage() {
     return ListView(
-      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 12 : 20),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
+        8,
+        MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
+        24,
+      ),
       children: [
-        const Text(
-          'Salesmen and their assigned routes',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
+        Text(
           'Assignments stay active until you remove them. Open Places & Routes to create or edit a named route and assign it.',
+          style: TextStyle(
+            fontSize: 12.5,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         if (_salesmen.isEmpty)
           const Text('No salesman accounts were found.')
         else ...[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Salesman'),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _salesmanFilterId,
-                    isExpanded: true,
-                    isDense: true,
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('All salesmen'),
-                      ),
-                      ..._salesmen.map(
-                        (salesman) => DropdownMenuItem(
-                          value: salesman['id'].toString(),
-                          child: Text(
-                            (salesman['name'] ?? 'Salesman').toString(),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) => setState(() {
-                      _salesmanFilterId = value ?? '';
-                    }),
-                  ),
-                ),
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              final names = <String, String>{'All salesmen': ''};
+              for (final salesman in _salesmen) {
+                var name = (salesman['name'] ?? 'Salesman').toString();
+                while (names.containsKey(name)) {
+                  name = '$name ';
+                }
+                names[name] = salesman['id'].toString();
+              }
+              final selected = names.entries
+                  .firstWhere(
+                    (entry) => entry.value == _salesmanFilterId,
+                    orElse: () => names.entries.first,
+                  )
+                  .key;
+              return SydexChoiceChips(
+                options: names.keys.toList(),
+                selected: selected,
+                onSelected: (name) =>
+                    setState(() => _salesmanFilterId = names[name] ?? ''),
+              );
+            },
           ),
           const SizedBox(height: 16),
           ..._salesmen
@@ -2269,13 +2306,25 @@ class _OwnerRouteManagementScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.person_outline),
+                        leading: SydexAvatar(
+                          (salesman['name'] ?? 'Salesman').toString(),
                         ),
                         title: Text(
                           (salesman['name'] ?? 'Salesman').toString(),
                         ),
-                        subtitle: Text(subtitle),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(subtitle),
+                            if (queuedIds.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              const SydexBadge(
+                                'Next route queued · opens after Finish route',
+                                tone: SydexTone.info,
+                              ),
+                            ],
+                          ],
+                        ),
                         trailing: assignedIds.isEmpty
                             ? null
                             : Wrap(
@@ -2413,9 +2462,9 @@ class _OwnerRouteManagementScreenState
                             _ => 'Pending',
                           };
                           final statusColor = switch (statusLabel) {
-                            'Visited' => const Color(0xFF27845B),
-                            'Refused today' => const Color(0xFFD64A55),
-                            _ => const Color(0xFFD58B28),
+                            'Visited' => const Color(0xFF1F6F4A),
+                            'Refused today' => const Color(0xFFA61B1B),
+                            _ => const Color(0xFF8A5300),
                           };
                           final initials = customer.businessName
                               .trim()
@@ -2584,7 +2633,7 @@ class _OwnerRouteManagementScreenState
                   'Visit Map',
                   style: Theme.of(
                     context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               Text('${_mapVisits.length} customers on map'),

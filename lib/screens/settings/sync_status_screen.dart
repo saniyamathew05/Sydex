@@ -94,7 +94,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
                   style: const TextStyle(
                     fontSize: 20,
 
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
 

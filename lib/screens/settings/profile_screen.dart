@@ -108,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: colors.primaryContainer,
                   backgroundImage: _imagePath == null ? null : FileImage(File(_imagePath!)),
                   child: _imagePath == null
-                      ? Text(_initials(_name), style: TextStyle(color: colors.primary, fontSize: 24, fontWeight: FontWeight.w800))
+                      ? Text(_initials(_name), style: TextStyle(color: colors.primary, fontSize: 24, fontWeight: FontWeight.w600))
                       : null,
                 ),
                 Positioned(
@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               _name,
 
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             ),
           ),
 

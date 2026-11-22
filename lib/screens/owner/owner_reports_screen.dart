@@ -9,6 +9,8 @@ import '../../services/customer_service.dart';
 import '../../services/transaction_service.dart';
 
 import '../../services/currency_formatter.dart';
+import '../../theme/sydex_theme.dart';
+import '../../widgets/sydex_ui.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
   const OwnerReportsScreen({super.key});
@@ -40,6 +42,7 @@ class _ReportsContent extends StatefulWidget {
 
 class _ReportsContentState extends State<_ReportsContent> {
   String _selectedPeriod = '7 Days';
+  String _tab = 'Overview';
 
   bool _loading = false;
 
@@ -111,41 +114,52 @@ class _ReportsContentState extends State<_ReportsContent> {
                 children: [
                   _buildHeader(context),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
 
-                  _buildSummaryCards(
-                    totalCollected: totalCollected,
-
-                    totalPayments: totalPayments,
-
-                    averagePayment: averagePayment,
-
-                    outstanding: outstanding,
+                  SydexReveal(
+                    child: _buildSummaryCards(
+                      totalCollected: totalCollected,
+                      totalPayments: totalPayments,
+                      averagePayment: averagePayment,
+                      outstanding: outstanding,
+                    ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 16),
 
-                  _buildCollectionChart(chartData),
+                  SydexChoiceChips(
+                    options: const [
+                      'Overview',
+                      'Top customers',
+                      'Outstanding',
+                      'Recent',
+                    ],
+                    selected: _tab,
+                    onSelected: (tab) => setState(() => _tab = tab),
+                  ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
-                  _buildTodayCard(todayCollected, todayPayments),
-
-                  const SizedBox(height: 24),
-
-                  _buildPaymentActivity(transactions),
-
-                  const SizedBox(height: 24),
-
-                  _buildTopCustomers(topCustomers),
-
-                  const SizedBox(height: 24),
-
-                  _buildOutstandingCustomers(outstandingCustomers),
-
-                  const SizedBox(height: 24),
-
-                  _buildRecentPayments(transactions),
+                  if (_tab == 'Overview') ...[
+                    SydexReveal(child: _buildCollectionChart(chartData)),
+                    const SizedBox(height: 14),
+                    SydexReveal(
+                      index: 1,
+                      child: _buildTodayCard(todayCollected, todayPayments),
+                    ),
+                    const SizedBox(height: 14),
+                    SydexReveal(
+                      index: 2,
+                      child: _buildPaymentActivity(transactions),
+                    ),
+                  ] else if (_tab == 'Top customers')
+                    SydexReveal(child: _buildTopCustomers(topCustomers))
+                  else if (_tab == 'Outstanding')
+                    SydexReveal(
+                      child: _buildOutstandingCustomers(outstandingCustomers),
+                    )
+                  else
+                    SydexReveal(child: _buildRecentPayments(transactions)),
                 ],
               );
             },
@@ -156,51 +170,21 @@ class _ReportsContentState extends State<_ReportsContent> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              Text(
-                'Business Reports',
-
-                style: TextStyle(
-                  fontSize: 30,
-
-                  fontWeight: FontWeight.w800,
-
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                'Track collections, payments and outstanding balances.',
-
-                style: TextStyle(
-                  fontSize: 14,
-
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        IconButton(
+    return SydexScreenHeader(
+      eyebrow: 'Business reports',
+      title: 'Reports',
+      leading: Navigator.of(context).canPop()
+          ? SydexIconButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: 'Back',
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          : null,
+      actions: [
+        SydexIconButton(
+          icon: Icons.refresh_rounded,
           tooltip: 'Refresh',
-
           onPressed: _refreshData,
-
-          icon: Icon(
-            Icons.refresh_rounded,
-            color: Theme.of(context).colorScheme.primary,
-          ),
         ),
       ],
     );
@@ -215,58 +199,30 @@ class _ReportsContentState extends State<_ReportsContent> {
 
     required double outstanding,
   }) {
-    final colors = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 850;
 
         final cards = [
-          _SummaryCard(
-            title: 'Total Collected',
-
+          SydexStatTile(
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'Total collected',
             value: _formatMoney(totalCollected),
-
-            icon: Icons.account_balance_wallet_rounded,
-
-            iconColor: colors.primary,
-
-            backgroundColor: colors.primaryContainer,
           ),
-
-          _SummaryCard(
-            title: 'Total Payments',
-
+          SydexStatTile(
+            icon: Icons.receipt_long_outlined,
+            label: 'Total payments',
             value: totalPayments.toString(),
-
-            icon: Icons.receipt_long_rounded,
-
-            iconColor: const Color(0xFF2563EB),
-
-            backgroundColor: const Color(0xFFE8F0FF),
           ),
-
-          _SummaryCard(
-            title: 'Average Payment',
-
+          SydexStatTile(
+            icon: Icons.payments_outlined,
+            label: 'Average payment',
             value: _formatMoney(averagePayment),
-
-            icon: Icons.payments_rounded,
-
-            iconColor: Theme.of(context).colorScheme.primary,
-
-            backgroundColor: colors.primaryContainer,
           ),
-
-          _SummaryCard(
-            title: 'Outstanding',
-
+          SydexStatTile(
+            icon: Icons.schedule_rounded,
+            label: 'Outstanding',
             value: _formatMoney(outstanding),
-
-            icon: Icons.pending_actions_rounded,
-
-            iconColor: const Color(0xFFEA580C),
-
-            backgroundColor: const Color(0xFFFFEEE4),
           ),
         ];
 
@@ -304,7 +260,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
             mainAxisSpacing: 10,
 
-            childAspectRatio: constraints.maxWidth < 380 ? 1.35 : 1.55,
+            childAspectRatio: constraints.maxWidth < 380 ? 1.05 : 1.2,
           ),
 
           itemBuilder: (context, index) {
@@ -328,15 +284,6 @@ class _ReportsContentState extends State<_ReportsContent> {
 
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
 
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-
-            blurRadius: 18,
-
-            offset: const Offset(0, 7),
-          ),
-        ],
       ),
 
       child: Column(
@@ -358,7 +305,7 @@ class _ReportsContentState extends State<_ReportsContent> {
                       style: TextStyle(
                         fontSize: 20,
 
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
 
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -441,7 +388,7 @@ class _ReportsContentState extends State<_ReportsContent> {
                     style: TextStyle(
                       fontSize: 21,
 
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
 
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -555,29 +502,14 @@ class _ReportsContentState extends State<_ReportsContent> {
   }
 
   Widget _buildTodayCard(double amount, int payments) {
-    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color.lerp(colors.primary, Colors.black, .16)!,
-            colors.primary,
-          ],
-        ),
+        color: SydexColors.hero(context),
 
         borderRadius: BorderRadius.circular(20),
 
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withValues(alpha: .20),
-
-            blurRadius: 20,
-
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
 
       child: Row(
@@ -631,7 +563,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
                     fontSize: 25,
 
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -657,7 +589,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
                     fontSize: 18,
 
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
 
@@ -802,7 +734,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             style: TextStyle(
               fontSize: 18,
 
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
 
               color: Theme.of(context).colorScheme.onSurface,
             ),
@@ -881,7 +813,7 @@ class _ReportsContentState extends State<_ReportsContent> {
               '$rank',
 
               style: TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
 
                 color: rank == 1
                     ? Theme.of(context).colorScheme.primary
@@ -918,7 +850,7 @@ class _ReportsContentState extends State<_ReportsContent> {
                 style: TextStyle(
                   fontSize: 14,
 
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
 
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -977,7 +909,7 @@ class _ReportsContentState extends State<_ReportsContent> {
                         child: const Icon(
                           Icons.storefront_rounded,
 
-                          color: Color(0xFFEA580C),
+                          color: Color(0xFF8A5300),
 
                           size: 20,
                         ),
@@ -1005,11 +937,11 @@ class _ReportsContentState extends State<_ReportsContent> {
                         _formatMoney(balance),
 
                         style: TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
 
                           fontSize: 14,
 
-                          color: Color(0xFFEA580C),
+                          color: Color(0xFF8A5300),
                         ),
                       ),
                     ],
@@ -1106,7 +1038,7 @@ class _ReportsContentState extends State<_ReportsContent> {
             style: TextStyle(
               fontSize: 14,
 
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
 
               color: Theme.of(context).colorScheme.primary,
             ),
@@ -1123,61 +1055,7 @@ class _ReportsContentState extends State<_ReportsContent> {
 
     required Widget child,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-
-            blurRadius: 16,
-
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Text(
-            title,
-
-            style: TextStyle(
-              fontSize: 19,
-
-              fontWeight: FontWeight.w800,
-
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            subtitle,
-
-            style: TextStyle(
-              fontSize: 12,
-
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          child,
-        ],
-      ),
-    );
+    return SydexSection(title: title, subtitle: subtitle, child: child);
   }
 
   Widget _emptyMessage(String message) {
@@ -1432,103 +1310,6 @@ class _ReportsContentState extends State<_ReportsContent> {
     ];
 
     return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-
-  final String value;
-
-  final IconData icon;
-
-  final Color iconColor;
-
-  final Color backgroundColor;
-
-  const _SummaryCard({
-    required this.title,
-
-    required this.value,
-
-    required this.icon,
-
-    required this.iconColor,
-
-    required this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-
-        borderRadius: BorderRadius.circular(18),
-
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-
-            height: 46,
-
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.surfaceContainerHigh
-                  : backgroundColor,
-
-              borderRadius: BorderRadius.circular(13),
-            ),
-
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-
-          const SizedBox(width: 13),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  title,
-
-                  style: TextStyle(
-                    fontSize: 11,
-
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  value,
-
-                  style: TextStyle(
-                    fontSize: 18,
-
-                    fontWeight: FontWeight.w800,
-
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

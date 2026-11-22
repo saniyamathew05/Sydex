@@ -15,6 +15,9 @@ import '../../services/notification_read_store.dart';
 import '../../services/owner_display_settings.dart';
 import '../../widgets/horizon_motion.dart';
 import '../../widgets/desktop_workspace.dart';
+import '../../theme/sydex_theme.dart';
+import '../../services/payment_method_breakdown.dart';
+import '../../widgets/sydex_ui.dart';
 
 /// Owner overview for the Sydex desktop experience.
 /// All financial/customer figures are read from the existing services.
@@ -28,6 +31,11 @@ class OwnerDashboard extends StatefulWidget {
     this.onOpenRoute,
     this.onAddCustomer,
     this.onRecordPurchase,
+    this.onOpenReports,
+    this.onOpenAssistant,
+    this.onReceivePayment,
+    this.onOpenCardImport,
+    this.onOpenSalesmen,
     this.userName = 'Owner',
   });
 
@@ -39,6 +47,11 @@ class OwnerDashboard extends StatefulWidget {
   final VoidCallback? onOpenRoute;
   final VoidCallback? onAddCustomer;
   final VoidCallback? onRecordPurchase;
+  final VoidCallback? onOpenReports;
+  final VoidCallback? onOpenAssistant;
+  final VoidCallback? onReceivePayment;
+  final VoidCallback? onOpenCardImport;
+  final VoidCallback? onOpenSalesmen;
 
   @override
   State<OwnerDashboard> createState() => _OwnerDashboardState();
@@ -376,6 +389,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               periodReceived: periodReceived,
               periodPurchases: periodPurchases,
               paymentCount: periodTransactions.length,
+              periodTransactions: periodTransactions,
             );
           }
           return SingleChildScrollView(
@@ -418,7 +432,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             style: TextStyle(
                               color: _ink,
                               fontSize: wide ? 23 : 21,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: -.45,
                             ),
                           ),
@@ -535,7 +549,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -575,7 +589,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 foot: '${periodTransactions.length} payments',
                                 icon: Icons.download_rounded,
                                 color: _green,
-                                bg: const Color(0xFFE5F4E8),
+                                bg: const Color(0xFFF1F0ED),
                               ),
                               _MetricCard(
                                 title: 'New purchases',
@@ -591,7 +605,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 foot: 'Across $_locationCount locations',
                                 icon: Icons.groups_2_outlined,
                                 color: _blue,
-                                bg: const Color(0xFFE8F4E9),
+                                bg: const Color(0xFFF1F0ED),
                               ),
                             ],
                           ),
@@ -620,7 +634,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                         foot: '${periodTransactions.length} payments',
                         icon: Icons.download_rounded,
                         color: _green,
-                        bg: const Color(0xFFE5F4E8),
+                        bg: const Color(0xFFF1F0ED),
                       ),
                       _MetricCard(
                         title: 'New purchases',
@@ -636,7 +650,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                         foot: 'Across $_locationCount locations',
                         icon: Icons.groups_2_outlined,
                         color: _blue,
-                        bg: const Color(0xFFE8F4E9),
+                        bg: const Color(0xFFF1F0ED),
                       ),
                     ],
                   ),
@@ -732,6 +746,78 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
+  static const _mobilePeriods = ['Today', 'This week', 'This month', 'Custom'];
+
+  Future<void> _selectPeriod(String value) async {
+    if (value != 'Custom') {
+      setState(() => _period = value);
+      return;
+    }
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange: _customPeriod,
+    );
+    if (!mounted || range == null) return;
+    setState(() {
+      _customPeriod = range;
+      _period = 'Custom';
+    });
+  }
+
+  String _periodLabel() {
+    switch (_period) {
+      case 'This week':
+      case '7 days':
+        return 'Collected in the last 7 days';
+      case 'This month':
+      case '30 days':
+        return 'Collected in the last 30 days';
+      case 'Custom':
+        final range = _customPeriod;
+        if (range == null) return 'Collected in selected range';
+        String d(DateTime x) => '${x.day}/${x.month}';
+        return 'Collected ${d(range.start)} – ${d(range.end)}';
+      default:
+        return 'Today’s collections';
+    }
+  }
+
+  /// Splits received money by method, honouring split payments.
+  Map<String, double> _methodTotals(List<PaymentTransaction> transactions) {
+    final totals = <String, double>{'cash': 0, 'cheque': 0, 'online': 0};
+    void add(String method, double amount) {
+      final key = switch (method.trim().toLowerCase()) {
+        'cash' => 'cash',
+        'cheque' => 'cheque',
+        _ => 'online',
+      };
+      totals[key] = totals[key]! + amount;
+    }
+
+    for (final transaction in transactions) {
+      final parts = PaymentMethodBreakdown.parseOrdered(
+        transaction.paymentMethodNote,
+      );
+      if (parts.isEmpty) {
+        add(transaction.paymentMethod, transaction.actualAmountReceived);
+      } else {
+        for (final part in parts) {
+          add(part.method, part.amount);
+        }
+      }
+    }
+    return totals;
+  }
+
+  String _todayLabel() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final now = DateTime.now();
+    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+  }
+
   Widget _buildMobileDashboard({
     required List<Customer> customers,
     required double receivable,
@@ -742,252 +828,285 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     required double periodReceived,
     required double periodPurchases,
     required int paymentCount,
+    required List<PaymentTransaction> periodTransactions,
   }) {
+    final now = DateTime.now();
+    final pastDays = days
+        .where((day) => !day.date.isAfter(DateTime(now.year, now.month, now.day)))
+        .toList();
+    final lastSeven = pastDays.length > 7
+        ? pastDays.sublist(pastDays.length - 7)
+        : pastDays;
+    final maxDay = lastSeven.fold<double>(
+      1,
+      (max, day) => math.max(max, day.received).toDouble(),
+    );
+    final bars = lastSeven.isEmpty
+        ? const [0.0]
+        : lastSeven.map((day) => day.received / maxDay).toList();
+    final methods = _methodTotals(periodTransactions);
+
+    var revealIndex = 0;
+    Widget reveal(Widget child) =>
+        SydexReveal(index: revealIndex++, child: child);
+
     return RefreshIndicator(
       onRefresh: _load,
-      color: _green,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _green,
-                  borderRadius: BorderRadius.circular(12),
+          reveal(
+            SydexScreenHeader(
+              large: false,
+              leading: SydexAvatar(widget.userName, size: 44),
+              eyebrow: _todayLabel(),
+              title: '${_greeting()}, ${widget.userName}',
+              actions: [
+                if (widget.onOpenAssistant != null)
+                  SydexIconButton(
+                    icon: Icons.auto_awesome_outlined,
+                    tooltip: 'Open Sydie assistant',
+                    onPressed: widget.onOpenAssistant,
+                    filled: true,
+                  ),
+                SydexIconButton(
+                  icon: Icons.notifications_none_rounded,
+                  tooltip: 'Notifications',
+                  onPressed: widget.onOpenNotifications,
+                  badgeCount: _newSalesmanPaymentCount,
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sydex',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'Business overview',
-                      style: TextStyle(color: _muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Search customers',
-                onPressed: widget.onOpenCustomers,
-                icon: Icon(Icons.search_rounded, color: _ink),
-              ),
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: widget.onOpenNotifications,
-                icon: Icon(Icons.notifications_none_rounded, color: _ink),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _OwnerReceivableHero(
-            value: _money(receivable),
-            customers: customers.length,
-            overdue: _money(overdue),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _mobileMetric(
-                  'Collected today',
-                  _money(periodReceived),
-                  Icons.download_rounded,
-                  _green,
-                  const Color(0xFFE5F4E8),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _mobileMetric(
-                  'New purchases',
-                  _money(periodPurchases),
-                  Icons.shopping_cart_outlined,
-                  _orange,
-                  const Color(0xFFFFF0DE),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Quick actions',
-            style: TextStyle(
-              color: _ink,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _mobileAction(
-                Icons.person_add_alt_1_rounded,
-                'Customer',
-                widget.onAddCustomer,
-              ),
-              _mobileAction(
-                Icons.payments_outlined,
-                'Payment',
-                widget.onOpenPayments,
-              ),
-              _mobileAction(
-                Icons.shopping_cart_outlined,
-                'Purchase',
-                widget.onRecordPurchase,
-              ),
-              _mobileAction(Icons.route_rounded, 'Route', widget.onOpenRoute),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _mobileSectionHeader(
-            'Payments overview',
-            '$_period · $paymentCount payments',
-          ),
-          const SizedBox(height: 8),
-          _panel(child: _paymentsChart(days)),
           const SizedBox(height: 18),
-          _mobileSectionHeader(
-            'Recent payments',
-            'View all',
-            onTap: widget.onOpenPayments,
+          reveal(
+            SydexChoiceChips(
+              options: _mobilePeriods,
+              selected: _mobilePeriods.contains(_period) ? _period : 'Today',
+              onSelected: _selectPeriod,
+            ),
           ),
-          const SizedBox(height: 8),
-          _panel(child: _recentPayments(recent)),
-          const SizedBox(height: 18),
-          _mobileSectionHeader(
-            'Salesman activity',
-            'View map',
-            onTap: widget.onOpenVisitAudit,
+          const SizedBox(height: 16),
+          reveal(
+            SydexHeroCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SydexEyebrow(
+                          _periodLabel(),
+                          color: Colors.white.withValues(alpha: .62),
+                        ),
+                      ),
+                      if (_refreshing)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _money(periodReceived),
+                      style: const TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$paymentCount payments',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.white.withValues(alpha: .62),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SydexMiniBars(values: bars, height: 64),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SydexHeroTile(
+                          label: 'Cash',
+                          value: _money(methods['cash']!),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SydexHeroTile(
+                          label: 'Cheque',
+                          value: _money(methods['cheque']!),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SydexHeroTile(
+                          label: 'Online',
+                          value: _money(methods['online']!),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          _panel(child: _salesmanActivity(_todaySalesmanActivity, customers)),
-          const SizedBox(height: 18),
-          _mobileSectionHeader('Location-wise due', 'View all'),
-          const SizedBox(height: 8),
-          _panel(
-            child: _locationWiseDues(
-              Map<String, double>.fromEntries(locations.entries.take(3)),
+          const SizedBox(height: 12),
+          reveal(
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.12,
+              children: [
+                SydexStatTile(
+                  icon: Icons.schedule_rounded,
+                  label: 'Outstanding',
+                  value: _money(receivable),
+                  footnote: 'Overdue ${_money(overdue)}',
+                  onTap: widget.onOpenCustomers,
+                ),
+                SydexStatTile(
+                  icon: Icons.groups_2_outlined,
+                  label: 'Active customers',
+                  value: '${customers.length}',
+                  footnote: 'Across $_locationCount locations',
+                  onTap: widget.onOpenCustomers,
+                ),
+                SydexStatTile(
+                  icon: Icons.shopping_cart_outlined,
+                  label: 'New purchases',
+                  value: _money(periodPurchases),
+                  footnote: 'In selected period',
+                ),
+                SydexStatTile(
+                  icon: Icons.check_rounded,
+                  label: 'Payments',
+                  value: '$paymentCount',
+                  footnote: 'In selected period',
+                  onTap: widget.onOpenPayments,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Quick actions',
+              child: GridView.count(
+                crossAxisCount: 4,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 4,
+                childAspectRatio: .7,
+                children: [
+                  SydexQuickAction(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Receive payment',
+                    onTap: widget.onReceivePayment ?? widget.onOpenPayments,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.add_rounded,
+                    label: 'Add sale',
+                    onTap: widget.onRecordPurchase,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.person_add_alt_1_outlined,
+                    label: 'Add customer',
+                    onTap: widget.onAddCustomer,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.route_outlined,
+                    label: 'Routes',
+                    onTap: widget.onOpenRoute,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.receipt_long_outlined,
+                    label: 'View collections',
+                    onTap: widget.onOpenPayments,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Reports',
+                    onTap: widget.onOpenReports,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.location_on_outlined,
+                    label: 'Visit audit',
+                    onTap: widget.onOpenVisitAudit,
+                  ),
+                  SydexQuickAction(
+                    icon: Icons.document_scanner_outlined,
+                    label: 'Old card import',
+                    onTap: widget.onOpenCardImport,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Salesman activity',
+              actionLabel: widget.onOpenSalesmen == null ? 'View map' : 'Routes',
+              onAction: widget.onOpenSalesmen ?? widget.onOpenVisitAudit,
+              child: _salesmanActivity(_todaySalesmanActivity, customers),
+            ),
+          ),
+          if (_visitLoadError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Salesman activity is unavailable until visit tracking is configured.',
+              style: TextStyle(color: _muted, fontSize: 11),
+            ),
+          ],
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Recent payments',
+              actionLabel: 'See all',
+              onAction: widget.onOpenPayments,
+              child: _recentPayments(recent),
+            ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Location-wise due',
+              child: _locationWiseDues(
+                Map<String, double>.fromEntries(locations.entries.take(5)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Payments overview',
+              subtitle: '$_period · $paymentCount payments',
+              child: _paymentsChart(days),
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _mobileMetric(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    Color bg,
-  ) => Container(
-    height: 92,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: bg,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: _line),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 18),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            color: _ink,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(label, style: TextStyle(color: _muted, fontSize: 11)),
-      ],
-    ),
-  );
-
-  Widget _mobileAction(IconData icon, String label, VoidCallback? onTap) =>
-      SizedBox(
-        width: 70,
-        child: HorizonPressable(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _surface,
-                  border: Border.all(color: _line),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: _green, size: 20),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  Widget _mobileSectionHeader(
-    String title,
-    String action, {
-    VoidCallback? onTap,
-  }) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          title,
-          style: TextStyle(
-            color: _ink,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      GestureDetector(
-        onTap: onTap,
-        child: Text(
-          action,
-          style: TextStyle(
-            color: _green,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    ],
-  );
 
   double _overdueAmount(List<Customer> customers) {
     final today = DateTime.now();
@@ -1063,7 +1182,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           title,
           style: TextStyle(
             color: _ink,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
         ),
@@ -1243,7 +1362,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 style: TextStyle(
                   color: _ink,
                   fontSize: 13,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -1293,8 +1412,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                               backgroundColor:
                                   Theme.of(context).brightness ==
                                       Brightness.dark
-                                  ? const Color(0xFF183D2D)
-                                  : const Color(0xFFDDF3E5),
+                                  ? const Color(0xFF262626)
+                                  : const Color(0xFFF1F0ED),
                               child: Text(
                                 t.customerName.isEmpty
                                     ? '?'
@@ -1302,7 +1421,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 style: TextStyle(
                                   color: _green,
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1325,7 +1444,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                               style: TextStyle(
                                 color: _green,
                                 fontSize: 10,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -1430,8 +1549,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     radius: 16,
                     backgroundColor:
                         Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF183D2D)
-                        : const Color(0xFFDDF3E5),
+                        ? const Color(0xFF262626)
+                        : const Color(0xFFF1F0ED),
                     child: Text(
                       activity.salesmanName.trim().isEmpty
                           ? 'S'
@@ -1439,7 +1558,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       style: TextStyle(
                         color: _green,
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1541,7 +1660,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     style: TextStyle(
                       color: _ink,
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1635,7 +1754,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     style: TextStyle(
                       color: i == 0 ? _red : (i == 1 ? _orange : _ink),
                       fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1697,15 +1816,10 @@ class _OwnerReceivableHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color.lerp(primary, Colors.black, .26)!, primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: SydexColors.hero(context),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
@@ -1748,7 +1862,7 @@ class _OwnerReceivableHero extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 30,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1845,7 +1959,7 @@ class _MetricCard extends StatelessWidget {
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 19,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: -.4,
             ),
           ),

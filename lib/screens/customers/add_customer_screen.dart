@@ -540,7 +540,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       appBar: AppBar(
         title: const Text(
           'Add Customer',
-          style: TextStyle(fontWeight: FontWeight.w800),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -564,7 +564,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       'Add Customer',
                       style: TextStyle(
                         fontSize: 21,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -581,7 +581,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                 const Text(
                   'Customer Information',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 6),
@@ -744,7 +744,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                 const Text(
                   'Account Information',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 6),

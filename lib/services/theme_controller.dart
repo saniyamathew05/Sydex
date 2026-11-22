@@ -14,6 +14,7 @@ class ThemeController {
   static const String _legacyAccentPreferenceKey = 'ledgerpro_accent_color';
 
   static const Map<String, Color> accentChoices = <String, Color>{
+    'Ink': Color(0xFF141414),
     'Forest': Color(0xFF075C42),
     'Emerald': Color(0xFF087553),
     'Teal': Color(0xFF0B6E69),
@@ -27,7 +28,7 @@ class ThemeController {
     ThemeMode.light,
   );
   static final ValueNotifier<Color> accentColor = ValueNotifier<Color>(
-    accentChoices['Forest']!,
+    accentChoices['Ink']!,
   );
 
   static Future<void> loadTheme() async {
@@ -45,7 +46,7 @@ class ThemeController {
     final savedAccent =
         preferences.getString(_accentPreferenceKey) ??
         preferences.getString(_legacyAccentPreferenceKey);
-    accentColor.value = accentChoices[savedAccent] ?? accentChoices['Forest']!;
+    accentColor.value = accentChoices[savedAccent] ?? accentChoices['Ink']!;
     if (saved != null) {
       await preferences.setString(_preferenceKey, saved);
     }
@@ -80,7 +81,7 @@ class ThemeController {
   static String get accentName => accentChoices.entries
       .firstWhere(
         (entry) => entry.value.toARGB32() == accentColor.value.toARGB32(),
-        orElse: () => const MapEntry('Forest', Color(0xFF075C42)),
+        orElse: () => const MapEntry('Ink', Color(0xFF141414)),
       )
       .key;
 

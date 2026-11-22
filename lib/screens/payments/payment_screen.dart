@@ -17,6 +17,7 @@ import '../../services/currency_formatter.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
 import '../../services/payment_service.dart';
+import '../../widgets/sydex_ui.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Customer customer;
@@ -717,17 +718,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: scheme.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.outlineVariant)),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_outlined, color: scheme.primary),
+            Icon(Icons.calendar_today_outlined, color: scheme.onSurface),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12)),
+              Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
               const SizedBox(height: 2),
-              Text(value, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(value, style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600, fontSize: 15)),
             ])),
-            Icon(Icons.edit_calendar_outlined, color: scheme.primary, size: 20),
+            Icon(Icons.edit_calendar_outlined, color: scheme.onSurfaceVariant, size: 20),
           ],
         ),
       ),
@@ -737,568 +738,385 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final received = _amountReceived;
     final remaining = _remainingBalance;
-    final emerald = colors.primary;
-    final emeraldLight = colors.secondary;
-
-    final fieldFill = isDark
-        ? const Color(0xFF071B12)
-        : const Color(0xFFF7F9F8);
-    final cardColor = isDark ? const Color(0xFF0D2A1D) : Colors.white;
     final hasCustomerPhone = widget.customer.phone
         .replaceAll(RegExp(r'\D'), '')
         .isNotEmpty;
 
-    InputDecoration fieldDecoration({
-      String? labelText,
-      String? prefixText,
-      String? hintText,
-      Widget? prefixIcon,
-      Widget? suffixIcon,
-      String? helperText,
-    }) {
-      return InputDecoration(
-        labelText: labelText,
-        prefixText: prefixText,
-        hintText: hintText,
-        prefixIcon: prefixIcon,
-        suffixIcon: suffixIcon,
-        helperText: helperText,
-        filled: true,
-        fillColor: fieldFill,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: colors.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: isDark ? const Color(0xFF2A3532) : const Color(0xFFE2EDE4),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: emerald, width: 1.5),
-        ),
-      );
-    }
+    Widget label(String text, {Widget? trailing}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(child: SydexEyebrow(text)),
+          ?trailing,
+        ],
+      ),
+    );
 
     return Scaffold(
-      backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text(
-          'Record Payment',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        titleSpacing: 4,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SydexEyebrow('Receive payment'),
+            const SizedBox(height: 2),
+            Text(
+              widget.customer.businessName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _isLoadingBalance
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : SydexBadge(
+                    _currentBalance < 0
+                        ? 'Advance ${CurrencyFormatter.rupees(_currentBalance.abs())}'
+                        : 'Due ${CurrencyFormatter.rupees(_currentBalance)}',
+                    tone: _currentBalance < 0
+                        ? SydexTone.positive
+                        : SydexTone.pending,
+                  ),
+          ),
+        ],
       ),
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _transactionDateSummary(
-                    context,
-                    label: 'Payment date',
-                    value: _formatSelectedDate(),
-                    onTap: _isSaving ? null : _selectDate,
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF173729)
-                            : const Color(0xFFE2EDE4),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.16 : 0.05,
-                          ),
-                          blurRadius: 18,
-                          offset: const Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: emerald.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            widget.customer.businessName.isNotEmpty
-                                ? widget.customer.businessName[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              color: emerald,
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.customer.businessName,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    size: 15,
-                                    color: colors.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Expanded(
-                                    child: Text(
-                                      widget.customer.location,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          isDark ? const Color(0xFF06452C) : emerald,
-                          isDark ? const Color(0xFF06452C) : emeraldLight,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: emerald.withValues(alpha: 0.22),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _currentBalance < 0
-                              ? 'Customer Advance'
-                              : 'Current Amount Due',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        _isLoadingBalance
-                            ? const SizedBox(
-                                width: 27,
-                                height: 27,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                CurrencyFormatter.rupees(_currentBalance.abs()),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 31,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'Amount to Settle',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: fieldDecoration(
-                      prefixText: '₹ ',
-                      hintText: '0.00',
-                      suffixIcon: TextButton(
-                        onPressed: _setFullBalance,
-                        child: Text(
-                          'FULL',
-                          style: TextStyle(
-                            color: emerald,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Discount / Amount Forgiven',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _discountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: fieldDecoration(
-                      prefixText: '₹ ',
-                      hintText: '0.00',
-                      helperText: 'Enter 0 if there is no discount.',
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'Payment Method',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  if (!_splitPayment)
-                    DropdownButtonFormField<String>(
-                      initialValue: _paymentMethod,
-                      decoration: fieldDecoration(
-                        prefixIcon: const Icon(
-                          Icons.account_balance_wallet_outlined,
-                        ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(
-                          value: 'cheque',
-                          child: Text('Cheque / Check'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'neft',
-                          child: Text('Online - NEFT'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'gpay',
-                          child: Text('Online - GPay'),
-                        ),
-                      ],
-                      onChanged: _isSaving
-                          ? null
-                          : (value) {
-                              if (value == null) return;
-                              setState(() => _paymentMethod = value);
-                            },
-                    ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Split across payment methods'),
-                    value: _splitPayment,
-                    onChanged: _isSaving ? null : _setSplitPayment,
-                  ),
-                  if (_splitPayment) ...[
-                    for (
-                      var index = 0;
-                      index < _paymentParts.length;
-                      index++
-                    ) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _paymentParts[index].method,
-                              decoration: fieldDecoration(
-                                labelText: 'Method ${index + 1}',
-                              ),
-                              items: _paymentMethods
-                                  .where(
-                                    (method) =>
-                                        method == _paymentParts[index].method ||
-                                        !_paymentParts.any(
-                                          (part) => part.method == method,
-                                        ),
-                                  )
-                                  .map(
-                                    (method) => DropdownMenuItem(
-                                      value: method,
-                                      child: Text(_paymentMethodLabel(method)),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: _isSaving
-                                  ? null
-                                  : (value) {
-                                      if (value == null) return;
-                                      setState(
-                                        () =>
-                                            _paymentParts[index].method = value,
-                                      );
-                                    },
-                            ),
-                          ),
-                          if (_paymentParts.length > 2)
-                            IconButton(
-                              tooltip: 'Remove method',
-                              onPressed: _isSaving
-                                  ? null
-                                  : () => _removePaymentPart(index),
-                              icon: const Icon(Icons.remove_circle_outline),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _paymentParts[index].amountController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: fieldDecoration(
-                          labelText:
-                              'Amount through ${_paymentMethodLabel(_paymentParts[index].method)} (₹)',
-                          hintText: 'Enter this method’s amount',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (_paymentParts.length < _paymentMethods.length)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: _isSaving ? null : _addPaymentPart,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add another method'),
-                        ),
-                      ),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  SydexReveal(
+                    child: SydexCard(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            'Amount received: ${CurrencyFormatter.rupees(_amountReceived)}',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 12,
+                          label(
+                            'Amount to settle',
+                            trailing: TextButton(
+                              onPressed: _isSaving ? null : _setFullBalance,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 32),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                              ),
+                              child: const Text('Use full balance'),
                             ),
+                          ),
+                          TextField(
+                            controller: _amountController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.8,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                            decoration: const InputDecoration(
+                              prefixText: '₹ ',
+                              hintText: '0.00',
+                              filled: false,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _discountController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Discount / amount forgiven',
+                              prefixText: '₹ ',
+                              hintText: '0.00',
+                              helperText: 'Enter 0 if there is no discount.',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _SummaryRow(
+                            label: 'Amount actually received',
+                            value: CurrencyFormatter.rupees(received),
+                            bold: true,
+                            valueColor: colors.secondary,
+                          ),
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: remaining < 0
+                                ? 'Advance after payment'
+                                : 'Balance after payment',
+                            value: CurrencyFormatter.rupees(remaining.abs()),
+                            bold: true,
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Payment Method Note / Reference',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _paymentMethodNoteController,
-                    maxLines: 2,
-                    decoration: fieldDecoration(
-                      hintText:
-                          'Optional cheque number, NEFT reference, GPay note, etc.',
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(19),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF173729)
-                            : const Color(0xFFE2EDE4),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        _SummaryRow(
-                          label: 'Amount to settle',
-                          value:
-                              CurrencyFormatter.rupees(_settlementAmount),
-                        ),
-                        const SizedBox(height: 11),
-                        _SummaryRow(
-                          label: 'Discount',
-                          value: CurrencyFormatter.rupees(_discount),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 5),
-                          child: Divider(),
-                        ),
-                        _SummaryRow(
-                          label: 'Amount actually received',
-                          value: CurrencyFormatter.rupees(received),
-                          bold: true,
-                          valueColor: emerald,
-                        ),
-                        const SizedBox(height: 11),
-                        _SummaryRow(
-                          label: remaining < 0
-                              ? 'Advance'
-                              : 'Remaining balance',
-                          value: CurrencyFormatter.rupees(remaining),
-                          bold: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'Note',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 3,
-                    decoration: fieldDecoration(hintText: 'Optional note'),
-                  ),
-                  const SizedBox(height: 26),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Signature',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Required',
-                        style: TextStyle(
-                          color: emerald,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 220,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF345245)
-                            : const Color(0xFFE2EDE4),
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      color: emeraldForeground,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Signature(
-                        controller: _signatureController,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: _clearSignature,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Clear'),
-                      style: TextButton.styleFrom(foregroundColor: emerald),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  if (hasCustomerPhone)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'If WhatsApp receipts are enabled and this customer has opted in, the receipt is queued automatically after saving.',
-                        style: TextStyle(fontSize: 12),
-                      ),
+                  SydexReveal(
+                    index: 1,
+                    child: _transactionDateSummary(
+                      context,
+                      label: 'Payment date',
+                      value: _formatSelectedDate(),
+                      onTap: _isSaving ? null : _selectDate,
                     ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton.icon(
-                      onPressed: _isSaving ? null : _savePayment,
-                      icon: _isSaving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                  ),
+                  const SizedBox(height: 14),
+                  SydexReveal(
+                    index: 2,
+                    child: SydexCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          label(
+                            'Payment method',
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Split',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                                Switch.adaptive(
+                                  value: _splitPayment,
+                                  onChanged:
+                                      _isSaving ? null : _setSplitPayment,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!_splitPayment)
+                            SydexChoiceChips(
+                              options: [
+                                for (final method in _paymentMethods)
+                                  _paymentMethodLabel(method),
+                              ],
+                              selected: _paymentMethodLabel(_paymentMethod),
+                              onSelected: (selected) {
+                                if (_isSaving) return;
+                                final method = _paymentMethods.firstWhere(
+                                  (m) => _paymentMethodLabel(m) == selected,
+                                  orElse: () => 'cash',
+                                );
+                                setState(() => _paymentMethod = method);
+                              },
+                            ),
+                          if (_splitPayment) ...[
+                            for (
+                              var index = 0;
+                              index < _paymentParts.length;
+                              index++
+                            ) ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 5,
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: _paymentParts[index].method,
+                                      decoration: InputDecoration(
+                                        labelText: 'Method ${index + 1}',
+                                      ),
+                                      items: _paymentMethods
+                                          .where(
+                                            (method) =>
+                                                method ==
+                                                    _paymentParts[index]
+                                                        .method ||
+                                                !_paymentParts.any(
+                                                  (part) =>
+                                                      part.method == method,
+                                                ),
+                                          )
+                                          .map(
+                                            (method) => DropdownMenuItem(
+                                              value: method,
+                                              child: Text(
+                                                _paymentMethodLabel(method),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: _isSaving
+                                          ? null
+                                          : (value) {
+                                              if (value == null) return;
+                                              setState(
+                                                () =>
+                                                    _paymentParts[index]
+                                                            .method =
+                                                        value,
+                                              );
+                                            },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 5,
+                                    child: TextField(
+                                      controller:
+                                          _paymentParts[index].amountController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Amount (₹)',
+                                      ),
+                                    ),
+                                  ),
+                                  if (_paymentParts.length > 2)
+                                    IconButton(
+                                      tooltip: 'Remove method',
+                                      onPressed: _isSaving
+                                          ? null
+                                          : () => _removePaymentPart(index),
+                                      icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                      ),
+                                    ),
+                                ],
                               ),
-                            )
-                          : const Icon(Icons.check_rounded),
-                      label: Text(
-                        _isSaving ? 'Saving...' : 'Save Payment',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: emerald,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                              const SizedBox(height: 10),
+                            ],
+                            Row(
+                              children: [
+                                if (_paymentParts.length <
+                                    _paymentMethods.length)
+                                  TextButton.icon(
+                                    onPressed:
+                                        _isSaving ? null : _addPaymentPart,
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Add method'),
+                                  ),
+                                const Spacer(),
+                                SydexBadge(
+                                  'Received ${CurrencyFormatter.rupees(_amountReceived)}',
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: _paymentMethodNoteController,
+                            maxLines: 2,
+                            decoration: const InputDecoration(
+                              labelText: 'Payment method note / reference',
+                              hintText:
+                                  'Optional cheque number, NEFT reference, GPay note, etc.',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _notesController,
+                            maxLines: 2,
+                            decoration: const InputDecoration(
+                              labelText: 'Note',
+                              hintText: 'Optional note',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  SydexReveal(
+                    index: 3,
+                    child: SydexCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          label(
+                            'Customer signature · required',
+                            trailing: TextButton(
+                              onPressed: _clearSignature,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 32),
+                              ),
+                              child: const Text('Clear'),
+                            ),
+                          ),
+                          Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: colors.outline),
+                              borderRadius: BorderRadius.circular(14),
+                              color: emeraldForeground,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Signature(
+                                controller: _signatureController,
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          if (hasCustomerPhone) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              'If WhatsApp receipts are enabled and this customer has opted in, the receipt is queued automatically after saving.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerLowest,
+            border: Border(top: BorderSide(color: colors.outlineVariant)),
+          ),
+          child: FilledButton.icon(
+            onPressed: _isSaving ? null : _savePayment,
+            icon: _isSaving
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.onPrimary,
+                    ),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: Text(
+              _isSaving
+                  ? 'Saving...'
+                  : 'Save payment · ${CurrencyFormatter.rupees(received)}',
             ),
           ),
         ),
@@ -1306,12 +1124,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 }
-
-// -----------------------------------------------------------------------------
-
-// SUMMARY ROW
-
-// -----------------------------------------------------------------------------
 
 class _SummaryRow extends StatelessWidget {
   final String label;
@@ -1354,7 +1166,7 @@ class _SummaryRow extends StatelessWidget {
           value,
 
           style: TextStyle(
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
 
             fontSize: bold ? 16 : 14,
 

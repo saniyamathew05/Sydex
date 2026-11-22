@@ -206,7 +206,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                           Text(
                             _routeName ?? 'Daily route',
                             style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -261,14 +261,14 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                                 child: Text(
                                   'Visit progress',
                                   style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
                               Text(
                                 '$completed / $total',
                                 style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -290,7 +290,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                   Text(
                     'Customers on route',
                     style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -368,7 +368,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.primary,
                           fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],

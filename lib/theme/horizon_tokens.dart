@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 
-/// Sydex visual tokens based on the supplied dashboard reference.
+/// Sydex visual tokens (minimal design system; see sydex_theme.dart).
 /// Use these constants for new screens so the brand stays consistent.
 abstract final class HorizonTokens {
-  static const navy = Color(0xFF064632);
-  static const navySoft = Color(0xFF075C42);
-  static const green = Color(0xFF075C42);
-  static const greenBright = Color(0xFF087553);
-  static const greenSoft = Color(0xFFE5EEE7);
-  static const background = Color(0xFFFAFAF7);
+  static const navy = Color(0xFF141414);
+  static const navySoft = Color(0xFF2A2A2A);
+  static const green = Color(0xFF141414);
+  static const greenBright = Color(0xFF1F6F4A);
+  static const greenSoft = Color(0xFFF1F0ED);
+  static const background = Color(0xFFF7F7F5);
   static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFDEE5DD);
-  static const text = Color(0xFF17251E);
-  static const muted = Color(0xFF65736B);
-  static const success = Color(0xFF16845A);
-  static const successSoft = Color(0xFFE5EEE7);
-  static const danger = Color(0xFFC44747);
-  static const dangerSoft = Color(0xFFFCEBEB);
-  static const warning = Color(0xFFB7791F);
-  static const warningSoft = Color(0xFFFFF4DE);
+  static const border = Color(0xFFE8E6E1);
+  static const text = Color(0xFF141414);
+  static const muted = Color(0xFF66625C);
+  static const success = Color(0xFF1F6F4A);
+  static const successSoft = Color(0xFFE9F2EC);
+  static const danger = Color(0xFFA61B1B);
+  static const dangerSoft = Color(0xFFFBEAEA);
+  static const warning = Color(0xFF8A5300);
+  static const warningSoft = Color(0xFFFBF1E1);
 
   static const radiusSmall = 10.0;
   static const radiusCard = 16.0;

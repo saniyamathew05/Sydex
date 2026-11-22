@@ -17,6 +17,7 @@ import '../../services/currency_formatter.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/ledger_user_name_service.dart';
 import '../../services/payment_receipt_share_service.dart';
+import '../../widgets/sydex_ui.dart';
 
 class SalesmanCustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -293,7 +294,7 @@ class _SalesmanCustomerDetailsScreenState
         const SizedBox(height: 16),
         const Text(
           'All History',
-          style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         if (entries.isEmpty)
@@ -566,12 +567,13 @@ class _SalesmanCustomerDetailsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Details')),
+      appBar: AppBar(title: const Text('Customer')),
 
       body: ValueListenableBuilder<int>(
         valueListenable: TransactionService.dataVersion,
 
         builder: (context, _, _) {
+          final colors = Theme.of(context).colorScheme;
           final cachedBalance = TransactionService.getCurrentBalance(
             customerId: _customer.id,
 
@@ -609,381 +611,278 @@ class _SalesmanCustomerDetailsScreenState
             },
 
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
 
               children: [
-                // ------------------------------------------------
-
-                // CUSTOMER HEADER
-
-                // ------------------------------------------------
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-
-                      child: Text(
-                        _getInitials(_customer.businessName),
-
-                        style: const TextStyle(
-                          fontSize: 20,
-
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 14),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-                          Text(
-                            _customer.businessName,
-
-                            style: const TextStyle(
-                              fontSize: 24,
-
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 17),
-
-                              const SizedBox(width: 5),
-
-                              Expanded(child: Text(_customer.location)),
-                            ],
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Row(
-                            children: [
-                              const Icon(Icons.phone_outlined, size: 17),
-
-                              const SizedBox(width: 5),
-
-                              Expanded(
-                                child: Text(
-                                  _customer.phone.isEmpty
-                                      ? 'No phone number'
-                                      : _customer.phone,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Edit phone number',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: _savingPhone ? null : _editPhone,
-                                icon: const Icon(Icons.edit_outlined, size: 19),
-                              ),
-                              IconButton(
-                                tooltip: 'Call customer',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: _customer.phone.trim().isEmpty
-                                    ? null
-                                    : _callCustomer,
-                                icon: const Icon(Icons.call_outlined, size: 19),
-                              ),
-                              IconButton(
-                                tooltip: 'Open customer WhatsApp chat',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: _customer.phone.trim().isEmpty
-                                    ? null
-                                    : _messageOnWhatsApp,
-                                icon: const Icon(Icons.chat_outlined, size: 19),
-                              ),
-                            ],
-                          ),
-                          TextButton.icon(
-                            onPressed: _preparingReceiptShare
-                                ? null
-                                : _shareReceipt,
-                            icon: const Icon(
-                              Icons.receipt_long_outlined,
-                              size: 18,
-                            ),
-                            label: Text(
-                              _preparingReceiptShare
-                                  ? 'Preparing receipt…'
-                                  : 'Share receipt',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // ------------------------------------------------
-
-                // AMOUNT DUE CARD
-
-                // ------------------------------------------------
-                Container(
-                  width: double.infinity,
-
-                  padding: const EdgeInsets.all(22),
-
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-
+                SydexReveal(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
+                      if (_customer.location.trim().isNotEmpty)
+                        SydexEyebrow(_customer.location),
+                      const SizedBox(height: 6),
+                      Text(
+                        _customer.businessName,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -.8,
+                          height: 1.1,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
-                            Icons.account_balance_wallet_outlined,
-
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          Text(
-                            balance < 0 ? 'Owed to customer' : 'Amount Due',
-
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer,
-
-                              fontSize: 15,
+                          Flexible(
+                            child: Text(
+                              _customer.phone.isEmpty
+                                  ? 'No phone number'
+                                  : _customer.phone,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colors.onSurfaceVariant,
+                              ),
                             ),
+                          ),
+                          TextButton(
+                            onPressed: _savingPhone ? null : _editPhone,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(44, 32),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            child: const Text('Edit'),
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        CurrencyFormatter.rupees(balance.abs()),
-
-                        style: TextStyle(
-                          fontSize: 32,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SydexReveal(
+                  index: 1,
+                  child: SydexHeroCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SydexEyebrow(
+                          balance < 0 ? 'Owed to customer' : 'Current amount due',
+                          color: Colors.white.withValues(alpha: .62),
+                        ),
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            CurrencyFormatter.rupees(balance.abs()),
+                            style: const TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -1,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          balance < 0
+                              ? 'Owed to customer'
+                              : balance > 0
+                              ? 'Outstanding amount'
+                              : 'No outstanding balance',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Colors.white.withValues(alpha: .62),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SydexReveal(
+                  index: 2,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final paymentSaved = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PaymentScreen(customer: _customer),
+                        ),
+                      );
+                      if (!mounted) return;
+                      if (paymentSaved == true) {
+                        try {
+                          await SalesmanVisitService.recordStatus(
+                            customerId: _customer.id,
+                            status: 'paid',
+                          );
+                        } catch (error) {
+                          debugPrint(
+                            'Could not record payment visit status: $error',
+                          );
+                        }
+                        if (!context.mounted) return;
+                        Navigator.pop(context, true);
+                        return;
+                      }
+                      await TransactionService.loadTransactions();
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Receive payment'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SydexReveal(
+                  index: 3,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _recordSalesReturn(balance),
+                          child: const Text(
+                            'Record sales return',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 4),
-
-                      Text(
-                        balance < 0
-                            ? 'Owed to customer'
-                            : balance > 0
-                            ? 'Outstanding amount'
-                            : 'No outstanding balance',
-
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer
-                              .withValues(alpha: 0.75),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Record no payment'),
+                                content: Text(
+                                  'Confirm that ${_customer.businessName} did not pay today. Other salesmen will see this customer as handled for today.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, true),
+                                    child: const Text('Confirm refusal'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (!context.mounted) return;
+                            if (confirm != true) return;
+                            try {
+                              await SalesmanVisitService.recordStatus(
+                                customerId: _customer.id,
+                                status: 'rejected',
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'No payment recorded. Other salesmen will see this customer as handled today.',
+                                    ),
+                                  ),
+                                );
+                                Navigator.pop(context, true);
+                              }
+                            } catch (error) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Could not record visit: $error',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Customer refused',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
-                // ------------------------------------------------
-
-                // QUICK PAYMENT BUTTON
-
-                // ------------------------------------------------
-                SizedBox(
-                  width: double.infinity,
-
-                  height: 54,
-
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                            final paymentSaved = await Navigator.push<bool>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    PaymentScreen(customer: _customer),
-                              ),
-                            );
-                            if (!mounted) return;
-                            if (paymentSaved == true) {
-                              try {
-                                await SalesmanVisitService.recordStatus(
-                                  customerId: _customer.id,
-                                  status: 'paid',
-                                );
-                              } catch (error) {
-                                debugPrint(
-                                  'Could not record payment visit status: $error',
-                                );
-                              }
-                              if (!context.mounted) return;
-                              Navigator.pop(context, true);
-                              return;
-                            }
-
-                            await TransactionService.loadTransactions();
-
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          },
-
-                    icon: const Icon(Icons.payments_outlined),
-
-                    label: const Text(
-                      'Receive Payment',
-
-                      style: TextStyle(
-                        fontSize: 16,
-
-                        fontWeight: FontWeight.bold,
+                SydexReveal(
+                  index: 4,
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 4,
+                    childAspectRatio: .74,
+                    children: [
+                      SydexQuickAction(
+                        icon: Icons.call_outlined,
+                        label: 'Call',
+                        onTap: _customer.phone.trim().isEmpty
+                            ? null
+                            : _callCustomer,
                       ),
-                    ),
+                      SydexQuickAction(
+                        icon: Icons.chat_outlined,
+                        label: 'WhatsApp',
+                        onTap: _customer.phone.trim().isEmpty
+                            ? null
+                            : _messageOnWhatsApp,
+                      ),
+                      SydexQuickAction(
+                        icon: Icons.ios_share_rounded,
+                        label: _preparingReceiptShare ? 'Preparing…' : 'Receipt',
+                        onTap: _preparingReceiptShare ? null : _shareReceipt,
+                      ),
+                      SydexQuickAction(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit phone',
+                        onTap: _savingPhone ? null : _editPhone,
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _recordSalesReturn(balance),
-                    icon: const Icon(Icons.assignment_return_outlined),
-                    label: const Text('Record Sales Return'),
-                  ),
-                ),
-
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Record no payment'),
-                        content: Text(
-                          'Confirm that ${_customer.businessName} did not pay today. Other salesmen will see this customer as handled for today.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(dialogContext, false),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(dialogContext, true),
-                            child: const Text('Confirm refusal'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (!context.mounted) return;
-                    if (confirm != true) return;
-                    try {
-                      await SalesmanVisitService.recordStatus(
-                        customerId: _customer.id,
-                        status: 'rejected',
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'No payment recorded. Other salesmen will see this customer as handled today.',
-                            ),
-                          ),
-                        );
-                        Navigator.pop(context, true);
-                      }
-                    } catch (error) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Could not record visit: $error'),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.person_off_outlined),
-                  label: const Text('Record no payment today'),
-                ),
-
-                const SizedBox(height: 22),
-
-                // ------------------------------------------------
-
-                // STATISTICS
-
-                // ------------------------------------------------
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
-                      child: _InfoCard(
-                        icon: Icons.payments_outlined,
-
-                        title: 'Total Paid',
-
+                      child: SydexStatTile(
+                        label: 'Total paid',
                         value: CurrencyFormatter.rupees(totalPaid),
                       ),
                     ),
-
-                    const SizedBox(width: 12),
-
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: _InfoCard(
-                        icon: Icons.receipt_long_outlined,
-
-                        title: 'Payments',
-
+                      child: SydexStatTile(
+                        label: 'Payments',
                         value: effectivePayments.length.toString(),
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 28),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children:
-                      [
-                        'All',
-                        'Sales',
-                        'Payment',
-                        'Payment Refused',
-                        'Sales Return',
-                      ].map((filter) {
-                        return ChoiceChip(
-                          label: Text(filter),
-                          selected: _historyFilter == filter,
-                          onSelected: (_) =>
-                              setState(() => _historyFilter = filter),
-                        );
-                      }).toList(),
+                const SizedBox(height: 20),
+                SydexChoiceChips(
+                  options: const [
+                    'All',
+                    'Sales',
+                    'Payment',
+                    'Payment Refused',
+                    'Sales Return',
+                  ],
+                  selected: _historyFilter,
+                  onSelected: (filter) =>
+                      setState(() => _historyFilter = filter),
                 ),
 
                 if (_historyFilter == 'All') ...[_buildCombinedHistory()],
@@ -997,7 +896,7 @@ class _SalesmanCustomerDetailsScreenState
                         'Sales History',
                         style: TextStyle(
                           fontSize: 21,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (_saleEntries.isNotEmpty)
@@ -1005,7 +904,7 @@ class _SalesmanCustomerDetailsScreenState
                           '${_saleEntries.length}',
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],
@@ -1127,7 +1026,7 @@ class _SalesmanCustomerDetailsScreenState
                         style: TextStyle(
                           fontSize: 21,
 
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
 
@@ -1138,7 +1037,7 @@ class _SalesmanCustomerDetailsScreenState
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.primary,
 
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],
@@ -1223,7 +1122,7 @@ class _SalesmanCustomerDetailsScreenState
                         'Payment Refused',
                         style: TextStyle(
                           fontSize: 21,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           color: Colors.red,
                         ),
                       ),
@@ -1232,7 +1131,7 @@ class _SalesmanCustomerDetailsScreenState
                           '${_refusalEntries.length}',
                           style: const TextStyle(
                             color: Colors.red,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],
@@ -1277,7 +1176,7 @@ class _SalesmanCustomerDetailsScreenState
                             'Payment refused',
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.error,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
@@ -1298,7 +1197,7 @@ class _SalesmanCustomerDetailsScreenState
                         'Sales Returns',
                         style: TextStyle(
                           fontSize: 21,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (_returnEntries.isNotEmpty)
@@ -1306,7 +1205,7 @@ class _SalesmanCustomerDetailsScreenState
                           '${_returnEntries.length}',
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],
@@ -1387,19 +1286,7 @@ class _SalesmanCustomerDetailsScreenState
     );
   }
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
 
-    if (parts.isEmpty || parts.first.isEmpty) {
-      return 'C';
-    }
-
-    if (parts.length == 1) {
-      return parts.first[0].toUpperCase();
-    }
-
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
 }
 
 class _SalesmanSaleDetailsScreen extends StatefulWidget {
@@ -1478,7 +1365,7 @@ class _SalesmanSaleDetailsScreenState
                   Text(
                     'Sale / Purchase',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1625,7 +1512,7 @@ class _SaleDetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
+      fontWeight: emphasize ? FontWeight.w600 : FontWeight.w500,
       color: emphasize ? Theme.of(context).colorScheme.primary : null,
     );
     return Padding(
@@ -1661,62 +1548,6 @@ class _SaleDetailRow extends StatelessWidget {
 
 // ============================================================
 
-class _InfoCard extends StatelessWidget {
-  final IconData icon;
-
-  final String title;
-
-  final String value;
-
-  const _InfoCard({
-    required this.icon,
-
-    required this.title,
-
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-
-        borderRadius: BorderRadius.circular(16),
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Icon(icon, size: 22),
-
-          const SizedBox(height: 12),
-
-          Text(
-            value,
-
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 3),
-
-          Text(
-            title,
-
-            style: TextStyle(
-              fontSize: 12,
-
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ============================================================
 
@@ -1807,7 +1638,7 @@ class _PaymentCardState extends State<_PaymentCard> {
         title: Text(
           '+ ${CurrencyFormatter.rupees(payment.actualAmountReceived)}',
 
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
 
         subtitle: Column(
@@ -1937,7 +1768,7 @@ class _PaymentCardState extends State<_PaymentCard> {
             child: Text(
               'Signature',
 
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
 

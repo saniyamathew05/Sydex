@@ -108,15 +108,17 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
   @override
   Widget build(BuildContext context) {
     final reduced = MediaQuery.disableAnimationsOf(context);
-    final accent = Theme.of(context).colorScheme.primary;
-    const foreground = Color(0xFFF2F5F4);
+    final scheme = Theme.of(context).colorScheme;
+    final foreground = scheme.onSurface;
+    final mutedText = scheme.onSurfaceVariant;
+    final tile = scheme.surfaceContainer;
     return AnimatedContainer(
       duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
       curve: Curves.easeOutCubic,
       width: _collapsed ? 80 : 244,
-      decoration: const BoxDecoration(
-        color: Color(0xFF171D20),
-        border: Border(right: BorderSide(color: Color(0xFF30383C))),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(right: BorderSide(color: scheme.outlineVariant)),
       ),
       child: ClipRect(
         child: OverflowBox(
@@ -125,9 +127,9 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
           maxWidth: _collapsed ? 80 : 244,
           child: Theme(
             data: Theme.of(context).copyWith(
-              iconTheme: const IconThemeData(color: foreground),
-              focusColor: Colors.white24,
-              hoverColor: Colors.white10,
+              iconTheme: IconThemeData(color: foreground),
+              focusColor: foreground.withValues(alpha: .08),
+              hoverColor: foreground.withValues(alpha: .04),
             ),
             child: Material(
               type: MaterialType.transparency,
@@ -143,11 +145,8 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                             height: 42,
                             padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
-                              color: accent.withValues(alpha: .25),
+                              color: tile,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: accent.withValues(alpha: .45),
-                              ),
                             ),
                             child: Image.asset(
                               'assets/sydex_logo_transparent.png',
@@ -155,7 +154,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                           ),
                           if (!_collapsed) ...[
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -163,15 +162,15 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                                     'Sydex',
                                     style: TextStyle(
                                       color: foreground,
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -.6,
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -.5,
                                     ),
                                   ),
                                   Text(
                                     'BUSINESS WORKSPACE',
                                     style: TextStyle(
-                                      color: Color(0xFF9CAAAE),
+                                      color: mutedText,
                                       fontSize: 9,
                                       letterSpacing: 1.3,
                                     ),
@@ -207,14 +206,9 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                                       : const Duration(milliseconds: 140),
                                   decoration: BoxDecoration(
                                     color: destination.selected
-                                        ? accent.withValues(alpha: .24)
+                                        ? tile
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: destination.selected
-                                          ? accent.withValues(alpha: .35)
-                                          : Colors.transparent,
-                                    ),
                                   ),
                                   child: Material(
                                     color: Colors.transparent,
@@ -231,7 +225,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                                               size: 20,
                                               color: destination.selected
                                                   ? foreground
-                                                  : const Color(0xFFAEBABE),
+                                                  : mutedText,
                                             ),
                                             if (!_collapsed) ...[
                                               const SizedBox(width: 12),
@@ -244,9 +238,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                                                   style: TextStyle(
                                                     color: destination.selected
                                                         ? foreground
-                                                        : const Color(
-                                                            0xFFAEBABE,
-                                                          ),
+                                                        : mutedText,
                                                     fontSize: 13,
                                                     fontWeight:
                                                         destination.selected
@@ -267,8 +259,8 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                         ],
                       ),
                     ),
-                    const Divider(
-                      color: Color(0xFF30383C),
+                    Divider(
+                      color: scheme.outlineVariant,
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -279,12 +271,12 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                       onTap: widget.onProfile,
                       leading: CircleAvatar(
                         radius: 18,
-                        backgroundColor: accent.withValues(alpha: .25),
+                        backgroundColor: tile,
                         child: Text(
                           widget.userName.isEmpty
                               ? 'S'
                               : widget.userName[0].toUpperCase(),
-                          style: const TextStyle(color: foreground),
+                          style: TextStyle(color: foreground),
                         ),
                       ),
                       title: _collapsed
@@ -293,7 +285,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                               widget.userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: foreground,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -303,8 +295,8 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                           ? null
                           : Text(
                               widget.role,
-                              style: const TextStyle(
-                                color: Color(0xFF9CAAAE),
+                              style: TextStyle(
+                                color: mutedText,
                                 fontSize: 11,
                               ),
                             ),
@@ -323,7 +315,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                           _collapsed
                               ? Icons.keyboard_double_arrow_right
                               : Icons.keyboard_double_arrow_left,
-                          color: const Color(0xFFAEBABE),
+                          color: mutedText,
                           size: 19,
                         ),
                       ),

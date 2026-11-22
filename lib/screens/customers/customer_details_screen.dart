@@ -29,6 +29,7 @@ import '../payments/payment_screen.dart';
 import '../purchases/add_purchase_screen.dart';
 import '../../services/currency_formatter.dart';
 import '../../widgets/edit_payment_dialog.dart';
+import '../../widgets/sydex_ui.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -2124,50 +2125,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             return bDate.compareTo(aDate);
           });
 
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        surfaceTintColor: Theme.of(context).colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: 'Back',
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          customer.businessName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        actions: [
-          if (_isOwner)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: OutlinedButton.icon(
-                onPressed: _editCustomer,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Edit'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.primary,
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
-        ],
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -2176,221 +2136,176 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 920),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      MediaQuery.paddingOf(context).top + 12,
+                      20,
+                      24,
+                    ),
                     children: [
-                      // Compact customer identity and outstanding balance header.
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant,
+                      Row(
+                        children: [
+                          SydexIconButton(
+                            icon: Icons.arrow_back_rounded,
+                            tooltip: 'Back',
+                            onPressed: () => Navigator.of(context).maybePop(),
                           ),
-                        ),
-                        child: Row(
+                          const Spacer(),
+                          if (_isOwner)
+                            SydexIconButton(
+                              icon: Icons.edit_outlined,
+                              tooltip: 'Edit customer',
+                              onPressed: _editCustomer,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      SydexReveal(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 23,
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              child: Text(
-                                customer.businessName.trim().isEmpty
-                                    ? '?'
-                                    : customer.businessName
-                                          .trim()[0]
-                                          .toUpperCase(),
+                            if (customer.location.trim().isNotEmpty)
+                              SydexEyebrow(customer.location),
+                            const SizedBox(height: 6),
+                            Text(
+                              customer.businessName,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -.8,
+                                height: 1.1,
+                                color: colors.onSurface,
+                              ),
+                            ),
+                            if (customer.phone.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                customer.phone,
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
+                                  fontSize: 13,
+                                  color: colors.onSurfaceVariant,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    customer.businessName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_on_outlined,
-                                        size: 14,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          customer.location,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SydexReveal(
+                        index: 1,
+                        child: SydexHeroCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SydexEyebrow(
+                                currentBalance < 0
+                                    ? 'Advance (credit)'
+                                    : 'Current amount due',
+                                color: Colors.white.withValues(alpha: .62),
+                              ),
+                              const SizedBox(height: 6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _money(currentBalance.abs()),
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -1,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.phone_outlined,
-                                        size: 13,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          customer.phone,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        visualDensity: VisualDensity.compact,
-                                        constraints:
-                                            const BoxConstraints.tightFor(
-                                              width: 30,
-                                              height: 28,
-                                            ),
-                                        padding: EdgeInsets.zero,
-                                        tooltip: 'Call customer',
-                                        onPressed: _callCustomer,
-                                        icon: Icon(
-                                          Icons.call_outlined,
-                                          size: 16,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        visualDensity: VisualDensity.compact,
-                                        constraints:
-                                            const BoxConstraints.tightFor(
-                                              width: 30,
-                                              height: 28,
-                                            ),
-                                        padding: EdgeInsets.zero,
-                                        tooltip: 'Open customer WhatsApp chat',
-                                        onPressed: _whatsappCustomer,
-                                        icon: const Icon(
-                                          Icons.chat_outlined,
-                                          size: 16,
-                                          color: Color(0xFF159A69),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Share payment receipt',
-                                        visualDensity: VisualDensity.compact,
-                                        constraints:
-                                            const BoxConstraints.tightFor(
-                                              width: 30,
-                                              height: 28,
-                                            ),
-                                        padding: EdgeInsets.zero,
-                                        onPressed: _sharingReceipt
-                                            ? null
-                                            : _shareCustomerReceipt,
-                                        icon: const Icon(
-                                          Icons.receipt_long_outlined,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ),
                               ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Opening balance ${_money(customer.openingBalance)}',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: Colors.white.withValues(alpha: .62),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SydexReveal(
+                        index: 2,
+                        child: GridView.count(
+                          crossAxisCount: 4,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 4,
+                          childAspectRatio: .72,
+                          children: [
+                            SydexQuickAction(
+                              icon: Icons.add_rounded,
+                              label: 'Add sale',
+                              onTap: _newPurchase,
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              constraints: const BoxConstraints(minWidth: 94),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 11,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFEEF0),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    currentBalance < 0
-                                        ? 'Advance'
-                                        : 'Total Due',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF8D5962),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _money(currentBalance.abs()),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFFB4232F),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            SydexQuickAction(
+                              icon: Icons.account_balance_wallet_outlined,
+                              label: 'Add payment',
+                              onTap: _recordPayment,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.assignment_return_outlined,
+                              label: 'Return',
+                              onTap: _recordReturn,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.ios_share_rounded,
+                              label: _sharingReceipt ? 'Preparing…' : 'Share receipt',
+                              onTap: _sharingReceipt ? null : _shareCustomerReceipt,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.call_outlined,
+                              label: 'Call',
+                              onTap: _callCustomer,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.chat_outlined,
+                              label: 'WhatsApp',
+                              onTap: _whatsappCustomer,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.picture_as_pdf_outlined,
+                              label: 'Statement',
+                              onTap: _exportCustomerStatement,
+                            ),
+                            SydexQuickAction(
+                              icon: Icons.visibility_off_outlined,
+                              label: 'Hide entries',
+                              onTap: _isOwner
+                                  ? () => setState(() {
+                                      _activeTab = 'ledger';
+                                      _selectingHistory = true;
+                                    })
+                                  : null,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      // Tabs arranged like the supplied reference: Ledger / Details / Purchases / Photos.
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _customerTab('Ledger', 'ledger'),
-                            _customerTab('Details', 'details'),
-                            _customerTab('Sales', 'purchases'),
-                            _customerTab('Photos', 'photos'),
-                          ],
+                      const SizedBox(height: 16),
+                      SydexChoiceChips(
+                        options: const ['Ledger', 'Details', 'Sales', 'Photos'],
+                        selected: switch (_activeTab) {
+                          'details' => 'Details',
+                          'purchases' => 'Sales',
+                          'photos' => 'Photos',
+                          _ => 'Ledger',
+                        },
+                        onSelected: (label) => setState(
+                          () => _activeTab = switch (label) {
+                            'Details' => 'details',
+                            'Sales' => 'purchases',
+                            'Photos' => 'photos',
+                            _ => 'ledger',
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -2418,7 +2333,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             ),
                           ),
                         const SizedBox(height: 10),
-                        _buildLedgerTableHeader(),
                         if (_filteredLedgerEntries(allEntries).isEmpty)
                           _buildEmptyHistory()
                         else
@@ -2542,153 +2456,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: SizedBox(
-                        height: 46,
-                        child: ElevatedButton.icon(
-                          onPressed: _recordPayment,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Payment', maxLines: 1),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF18A66A),
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.surface,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                          ),
-                        ),
+                      child: OutlinedButton.icon(
+                        onPressed: _newPurchase,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Add sale', maxLines: 1),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: SizedBox(
-                        height: 46,
-                        child: ElevatedButton.icon(
-                          onPressed: _newPurchase,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Sale', maxLines: 1),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.surface,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                          ),
-                        ),
+                      child: FilledButton.icon(
+                        onPressed: _recordPayment,
+                        icon: const Icon(Icons.south_west_rounded, size: 18),
+                        label: const Text('Receive payment', maxLines: 1),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-    );
-  }
-
-  Widget _customerTab(String label, String value) {
-    final selected = _activeTab == value;
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(9),
-        onTap: () => setState(() => _activeTab = value),
-        onLongPress: value == 'ledger'
-            ? () => setState(() => _selectingHistory = true)
-            : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          decoration: BoxDecoration(
-            color: selected
-                ? Theme.of(context).colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            border: selected
-                ? Border(
-                    bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    ),
-                  )
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-              color: selected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLedgerTableHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Date',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Description',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Amount',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Balance',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2706,7 +2491,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         children: [
           const Text(
             'Customer Details',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           _detailRow('Business name', customer.businessName),
@@ -2762,7 +2547,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             title,
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
@@ -2861,51 +2646,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       'Payment Refused',
       'Sales',
     ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: filters.map((filter) {
-            final selected = _selectedLedgerFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: ChoiceChip(
-                label: Text(filter),
-                selected: selected,
-                showCheckmark: false,
-                onSelected: (_) {
-                  setState(() => _selectedLedgerFilter = filter);
-                },
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF8DCB9F)
-                      : Theme.of(context).colorScheme.outlineVariant,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+    return SydexChoiceChips(
+      options: filters,
+      selected: filters.contains(_selectedLedgerFilter)
+          ? _selectedLedgerFilter
+          : 'All',
+      onSelected: (filter) => setState(() => _selectedLedgerFilter = filter),
     );
   }
 
@@ -3088,7 +2834,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           style: TextStyle(
                             fontSize: 17,
 
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                             color: isRefusal
                                 ? Theme.of(context).colorScheme.error
                                 : null,
@@ -3245,7 +2991,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     style: TextStyle(
                       fontSize: 18,
 
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
 
                       color:
                           isRefusal ||

@@ -4,6 +4,7 @@ import 'dart:async';
 // ignore_for_file: unused_element, unused_element_parameter, dead_code, unused_local_variable
 import 'package:flutter/material.dart';
 import '../../widgets/desktop_workspace.dart';
+import '../../widgets/sydex_ui.dart';
 import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -658,7 +659,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
               ),
             ),
             const SizedBox(height: 12),
-            Text(qrLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(qrLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
             if (upi.isNotEmpty) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
@@ -767,236 +768,322 @@ class _SalesmanHomeState extends State<SalesmanHome>
         )
         .take(4)
         .toList(growable: false);
-    final green = colors.primary;
-    final emerald = colors.primary;
-    final ink = Theme.of(context).colorScheme.onSurface;
+    final progress = route.isEmpty ? 0.0 : visited / route.length;
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final now = DateTime.now();
+    final today = '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+    final heroMuted = Colors.white.withValues(alpha: .62);
+
+    var revealIndex = 0;
+    Widget reveal(Widget child) =>
+        SydexReveal(index: revealIndex++, child: child);
 
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_getGreeting()},',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.userName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 21,
-                        height: 1.15,
-                        fontWeight: FontWeight.w800,
-                        color: ink,
-                      ),
-                    ),
-                  ],
+          reveal(
+            SydexScreenHeader(
+              large: false,
+              leading: SydexAvatar(widget.userName, size: 44),
+              eyebrow: today,
+              title: '${_getGreeting()}, ${widget.userName}',
+              actions: [
+                SydexIconButton(
+                  icon: Icons.refresh_rounded,
+                  tooltip: 'Refresh data',
+                  onPressed: isLoading ? null : _loadData,
                 ),
-              ),
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: colors.primaryContainer,
-                foregroundColor: colors.onPrimaryContainer,
-                child: Text(
-                  _getInitials(widget.userName),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+                SydexIconButton(
+                  icon: Icons.settings_outlined,
+                  tooltip: 'Settings',
+                  onPressed: _openSettings,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _SalesmanStatusCard(
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: '$paymentCount payments today',
-                  value: CurrencyFormatter.rupees(collectedToday),
-                  color: emerald,
-                  background: isDark
-                      ? const Color(0xFF173A35)
-                      : const Color(0xFFEAF8F2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _SalesmanStatusCard(
-                  icon: Icons.check_circle_rounded,
-                  label: 'Visits completed',
-                  value: '$visited',
-                  color: const Color(0xFFE5A12B),
-                  background: isDark
-                      ? const Color(0xFF3B3020)
-                      : const Color(0xFFFFF5E6),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _SalesmanStatusCard(
-                  icon: Icons.groups_rounded,
-                  label: 'Pending visits',
-                  value: '$pending',
-                  color: const Color(0xFFE5A12B),
-                  background: isDark
-                      ? const Color(0xFF40252D)
-                      : const Color(0xFFFFEFF0),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _SalesmanStatusCard(
-                  icon: Icons.stacked_bar_chart_rounded,
-                  label: 'Pending collection',
-                  value: CurrencyFormatter.rupees(pendingCollection),
-                  color: const Color(0xFFC83B32),
-                  background: isDark
-                      ? const Color(0xFF183D2D)
-                      : const Color(0xFFEAF3EC),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.outlineVariant),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.insights_rounded,
-                      size: 18,
-                      color: colors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Today’s visit progress',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: colors.onSurface,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '$visited / ${route.length}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: colors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: route.isEmpty ? 0 : visited / route.length,
-                    minHeight: 8,
-                    backgroundColor: colors.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  _routeLoadError ??
-                      (route.isEmpty
-                          ? 'No customers are assigned today.'
-                          : '$pending customers remaining'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-                if (selectedRouteCustomerIds.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _finishRoute,
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Finish route'),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          const SizedBox(height: 6),
-          if (noPayment > 0)
-            Text(
-              '$noPayment refused today · $paid payments recorded',
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
-            ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Recent Payments',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+          const SizedBox(height: 18),
+          reveal(
+            SydexHeroCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SydexEyebrow(
+                          'Today’s route',
+                          color: heroMuted,
+                        ),
+                      ),
+                      if ((selectedRouteName ?? '').isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            selectedRouteName!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$pending',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -.8,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '  customers remaining',
+                          style: TextStyle(fontSize: 15, color: heroMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: progress),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => LinearProgressIndicator(
+                        value: value,
+                        minHeight: 4,
+                        backgroundColor: Colors.white.withValues(alpha: .18),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _routeLoadError ??
+                              (route.isEmpty
+                                  ? 'No customers are assigned today.'
+                                  : '$visited visited'),
+                          style: TextStyle(fontSize: 12, color: heroMuted),
+                        ),
+                      ),
+                      Text(
+                        '${route.length} stops',
+                        style: TextStyle(fontSize: 12, color: heroMuted),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => setState(() => selectedIndex = 1),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF141414),
+                            minimumSize: const Size(0, 42),
+                          ),
+                          child: const Text('Open route'),
+                        ),
+                      ),
+                      if (selectedRouteCustomerIds.isNotEmpty) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _finishRoute,
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: .3),
+                              ),
+                              minimumSize: const Size(0, 42),
+                            ),
+                            child: const Text('Finish route'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: _openPayments,
-                child: Text(
-                  'View all',
-                  style: TextStyle(color: green, fontSize: 12),
-                ),
-              ),
-            ],
+            ),
           ),
-          if (recentPayments.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Text(
-                  'No payments received yet',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
+          const SizedBox(height: 12),
+          reveal(
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.5,
+              children: [
+                SydexStatTile(
+                  label: 'Collected today',
+                  value: CurrencyFormatter.rupees(collectedToday),
                 ),
-              ),
-            )
-          else
-            ...recentPayments.map(
-              (transaction) => _PaymentPreviewCard(
-                customerName: transaction.customerName,
-                amount: transaction.actualAmountReceived,
-                date: _formatDate(transaction.transactionDate),
-                onTap: _openPayments,
+                SydexStatTile(
+                  label: 'Payments received',
+                  value: '$paymentCount',
+                  footnote: noPayment > 0 ? '$noPayment refused today' : null,
+                ),
+                SydexStatTile(
+                  label: 'Visits completed',
+                  value: '$visited',
+                  footnote: '$paid paid',
+                ),
+                SydexStatTile(
+                  label: 'Pending visits',
+                  value: '$pending',
+                  footnote:
+                      'To collect ${CurrencyFormatter.rupees(pendingCollection)}',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexCard(
+              onTap: _showPaymentQr,
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      Icons.qr_code_2_rounded,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Receive payment by QR',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          'UPI or net banking',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: colors.outline),
+                ],
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          reveal(
+            SydexSection(
+              title: 'Recent payments',
+              actionLabel: 'See all',
+              onAction: _openPayments,
+              child: recentPayments.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: Text(
+                          'No payments received yet',
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < recentPayments.length; i++) ...[
+                          if (i > 0)
+                            Divider(height: 1, color: colors.outlineVariant),
+                          InkWell(
+                            onTap: _openPayments,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          recentPayments[i].customerName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          _formatDate(
+                                            recentPayments[i].transactionDate,
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    CurrencyFormatter.rupees(
+                                      recentPayments[i].actualAmountReceived,
+                                    ),
+                                    style: TextStyle(
+                                      color: colors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
+          ),
         ],
       ),
     );
@@ -1004,364 +1091,205 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
   Widget _buildCustomersTab() {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = colors.onSurface;
     final filters = ['All', 'Pending', 'Visited'];
+    final labels = {for (final f in filters) '$f (${_statusCount(f)})': f};
+    final selectedLabel = labels.entries
+        .firstWhere(
+          (entry) => entry.value == customerStatusFilter,
+          orElse: () => labels.entries.first,
+        )
+        .key;
 
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Back to home',
-                  onPressed: () => setState(() => selectedIndex = 0),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 21),
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    "Today's Customers",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.45,
-                      color: ink,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          child: SydexScreenHeader(
+            eyebrow: [
+              if ((selectedRouteName ?? '').isNotEmpty) selectedRouteName!,
+              '${routeCustomers.length} stops',
+            ].join(' · '),
+            title: 'My route',
+            actions: [
+              SydexIconButton(
+                icon: Icons.refresh_rounded,
+                tooltip: 'Refresh route',
+                onPressed: isLoading ? null : _loadData,
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: TextField(
+            controller: searchController,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search customer...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        searchController.clear();
+                        setState(() {});
+                      },
+                      icon: const Icon(Icons.close_rounded),
                     ),
-                  ),
-                ),
-              ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-            child: TextField(
-              controller: searchController,
-              onChanged: (_) => setState(() {}),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search customer...',
-                hintStyle: TextStyle(
-                  fontSize: 13,
-                  color: colors.onSurfaceVariant,
-                ),
-                prefixIcon: const Icon(Icons.search_rounded, size: 19),
-                prefixIconConstraints: const BoxConstraints(minWidth: 40),
-                suffixIcon: searchController.text.isEmpty
-                    ? null
-                    : IconButton(
-                        onPressed: () {
-                          searchController.clear();
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.close_rounded, size: 18),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: SydexChoiceChips(
+            options: labels.keys.toList(),
+            selected: selectedLabel,
+            onSelected: (label) =>
+                setState(() => customerStatusFilter = labels[label] ?? 'All'),
+          ),
+        ),
+        Expanded(
+          child: filteredCustomers.isEmpty
+              ? RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 65),
+                    children: [
+                      Icon(
+                        Icons.people_outline_rounded,
+                        size: 42,
+                        color: colors.outline,
                       ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 12,
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          searchController.text.trim().isNotEmpty
+                              ? 'No matching customers'
+                              : 'No customers in this filter',
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 2, 20, 20),
+                    children: [
+                      SydexCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < filteredCustomers.length;
+                              index++
+                            ) ...[
+                              if (index > 0)
+                                Divider(
+                                  height: 1,
+                                  color: colors.outlineVariant,
+                                ),
+                              _routeRow(filteredCustomers[index]),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                filled: true,
-                fillColor: colors.surfaceContainerHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  borderSide: BorderSide(color: colors.outlineVariant),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  borderSide: BorderSide(color: colors.outlineVariant),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  borderSide: BorderSide(color: colors.primary, width: 1.2),
+        ),
+      ],
+    );
+  }
+
+  Widget _routeRow(Customer customer) {
+    final colors = Theme.of(context).colorScheme;
+    final status = _statusLabel(customer);
+    final tone = switch (status) {
+      'Visited' => SydexTone.positive,
+      'Refused today' => SydexTone.negative,
+      _ => SydexTone.pending,
+    };
+    return InkWell(
+      onTap: () => _openCustomer(customer),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text(
+                '${selectedRouteCustomerIds.indexOf(customer.id) + 1}.',
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 9),
-            child: Row(
-              children: filters.map((filter) {
-                final selected = customerStatusFilter == filter;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: filter == filters.last ? 0 : 7,
+            const SizedBox(width: 10),
+            SydexAvatar(customer.businessName, size: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    customer.businessName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.onSurface,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () =>
-                          setState(() => customerStatusFilter = filter),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                          horizontal: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? colors.primary
-                              : colors.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: selected
-                                ? colors.primary
-                                : colors.outlineVariant,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$filter (${_statusCount(filter)})',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: selected ? Colors.white : colors.onSurface,
-                            ),
-                          ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${customer.location} · ${CurrencyFormatter.customerBalance(TransactionService.getCustomerBalance(customer.id))}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (status == 'Refused today')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Already refused today — do not ask again',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.error,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: filteredCustomers.isEmpty
-                ? RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.only(top: 65),
-                      children: [
-                        Icon(
-                          Icons.people_outline_rounded,
-                          size: 42,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            searchController.text.trim().isNotEmpty
-                                ? 'No matching customers'
-                                : 'No customers in this filter',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 3, 20, 18),
-                      itemCount: filteredCustomers.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        thickness: 0.6,
-                        indent: 81,
-                        color: colors.outlineVariant,
-                      ),
-                      itemBuilder: (context, index) {
-                        final customer = filteredCustomers[index];
-                        final status = _statusLabel(customer);
-                        final statusColor = switch (status) {
-                          'Visited' => const Color(0xFF27845B),
-                          'Refused today' => const Color(0xFFD64A55),
-                          _ => const Color(0xFFD58B28),
-                        };
-                        final initials = customer.businessName
-                            .trim()
-                            .split(RegExp(r'\s+'))
-                            .where((part) => part.isNotEmpty)
-                            .take(2)
-                            .map((part) => part[0].toUpperCase())
-                            .join();
-                        final avatarColors = isDark
-                            ? const [
-                                Color(0xFF155A3A),
-                                Color(0xFF1E6544),
-                                Color(0xFF25513B),
-                                Color(0xFF214B45),
-                              ]
-                            : const [
-                                Color(0xFFDDF3E5),
-                                Color(0xFFC9E5D1),
-                                Color(0xFFEAF3EC),
-                                Color(0xFFD9F0EB),
-                              ];
-                        return InkWell(
-                          onTap: () => _openCustomer(customer),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                              horizontal: 1,
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 26,
-                                  child: Text(
-                                    '${selectedRouteCustomerIds.indexOf(customer.id) + 1}.',
-                                    textAlign: TextAlign.end,
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 35,
-                                  height: 35,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color:
-                                        avatarColors[index %
-                                            avatarColors.length],
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    initials.isEmpty ? '?' : initials,
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? const Color(0xFFDDF3E5)
-                                          : colors.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        customer.businessName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: ink,
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      if (status == 'Refused today') ...[
-                                        const SizedBox(height: 3),
-                                        const Row(
-                                          children: [
-                                            Icon(
-                                              Icons.block_rounded,
-                                              size: 11,
-                                              color: Color(0xFFD64A55),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                'Already refused today — do not ask again',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: Color(0xFFD64A55),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 3),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on_outlined,
-                                            size: 11,
-                                            color: colors.onSurfaceVariant,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Expanded(
-                                            child: Text(
-                                              customer.location,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: colors.onSurfaceVariant,
-                                                fontSize: 10.5,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            CurrencyFormatter.customerBalance(
-                                              TransactionService.getCustomerBalance(
-                                                customer.id,
-                                              ),
-                                            ),
-                                            maxLines: 1,
-                                            style: TextStyle(
-                                              color: colors.primary,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 7,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.09),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 17,
-                                  color: colors.onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            SydexBadge(
+              status == 'Refused today' ? 'Refused' : status,
+              tone: tone,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1370,7 +1298,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
     return SalesmanRouteMapScreen(
       onBack: () => setState(() => selectedIndex = 0),
     );
-    const green = Color(0xFF0B5D3B);
+    const green = Color(0xFF1F6F4A);
     final ink = Theme.of(context).colorScheme.onSurface;
     final customers = routeCustomers;
     final unvisitedCustomers = customers
@@ -1397,7 +1325,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                     "Today's Route (Map)",
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
@@ -1451,19 +1379,12 @@ class _SalesmanHomeState extends State<SalesmanHome>
                           color: handled ? const Color(0xFF1985F7) : green,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x33000000),
-                              blurRadius: 5,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: Text(
                           '${i + 1}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
                         ),
@@ -1480,13 +1401,6 @@ class _SalesmanHomeState extends State<SalesmanHome>
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(17),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 15,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1498,7 +1412,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                                   : 'Route completed'),
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
@@ -1576,7 +1490,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                     style: TextStyle(
                       fontSize: 28,
 
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
 
                       letterSpacing: -0.5,
                     ),
@@ -1671,7 +1585,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
               const Text(
                 'Payment History',
 
-                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600),
               ),
 
               const SizedBox(height: 8),
@@ -1719,7 +1633,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
           style: TextStyle(
             fontSize: 28,
 
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
 
             letterSpacing: -0.5,
           ),
@@ -1771,7 +1685,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                       overflow: TextOverflow.ellipsis,
 
                       style: const TextStyle(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
 
                         fontSize: 17,
                       ),
@@ -2050,75 +1964,12 @@ class _SalesmanHomeState extends State<SalesmanHome>
       builder: (context, constraints) {
         final useRail = constraints.maxWidth >= 1000;
         final content = Scaffold(
-          appBar: AppBar(
-            backgroundColor: colors.surface,
-            foregroundColor: colors.onSurface,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            title: selectedIndex == 0
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Icon(
-                          Icons.account_balance_wallet_rounded,
-                          color: colors.onPrimary,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Sydex',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            'Collection workspace',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Text(
-                    titles[selectedIndex],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
-                    ),
-                  ),
-            actions: [
-              IconButton(
-                tooltip: 'Settings',
-                onPressed: _openSettings,
-                icon: const Icon(Icons.settings_outlined),
-              ),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: isLoading ? null : _loadData,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-              const SizedBox(width: 4),
-            ],
-          ),
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
-              : IndexedStack(
+              : SafeArea(
+                  bottom: false,
+                  top: true,
+                  child: IndexedStack(
                   index: selectedIndex,
                   children: [
                     for (var i = 0; i < pages.length; i++)
@@ -2131,46 +1982,32 @@ class _SalesmanHomeState extends State<SalesmanHome>
                       ),
                   ],
                 ),
+                ),
           bottomNavigationBar: useRail
               ? null
-              : Stack(
-                  alignment: Alignment.topCenter,
-                  clipBehavior: Clip.none,
-                  children: [
-                    NavigationBar(
-                      selectedIndex: _phoneNavigationIndex,
-                      onDestinationSelected: _selectPhoneNavigation,
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined),
-                          selectedIcon: Icon(Icons.home_rounded),
-                          label: 'Home',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.people_outline_rounded),
-                          selectedIcon: Icon(Icons.people_rounded),
-                          label: 'Customers',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.payments_outlined),
-                          selectedIcon: Icon(Icons.payments_rounded),
-                          label: 'Payments',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.map_outlined),
-                          selectedIcon: Icon(Icons.map_rounded),
-                          label: 'Map',
-                        ),
-                      ],
+              : NavigationBar(
+                  selectedIndex: _phoneNavigationIndex,
+                  onDestinationSelected: _selectPhoneNavigation,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: 'Today',
                     ),
-                    Positioned(
-                      top: -18,
-                      child: FloatingActionButton(
-                        heroTag: 'salesman-qr',
-                        tooltip: 'Receive payment by QR',
-                        onPressed: _showPaymentQr,
-                        child: const Icon(Icons.qr_code_2_rounded),
-                      ),
+                    NavigationDestination(
+                      icon: Icon(Icons.route_outlined),
+                      selectedIcon: Icon(Icons.route_rounded),
+                      label: 'Route',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.payments_outlined),
+                      selectedIcon: Icon(Icons.payments_rounded),
+                      label: 'Payments',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.map_outlined),
+                      selectedIcon: Icon(Icons.map_rounded),
+                      label: 'Map',
                     ),
                   ],
                 ),
@@ -2246,7 +2083,7 @@ class _SalesmanStatusCard extends StatelessWidget {
                       fontSize: 17,
                       height: 1,
                       color: displayColor,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -2271,7 +2108,7 @@ class _PaymentQrPainter extends CustomPainter {
     );
     final modules = qr.moduleCount;
     final cell = size.shortestSide / modules;
-    final paint = Paint()..color = const Color(0xFF14211A);
+    final paint = Paint()..color = const Color(0xFF1C1C1C);
     for (var row = 0; row < modules; row++) {
       for (var col = 0; col < modules; col++) {
         if (qr.isDark(row, col)) {
@@ -2359,7 +2196,7 @@ class _SalesmanMapPainter extends CustomPainter {
       canvas.drawPath(path, minor);
     }
     final route = Paint()
-      ..color = const Color(0xFF0B5D3B)
+      ..color = const Color(0xFF1F6F4A)
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -2427,7 +2264,7 @@ class _ProfileAvatar extends StatelessWidget {
 
           fontSize: radius * 0.62,
 
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -2492,7 +2329,7 @@ class _StatCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
 
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
 
               letterSpacing: -0.4,
             ),
@@ -2598,7 +2435,7 @@ class _MiniSummaryCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 17,
 
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -2816,7 +2653,7 @@ class _CustomerCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
 
                       style: const TextStyle(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
 
                         fontSize: 15,
                       ),
@@ -2865,7 +2702,7 @@ class _CustomerCard extends StatelessWidget {
                             '₹${balance.toStringAsFixed(2)}',
 
                             style: TextStyle(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
 
                               fontSize: 14,
 
@@ -3011,7 +2848,7 @@ class _PaymentPreviewCard extends StatelessWidget {
             '+ ₹${amount.toStringAsFixed(2)}',
 
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
 
               color: Colors.green.shade700,
             ),
@@ -3085,7 +2922,7 @@ class _EmptyState extends StatelessWidget {
 
             textAlign: TextAlign.center,
 
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
 
           const SizedBox(height: 6),

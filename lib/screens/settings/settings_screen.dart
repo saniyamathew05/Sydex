@@ -23,6 +23,8 @@ import 'two_factor_auth_screen.dart';
 
 import 'user_management_screen.dart';
 import 'subscription_billing_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../../widgets/sydex_ui.dart';
 
 class SettingsScreen extends StatelessWidget {
   final String role;
@@ -129,13 +131,7 @@ class SettingsScreen extends StatelessWidget {
     final email = Supabase.instance.client.auth.currentUser?.email ?? 'Unknown';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Settings',
-
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
 
       body: _SettingsWorkspace(
         children: [
@@ -573,6 +569,22 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           ListTile(
+            leading: const Icon(Icons.auto_stories_outlined),
+            title: const Text('Replay app tour'),
+            subtitle: const Text('See the welcome walkthrough again'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (routeContext) => OnboardingScreen(
+                    onFinished: () => Navigator.of(routeContext).pop(),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
             leading: const Icon(Icons.info_outline),
 
             title: const Text('About'),
@@ -697,13 +709,13 @@ class _SettingsSectionTitle extends StatelessWidget {
         title,
 
         style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
 
-          fontSize: 12,
+          fontSize: 11,
 
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w500,
 
-          letterSpacing: 1.2,
+          letterSpacing: .8,
         ),
       ),
     );
@@ -728,9 +740,68 @@ class _SettingsWorkspaceState extends State<_SettingsWorkspace> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 760) {
+          // Phone: each section becomes a captioned card, as in the Sydex
+          // design. The same role-filtered controls are used unchanged.
+          final groups = <(String, List<Widget>)>[];
+          for (final child in widget.children) {
+            if (child is _SettingsSectionTitle) {
+              groups.add((child.title, <Widget>[]));
+            } else if (child is Divider) {
+              continue;
+            } else {
+              if (groups.isEmpty) groups.add(('', <Widget>[]));
+              groups.last.$2.add(child);
+            }
+          }
+          final colors = Theme.of(context).colorScheme;
           return ListView(
-            padding: const EdgeInsets.only(bottom: 30),
-            children: widget.children,
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+            children: [
+              for (final (index, group) in groups.indexed)
+                if (group.$2.isNotEmpty)
+                  SydexReveal(
+                    index: index,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (group.$1.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
+                              child: SydexEyebrow(group.$1),
+                            ),
+                          Container(
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              color: colors.surface,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: colors.outlineVariant),
+                            ),
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final (i, item) in group.$2.indexed) ...[
+                                    if (i > 0)
+                                      Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: colors.outlineVariant,
+                                      ),
+                                    item,
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+            ],
           );
         }
         final sections = <String, List<Widget>>{};
