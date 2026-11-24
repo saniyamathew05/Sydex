@@ -1,4 +1,4 @@
-// http is only needed here to fake the backend for these tests.
+// These packages are only needed here to fake the backend and location.
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:convert';
 
@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +19,12 @@ import 'package:sydex/theme/workspace_theme.dart';
 
 const _uid = '00000000-0000-4000-8000-000000000001';
 String _role = 'owner';
+
+/// Location is off, so no test depends on the computer's location service.
+class _NoLocation extends GeolocatorPlatform {
+  @override
+  Future<bool> isLocationServiceEnabled() async => false;
+}
 
 Future<http.Response> _backend(http.Request request) async {
   http.Response reply(Object? body) => http.Response(
@@ -116,6 +123,7 @@ void main() {
   });
 
   setUp(() {
+    GeolocatorPlatform.instance = _NoLocation();
     platformCalls = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
