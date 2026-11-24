@@ -4,8 +4,6 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -18,6 +16,8 @@ import '../../services/customer_service.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/transaction_service.dart';
 import '../customers/customer_details_screen.dart';
+import '../../widgets/customer_map.dart';
+import '../../widgets/root_back_guard.dart';
 import '../../widgets/sydex_ui.dart';
 
 /// Owner tools for reusable named routes and per-day location assignments.
@@ -59,6 +59,8 @@ class _OwnerRouteManagementScreenState
   final Set<String> _selectedSalesmanIds = {};
   Set<String> _selectedCustomerIds = {};
   List<Map<String, dynamic>> _mapVisits = [];
+  int _mapCustomerCount = 0;
+  String _mapSalesmanId = '';
   bool _mapVisitsLoading = false;
   bool _mapVisitsRefreshPending = false;
 
@@ -399,8 +401,6 @@ class _OwnerRouteManagementScreenState
             .select('id, business_name, location, latitude, longitude')
             .eq('company_id', companyId)
             .eq('is_active', true)
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null)
             .order('business_name')
             .limit(2000),
       );
@@ -424,8 +424,15 @@ class _OwnerRouteManagementScreenState
         for (final row in statuses)
           row['customer_id'].toString(): row['status']?.toString() ?? '',
       };
+      final recorded = await _loadRecordedPlaces(
+        customers
+            .where((row) => row['latitude'] == null)
+            .map((row) => row['id'].toString())
+            .toSet(),
+      );
       final points = <Map<String, dynamic>>[];
-      for (final customer in customers) {
+      for (final row in customers) {
+        final customer = {...row, ...?recorded[row['id'].toString()]};
         final lat = double.tryParse(customer['latitude']?.toString() ?? '');
         final lng = double.tryParse(customer['longitude']?.toString() ?? '');
         if (lat == null ||
@@ -446,6 +453,7 @@ class _OwnerRouteManagementScreenState
       if (!mounted) return;
       setState(() {
         _mapVisits = points;
+        _mapCustomerCount = customers.length;
       });
     } catch (error) {
       debugPrint('Load visit map points failed: $error');
@@ -457,6 +465,52 @@ class _OwnerRouteManagementScreenState
           unawaited(_loadMapVisits());
         }
       }
+    }
+  }
+
+  /// Places recorded with earlier payments and refusals, for customers whose
+  /// own record has no place yet.
+  Future<Map<String, Map<String, dynamic>>> _loadRecordedPlaces(
+    Set<String> customerIds,
+  ) async {
+    if (customerIds.isEmpty) return const {};
+    try {
+      final audits = List<Map<String, dynamic>>.from(
+        await _client
+            .from('salesman_visit_audit')
+            .select('status_id, latitude, longitude')
+            .order('captured_at', ascending: false)
+            .limit(500),
+      );
+      if (audits.isEmpty) return const {};
+      final statuses = List<Map<String, dynamic>>.from(
+        await _client
+            .from('salesman_customer_daily_status')
+            .select('id, customer_id')
+            .inFilter('id', [
+              for (final audit in audits) audit['status_id'].toString(),
+            ]),
+      );
+      final customerByStatus = {
+        for (final row in statuses)
+          row['id'].toString(): row['customer_id'].toString(),
+      };
+      final places = <String, Map<String, dynamic>>{};
+      for (final audit in audits) {
+        final customerId = customerByStatus[audit['status_id'].toString()];
+        if (customerId == null || !customerIds.contains(customerId)) continue;
+        places.putIfAbsent(
+          customerId,
+          () => {
+            'latitude': audit['latitude'],
+            'longitude': audit['longitude'],
+          },
+        );
+      }
+      return places;
+    } catch (error) {
+      debugPrint('Could not load recorded visit places: $error');
+      return const {};
     }
   }
 
@@ -639,12 +693,9 @@ class _OwnerRouteManagementScreenState
                   ? 'Choose customers to visit'
                   : '${selected.length} customers selected',
             ),
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 24,
-            ),
+            insetPadding: const EdgeInsets.all(16),
             content: SizedBox(
-              width: MediaQuery.sizeOf(context).width * 0.82,
+              width: math.min(620, MediaQuery.sizeOf(context).width - 48),
               height: MediaQuery.sizeOf(context).height * 0.68,
               child: Column(
                 children: [
@@ -667,6 +718,30 @@ class _OwnerRouteManagementScreenState
                     onChanged: (value) =>
                         setDialogState(() => searchQuery = value),
                   ),
+                  const SizedBox(height: 10),
+                  _actionRow([
+                    _outlinedAction(
+                      icon: Icons.visibility_outlined,
+                      label: 'View selected',
+                      onPressed: selected.isEmpty
+                          ? null
+                          : () async {
+                              await _showSelectedCustomers(
+                                dialogContext,
+                                selected,
+                                eligible,
+                              );
+                              setDialogState(() {});
+                            },
+                    ),
+                    _outlinedAction(
+                      icon: Icons.clear_all_rounded,
+                      label: 'Clear all',
+                      onPressed: selected.isEmpty
+                          ? null
+                          : () => setDialogState(() => selected.clear()),
+                    ),
+                  ]),
                   const SizedBox(height: 10),
                   if (eligible.isEmpty)
                     const Expanded(
@@ -736,25 +811,6 @@ class _OwnerRouteManagementScreenState
               ),
             ),
             actions: [
-              if (selected.isNotEmpty)
-                TextButton.icon(
-                  onPressed: () async {
-                    await _showSelectedCustomers(
-                      dialogContext,
-                      selected,
-                      eligible,
-                    );
-                    setDialogState(() {});
-                  },
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: Text('View selected (${selected.length})'),
-                ),
-              TextButton(
-                onPressed: eligible.isEmpty
-                    ? null
-                    : () => setDialogState(() => selected.clear()),
-                child: const Text('Clear selected'),
-              ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
@@ -763,7 +819,7 @@ class _OwnerRouteManagementScreenState
                 onPressed: () {
                   Navigator.pop(dialogContext, true);
                 },
-                child: const Text('Save selection'),
+                child: const Text('Save'),
               ),
             ],
           );
@@ -832,7 +888,7 @@ class _OwnerRouteManagementScreenState
                   ),
           ),
           actions: [
-            TextButton(
+            FilledButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Done'),
             ),
@@ -902,6 +958,14 @@ class _OwnerRouteManagementScreenState
                     onChanged: (value) =>
                         setDialogState(() => searchQuery = value),
                   ),
+                  const SizedBox(height: 10),
+                  _outlinedAction(
+                    icon: Icons.clear_all_rounded,
+                    label: 'Clear all',
+                    onPressed: selectedLocations.isEmpty
+                        ? null
+                        : () => setDialogState(selectedLocations.clear),
+                  ),
                   const SizedBox(height: 8),
                   Expanded(
                     child: locations.isEmpty
@@ -943,12 +1007,6 @@ class _OwnerRouteManagementScreenState
             ),
             actions: [
               TextButton(
-                onPressed: selectedLocations.isEmpty
-                    ? null
-                    : () => setDialogState(selectedLocations.clear),
-                child: const Text('Clear'),
-              ),
-              TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
@@ -972,7 +1030,7 @@ class _OwnerRouteManagementScreenState
                   applied = selectedIds.isNotEmpty;
                   Navigator.pop(dialogContext);
                 },
-                child: const Text('Use locations'),
+                child: const Text('Add'),
               ),
             ],
           );
@@ -1174,10 +1232,16 @@ class _OwnerRouteManagementScreenState
               );
           return AlertDialog(
             title: const Text('Add customers to salesman routes'),
+            insetPadding: const EdgeInsets.all(16),
             content: SizedBox(
-              width: screenSize.width > 700 ? 520 : screenSize.width * .82,
+              width: math.min(560, screenSize.width - 48),
               height: screenSize.height * .72,
-              child: Column(
+              // Small or sideways screens scroll instead of overflowing.
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  child: SizedBox(
+                    height: math.max(constraints.maxHeight, 560),
+                    child: Column(
                 children: [
                   Align(
                     alignment: AlignmentDirectional.centerStart,
@@ -1208,7 +1272,8 @@ class _OwnerRouteManagementScreenState
                       ),
                     ],
                   ),
-                  ConstrainedBox(
+                  Container(
+                    width: double.infinity,
                     constraints: const BoxConstraints(maxHeight: 104),
                     child: SingleChildScrollView(
                       child: Wrap(
@@ -1378,6 +1443,9 @@ class _OwnerRouteManagementScreenState
                           ),
                   ),
                 ],
+                    ),
+                  ),
+                ),
               ),
             ),
             actions: [
@@ -1396,7 +1464,7 @@ class _OwnerRouteManagementScreenState
                 child: Text(
                   selectedIds.isEmpty
                       ? 'Choose customers'
-                      : 'Add ${selectedIds.length} customer${selectedIds.length == 1 ? '' : 's'} to ${selectedSalesmanIds.length} salesman${selectedSalesmanIds.length == 1 ? '' : 's'}',
+                      : 'Add ${selectedIds.length} customer${selectedIds.length == 1 ? '' : 's'}',
                 ),
               ),
             ],
@@ -1797,14 +1865,14 @@ class _OwnerRouteManagementScreenState
                 eyebrow: switch (widget.page) {
                   OwnerRoutePage.places => 'Places & routes',
                   OwnerRoutePage.salesmen => 'Salesmen & assigned routes',
-                  OwnerRoutePage.map => 'Route map view',
+                  OwnerRoutePage.map => 'Customer locations and visits',
                 },
                 title: switch (widget.page) {
                   OwnerRoutePage.places => 'Routes',
                   OwnerRoutePage.salesmen => 'Salesmen',
-                  OwnerRoutePage.map => 'Route map',
+                  OwnerRoutePage.map => 'Visit audit',
                 },
-                leading: Navigator.of(context).canPop()
+                leading: sydexCanGoBack(context)
                     ? SydexIconButton(
                         icon: Icons.arrow_back_rounded,
                         tooltip: 'Back',
@@ -1813,24 +1881,22 @@ class _OwnerRouteManagementScreenState
                     : null,
                 actions: [
                   if (widget.page == OwnerRoutePage.places)
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const OwnerRouteManagementScreen(
-                            page: OwnerRoutePage.salesmen,
-                          ),
-                        ),
-                      ),
+                    OutlinedButton.icon(
+                      onPressed: _openSalesmenPage,
                       style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 40),
+                        minimumSize: const Size(0, 44),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
-                      child: const Text('Salesmen'),
+                      icon: const Icon(Icons.badge_outlined, size: 18),
+                      label: const Text('Salesmen'),
                     ),
                   SydexIconButton(
                     icon: Icons.refresh_rounded,
                     tooltip: 'Refresh',
-                    onPressed: _load,
+                    onPressed: () {
+                      _load();
+                      if (widget.page == OwnerRoutePage.map) _loadMapVisits();
+                    },
                   ),
                 ],
               ),
@@ -1856,299 +1922,7 @@ class _OwnerRouteManagementScreenState
               ),
             )
           : widget.page == OwnerRoutePage.places
-          ? ListView(
-              padding: EdgeInsets.fromLTRB(
-                MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
-                8,
-                MediaQuery.sizeOf(context).width < 600 ? 20 : 24,
-                24,
-              ),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Create a reusable route',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final compact = constraints.maxWidth < 420;
-                            final routeNameField = TextField(
-                              controller: _routeNameController,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) {
-                                if (!_saving) _createRoute();
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Route name',
-                                hintText: 'e.g. ABC Route',
-                              ),
-                            );
-                            final createButton = FilledButton.icon(
-                              onPressed: _saving ? null : _createRoute,
-                              icon: const Icon(Icons.add_road_rounded),
-                              label: const Text('Create route'),
-                            );
-                            if (compact) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  routeNameField,
-                                  const SizedBox(height: 10),
-                                  createButton,
-                                ],
-                              );
-                            }
-                            return Row(
-                              children: [
-                                Expanded(child: routeNameField),
-                                const SizedBox(width: 10),
-                                createButton,
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Set up who to visit',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'First choose the areas, then choose whether to visit everyone there or only selected customers.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 14),
-                        if (_routes.isEmpty)
-                          const Text('Create your first route to get started.')
-                        else
-                          DropdownButtonFormField<String>(
-                            key: ValueKey(_selectedRouteId),
-                            initialValue: _selectedRouteId,
-                            decoration: const InputDecoration(
-                              labelText: 'Saved route',
-                            ),
-                            items: _routes
-                                .map(
-                                  (route) => DropdownMenuItem<String>(
-                                    value: route['id'].toString(),
-                                    child: Text(
-                                      route['route_name'].toString(),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (id) {
-                              setState(() {
-                                _selectedRouteId = id;
-                                _selectedSalesmanIds.clear();
-                                final rawCustomerIds =
-                                    _selectedRoute?['customer_ids'];
-                                final routeCustomerIds = rawCustomerIds is List
-                                    ? rawCustomerIds
-                                          .map((value) => value.toString())
-                                          .toSet()
-                                    : rawCustomerIds is String
-                                    ? _decodeCustomerIds(rawCustomerIds)
-                                    : <String>{};
-                                // Preserve any location/customer picks made
-                                // before selecting the named route.
-                                // A saved route is authoritative. Do not
-                                // merge the previous route's selection, which
-                                // caused unrelated customers to be counted.
-                                _selectedCustomerIds = routeCustomerIds;
-                              });
-                            },
-                          ),
-                        const SizedBox(height: 18),
-                        Text(
-                          'Choose customers for this route',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Select the customers to visit. Only these selected customers will appear for the owner and salesman.',
-                        ),
-                        const SizedBox(height: 12),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.people_alt_outlined),
-                          title: Text(
-                            _selectedCustomerCount == 0
-                                ? 'No customers selected'
-                                : '$_selectedCustomerCount customers selected',
-                          ),
-                          subtitle: const Text(
-                            'Build the route by mixing full locations with individual customers.',
-                          ),
-                          trailing: _selectedCustomerCount == 0
-                              ? null
-                              : TextButton.icon(
-                                  onPressed: _saving
-                                      ? null
-                                      : () async {
-                                          final before = _selectedCustomerIds
-                                              .length;
-                                          await _showSelectedCustomers(
-                                            context,
-                                            _selectedCustomerIds,
-                                            CustomerService.customers,
-                                          );
-                                          if (!mounted) return;
-                                          setState(() {});
-                                          if (_selectedCustomerIds.length !=
-                                                  before &&
-                                              _selectedRoute != null) {
-                                            await _saveTemplateLocations();
-                                          }
-                                        },
-                                  icon: const Icon(Icons.visibility_outlined),
-                                  label: const Text('View selection'),
-                                ),
-                        ),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: _saving || _selectedRoute == null
-                                  ? null
-                                  : _selectRouteCustomers,
-                              icon: const Icon(Icons.people_alt_outlined),
-                              label: const Text('Add customers'),
-                            ),
-                            OutlinedButton.icon(
-                              // Location selection can be prepared before a
-                              // named route is selected; the chosen customer
-                              // IDs are applied to the route on save.
-                              onPressed: _saving ? null : _selectRouteLocations,
-                              icon: const Icon(Icons.location_on_outlined),
-                              label: const Text('Add locations'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: _saving || _selectedRoute == null
-                                  ? null
-                                  : _saveTemplateLocations,
-                              icon: const Icon(Icons.save_outlined),
-                              label: const Text('Save route'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _saving || _selectedRoute == null
-                                  ? null
-                                  : _renameRoute,
-                              icon: const Icon(Icons.edit_outlined),
-                              label: const Text('Rename route'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _saving || _selectedRoute == null
-                                  ? null
-                                  : _deleteRoute,
-                              icon: const Icon(Icons.delete_outline),
-                              label: const Text('Delete route'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Divider(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Assign route to salesmen',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Select one or more salesmen. The route stays assigned until you remove it from Salesmen & Assigned Routes. Assignments use the selected customers above, and the same customer can be assigned to multiple salesmen.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        ..._salesmen.map((salesman) {
-                          final salesmanId = salesman['id'].toString();
-                          final assignedCustomerIds =
-                              _todayCustomerAssignments[salesmanId] ??
-                              const <String>[];
-                          final assignedCustomerCount = assignedCustomerIds
-                              .toSet()
-                              .length;
-                          final subtitle = assignedCustomerCount == 0
-                              ? 'No customers assigned'
-                              : '$assignedCustomerCount customer${assignedCustomerCount == 1 ? '' : 's'} assigned';
-                          return CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: _selectedSalesmanIds.contains(salesmanId),
-                            title: Text(
-                              (salesman['name'] ?? 'Salesman').toString(),
-                            ),
-                            subtitle: Text(subtitle),
-                            onChanged: (selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  _selectedSalesmanIds.add(salesmanId);
-                                } else {
-                                  _selectedSalesmanIds.remove(salesmanId);
-                                }
-                              });
-                            },
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                        FilledButton.icon(
-                          onPressed:
-                              _saving ||
-                                  _selectedRoute == null ||
-                                  _selectedSalesmanIds.isEmpty ||
-                                  _selectedCustomerIds.isEmpty
-                              ? null
-                              : _assignForToday,
-                          icon: const Icon(Icons.route_outlined),
-                          label: const Text(
-                            'Assign route to selected salesmen',
-                          ),
-                        ),
-                        if (_salesmen.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              'No salesman accounts were found. Add a user with the Salesman role first.',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            )
+          ? _buildPlacesPage()
           : widget.page == OwnerRoutePage.salesmen
           ? _buildSalesmenPage()
           : _buildMapPage(),
@@ -2158,6 +1932,407 @@ class _OwnerRouteManagementScreenState
           ),
         ),
       ),
+    );
+  }
+
+  void _openSalesmenPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            const OwnerRouteManagementScreen(page: OwnerRoutePage.salesmen),
+      ),
+    );
+  }
+
+  Widget _stepTitle(String title, [String? hint]) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: colors.onSurface,
+          ),
+        ),
+        if (hint != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              hint,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.4,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static const _actionHeight = Size.fromHeight(46);
+
+  /// Every button on this page sits in a row of equal-width buttons, so they
+  /// line up with the fields above them on any screen size.
+  Widget _actionRow(List<Widget> buttons) => Row(
+    children: [
+      for (final (index, button) in buttons.indexed) ...[
+        if (index > 0) const SizedBox(width: 10),
+        Expanded(child: button),
+      ],
+    ],
+  );
+
+  Widget _outlinedAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+    String? tooltip,
+    bool danger = false,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final button = OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: _actionHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        foregroundColor: danger ? colors.error : null,
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+            Text(label, maxLines: 1),
+          ],
+        ),
+      ),
+    );
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+
+  Widget _primaryAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) => FilledButton(
+    onPressed: onPressed,
+    style: FilledButton.styleFrom(
+      minimumSize: _actionHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+    ),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Text(label, maxLines: 1),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _viewSelection() async {
+    final before = _selectedCustomerIds.length;
+    await _showSelectedCustomers(
+      context,
+      _selectedCustomerIds,
+      CustomerService.customers,
+    );
+    if (!mounted) return;
+    setState(() {});
+    if (_selectedCustomerIds.length != before && _selectedRoute != null) {
+      await _saveTemplateLocations();
+    }
+  }
+
+  void _chooseRoute(String? id) {
+    setState(() {
+      _selectedRouteId = id;
+      _selectedSalesmanIds.clear();
+      final rawCustomerIds = _selectedRoute?['customer_ids'];
+      // A saved route is authoritative. Do not merge the previous route's
+      // selection, which caused unrelated customers to be counted.
+      _selectedCustomerIds = rawCustomerIds is List
+          ? rawCustomerIds.map((value) => value.toString()).toSet()
+          : rawCustomerIds is String
+          ? _decodeCustomerIds(rawCustomerIds)
+          : <String>{};
+    });
+  }
+
+  Widget _buildPlacesPage() {
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    return ListView(
+      padding: EdgeInsets.fromLTRB(phone ? 20 : 24, 10, phone ? 20 : 24, 24),
+      children: [
+        SydexTwoColumn(
+          breakpoint: 820,
+          primary: [
+            _newRouteCard(),
+            const SizedBox(height: 12),
+            _editRouteCard(),
+          ],
+          secondary: [_assignRouteCard()],
+        ),
+      ],
+    );
+  }
+
+  Widget _newRouteCard() => SydexCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _stepTitle('New route'),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final field = TextField(
+              controller: _routeNameController,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (!_saving) _createRoute();
+              },
+              decoration: const InputDecoration(
+                labelText: 'Route name',
+                hintText: 'e.g. ABC Route',
+              ),
+            );
+            final create = _primaryAction(
+              icon: Icons.add_rounded,
+              label: 'Create route',
+              onPressed: _saving ? null : _createRoute,
+            );
+            if (constraints.maxWidth < 420) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [field, const SizedBox(height: 10), create],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: field),
+                const SizedBox(width: 10),
+                SizedBox(width: 150, height: 52, child: create),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+
+  Widget _editRouteCard() {
+    final colors = Theme.of(context).colorScheme;
+    final canEdit = !_saving && _selectedRoute != null;
+    final count = _selectedCustomerCount;
+    final locations = _locationsForSelectedCustomers();
+    return SydexCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _stepTitle(
+            'Saved route',
+            'Choose a route, then choose who to visit on it.',
+          ),
+          const SizedBox(height: 16),
+          if (_routes.isEmpty)
+            Text(
+              'Create your first route to get started.',
+              style: TextStyle(color: colors.onSurfaceVariant),
+            )
+          else
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              key: ValueKey(_selectedRouteId),
+              initialValue: _selectedRouteId,
+              decoration: const InputDecoration(labelText: 'Route'),
+              items: _routes
+                  .map(
+                    (route) => DropdownMenuItem<String>(
+                      value: route['id'].toString(),
+                      child: Text(
+                        route['route_name'].toString(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _chooseRoute,
+            ),
+          const SizedBox(height: 10),
+          _actionRow([
+            _outlinedAction(
+              icon: Icons.edit_outlined,
+              label: 'Rename',
+              tooltip: 'Rename route',
+              onPressed: canEdit ? _renameRoute : null,
+            ),
+            _outlinedAction(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete',
+              tooltip: 'Delete route',
+              danger: canEdit,
+              onPressed: canEdit ? _deleteRoute : null,
+            ),
+          ]),
+          const SizedBox(height: 18),
+          Divider(height: 1, color: colors.outlineVariant),
+          const SizedBox(height: 16),
+          _stepTitle(
+            'Customers on this route',
+            'Only the customers you choose are shown to the salesman.',
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+            constraints: const BoxConstraints(minHeight: 56),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.people_alt_outlined,
+                  size: 20,
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        count == 0
+                            ? 'No customers selected'
+                            : '$count customer${count == 1 ? '' : 's'} selected',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      if (locations.isNotEmpty)
+                        Text(
+                          locations.join(', '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (count > 0)
+                  TextButton(
+                    onPressed: _saving ? null : _viewSelection,
+                    child: const Text('View'),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _actionRow([
+            _outlinedAction(
+              icon: Icons.person_add_alt_1_outlined,
+              label: 'Add customers',
+              onPressed: canEdit ? _selectRouteCustomers : null,
+            ),
+            _outlinedAction(
+              icon: Icons.add_location_alt_outlined,
+              label: 'Add locations',
+              // Locations can be prepared before a route is chosen; they are
+              // applied to the route on save.
+              onPressed: _saving ? null : _selectRouteLocations,
+            ),
+          ]),
+          const SizedBox(height: 10),
+          _primaryAction(
+            icon: Icons.check_rounded,
+            label: 'Save route',
+            onPressed: canEdit ? _saveTemplateLocations : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _assignRouteCard() {
+    final colors = Theme.of(context).colorScheme;
+    final chosen = _selectedSalesmanIds.length;
+    return SydexCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _stepTitle(
+            'Assign to salesmen',
+            'The route stays assigned until you remove it. A customer can be on more than one salesman’s route.',
+          ),
+          const SizedBox(height: 8),
+          if (_salesmen.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No salesman accounts were found. Add a user with the Salesman role first.',
+                style: TextStyle(color: colors.error),
+              ),
+            ),
+          for (final (index, salesman) in _salesmen.indexed) ...[
+            if (index > 0) Divider(height: 1, color: colors.outlineVariant),
+            _salesmanChoice(salesman),
+          ],
+          const SizedBox(height: 10),
+          _primaryAction(
+            icon: Icons.route_outlined,
+            label: chosen == 0
+                ? 'Assign route'
+                : 'Assign route to $chosen salesm${chosen == 1 ? 'a' : 'e'}n',
+            onPressed:
+                _saving ||
+                    _selectedRoute == null ||
+                    _selectedSalesmanIds.isEmpty ||
+                    _selectedCustomerIds.isEmpty
+                ? null
+                : _assignForToday,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _salesmanChoice(Map<String, dynamic> salesman) {
+    final salesmanId = salesman['id'].toString();
+    final name = (salesman['name'] ?? 'Salesman').toString();
+    final assigned = (_todayCustomerAssignments[salesmanId] ?? const <String>[])
+        .toSet()
+        .length;
+    return CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.trailing,
+      secondary: SydexAvatar(name, size: 36),
+      value: _selectedSalesmanIds.contains(salesmanId),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        assigned == 0
+            ? 'No customers assigned'
+            : '$assigned customer${assigned == 1 ? '' : 's'} assigned',
+      ),
+      onChanged: (selected) {
+        setState(() {
+          if (selected == true) {
+            _selectedSalesmanIds.add(salesmanId);
+          } else {
+            _selectedSalesmanIds.remove(salesmanId);
+          }
+        });
+      },
     );
   }
 
@@ -2325,60 +2500,58 @@ class _OwnerRouteManagementScreenState
                             if (queuedIds.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               const SydexBadge(
-                                'Next route queued · opens after Finish route',
+                                'Next route queued',
                                 tone: SydexTone.info,
                               ),
                             ],
                           ],
                         ),
-                        trailing: assignedIds.isEmpty
-                            ? null
-                            : Wrap(
-                                spacing: 2,
-                                children: [
-                                  IconButton(
-                                    tooltip:
-                                        'Add customers to this and other salesman routes',
-                                    onPressed: _saving
-                                        ? null
-                                        : () => _addCustomersToSalesman(
-                                            salesmanId: salesmanId,
-                                            salesmanName:
-                                                (salesman['name'] ?? 'Salesman')
-                                                    .toString(),
-                                          ),
-                                    icon: const Icon(
-                                      Icons.person_add_alt_1_outlined,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Print assigned customers',
-                                    onPressed: () => _printAssignedCustomers(
+                      ),
+                      if (assignedIds.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                          child: _actionRow([
+                            _outlinedAction(
+                              icon: Icons.person_add_alt_1_outlined,
+                              label: 'Add',
+                              tooltip:
+                                  'Add customers to this and other salesman routes',
+                              onPressed: _saving
+                                  ? null
+                                  : () => _addCustomersToSalesman(
+                                      salesmanId: salesmanId,
                                       salesmanName:
                                           (salesman['name'] ?? 'Salesman')
                                               .toString(),
-                                      routeName: assignedRouteName ?? '',
-                                      customers: routeCustomers,
                                     ),
-                                    icon: const Icon(Icons.print_outlined),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Remove active route assignment',
-                                    onPressed: _saving
-                                        ? null
-                                        : () => _removeTodayAssignment(
-                                            salesmanId: salesmanId,
-                                            salesmanName:
-                                                (salesman['name'] ?? 'Salesman')
-                                                    .toString(),
-                                          ),
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                    ),
-                                  ),
-                                ],
+                            ),
+                            _outlinedAction(
+                              icon: Icons.print_outlined,
+                              label: 'Print',
+                              tooltip: 'Print assigned customers',
+                              onPressed: () => _printAssignedCustomers(
+                                salesmanName: (salesman['name'] ?? 'Salesman')
+                                    .toString(),
+                                routeName: assignedRouteName ?? '',
+                                customers: routeCustomers,
                               ),
-                      ),
+                            ),
+                            _outlinedAction(
+                              icon: Icons.delete_outline_rounded,
+                              label: 'Remove',
+                              tooltip: 'Remove active route assignment',
+                              danger: !_saving,
+                              onPressed: _saving
+                                  ? null
+                                  : () => _removeTodayAssignment(
+                                      salesmanId: salesmanId,
+                                      salesmanName:
+                                          (salesman['name'] ?? 'Salesman')
+                                              .toString(),
+                                    ),
+                            ),
+                          ]),
+                        ),
                       if (assignedIds.isEmpty)
                         const ListTile(
                           dense: true,
@@ -2468,9 +2641,13 @@ class _OwnerRouteManagementScreenState
                             _ => 'Pending',
                           };
                           final statusColor = switch (statusLabel) {
-                            'Visited' => const Color(0xFF77736C),
-                            'Refused today' => const Color(0xFFA61B1B),
-                            _ => const Color(0xFF8A5300),
+                            'Visited' => Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                            'Refused today' => Theme.of(
+                              context,
+                            ).colorScheme.error,
+                            _ => Theme.of(context).colorScheme.tertiary,
                           };
                           final initials = customer.businessName
                               .trim()
@@ -2543,24 +2720,7 @@ class _OwnerRouteManagementScreenState
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                if (otherSalesmen.isNotEmpty)
-                                  Text(
-                                    'Also assigned to: ${otherSalesmen.join(', ')}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.secondary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
+                                const SizedBox(height: 5),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -2579,6 +2739,24 @@ class _OwnerRouteManagementScreenState
                                     ),
                                   ),
                                 ),
+                                if (otherSalesmen.isNotEmpty)
+                                  Text(
+                                    'Also assigned to: ${otherSalesmen.join(', ')}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 IconButton(
                                   tooltip: 'Remove customer from this route',
                                   visualDensity: VisualDensity.compact,
@@ -2618,94 +2796,93 @@ class _OwnerRouteManagementScreenState
   }
 
   Widget _buildMapPage() {
-    final points = _mapVisits
-        .map(
-          (visit) =>
-              LatLng(visit['latitude'] as double, visit['longitude'] as double),
-        )
-        .toList();
-    // Keep the empty state location-neutral; use the first real customer pin
-    // whenever coordinates are available.
-    final center = points.isEmpty ? const LatLng(0, 0) : points.first;
+    final colors = Theme.of(context).colorScheme;
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final route = _mapSalesmanId.isEmpty
+        ? const <String>[]
+        : (_todayCustomerAssignments[_mapSalesmanId] ?? const <String>[])
+              .toSet()
+              .toList();
+    final statuses =
+        _todayCustomerStatusesBySalesman[_mapSalesmanId] ??
+        const <String, String>{};
+    final stops = <CustomerStop>[];
+    for (final row in _mapVisits) {
+      final id = row['id'].toString();
+      final at = route.indexOf(id);
+      final stop = CustomerStop.fromRow(
+        row,
+        order: at < 0 ? null : at + 1,
+        status: _mapSalesmanId.isEmpty
+            ? row['status']?.toString() ?? ''
+            : statuses[id] ?? '',
+      );
+      if (stop != null) stops.add(stop);
+    }
+    final salesmanIds = {
+      for (final salesman in _salesmen) salesman['id'].toString(),
+    };
     return Padding(
-      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 12 : 20),
+      padding: EdgeInsets.fromLTRB(phone ? 20 : 24, 6, phone ? 20 : 24, 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Visit Map',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: salesmanIds.contains(_mapSalesmanId)
+                      ? _mapSalesmanId
+                      : '',
+                  decoration: const InputDecoration(labelText: 'Show'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('All customers'),
+                    ),
+                    for (final salesman in _salesmen)
+                      DropdownMenuItem(
+                        value: salesman['id'].toString(),
+                        child: Text(
+                          '${salesman['name'] ?? 'Salesman'}’s route',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _mapSalesmanId = value ?? ''),
                 ),
               ),
-              Text('${_mapVisits.length} customers on map'),
-              IconButton(
-                tooltip: 'Refresh map',
-                onPressed: _loadMapVisits,
-                icon: const Icon(Icons.refresh),
+              const SizedBox(width: 14),
+              Text(
+                '${stops.length} of $_mapCustomerCount\non the map',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: points.isEmpty ? 2 : 11,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.horizon.horizon',
-                  ),
-                  if (points.isNotEmpty)
-                    MarkerLayer(
-                      markers: _mapVisits.map((visit) {
-                        final rejected = visit['status'] == 'rejected';
-                        return Marker(
-                          point: LatLng(
-                            visit['latitude'] as double,
-                            visit['longitude'] as double,
-                          ),
-                          width: 42,
-                          height: 52,
-                          child: Tooltip(
-                            message:
-                                '${visit['business_name']} · ${visit['location']}${visit['status'] == '' ? '' : ' · ${rejected ? 'Refused today' : 'Visited today'}'}',
-                            child: Icon(
-                              Icons.location_on,
-                              size: 42,
-                              color: rejected
-                                  ? Colors.red
-                                  : const Color(0xFF77736C),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+            child: CustomerMap(
+              key: ValueKey('$_mapSalesmanId-${stops.length}'),
+              stops: stops,
+              emptyMessage:
+                  'No customer locations are saved yet. A customer appears here after a payment, sale or refusal is recorded with location on.',
+              onOpenCustomer: (stop) {
+                for (final customer in CustomerService.customers) {
+                  if (customer.id != stop.id) continue;
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CustomerDetailsScreen(customer: customer),
                     ),
-                  RichAttributionWidget(
-                    attributions: [
-                      TextSourceAttribution('© OpenStreetMap contributors'),
-                    ],
-                  ),
-                ],
-              ),
+                  );
+                  return;
+                }
+              },
             ),
           ),
           if (_mapVisitsLoading) const LinearProgressIndicator(),
-          const SizedBox(height: 8),
-          Text(
-            points.isEmpty
-                ? 'No customer coordinates are saved yet. When a salesman records a visit with location access, that position becomes the customer’s map location.'
-                : 'Showing each customer at their latest recorded visit location. Green means visited today; red means refused today.',
-          ),
         ],
       ),
     );

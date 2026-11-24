@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 class SyncStatusScreen extends StatefulWidget {
   const SyncStatusScreen({super.key});
@@ -56,7 +57,10 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
       appBar: AppBar(title: const Text('Sync Status')),
 
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
 
         children: [
           Container(

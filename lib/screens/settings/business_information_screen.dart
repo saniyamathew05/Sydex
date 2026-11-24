@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 class BusinessInformationScreen extends StatefulWidget {
   const BusinessInformationScreen({super.key});
@@ -141,7 +142,10 @@ class _BusinessInformationScreenState extends State<BusinessInformationScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.primary))
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
 
               children: [
                 Container(

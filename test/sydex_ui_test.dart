@@ -91,7 +91,7 @@ void main() {
                       for (final label in const [
                         'Receive payment',
                         'Add sale',
-                        'Old card import',
+                        'Visit audit',
                         'View collections',
                       ])
                         SydexQuickAction(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
 import '../../services/notification_read_store.dart';
+import '../../widgets/root_back_guard.dart';
 import '../../widgets/sydex_ui.dart';
 
 class OwnerNotificationsScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
             SydexScreenHeader(
               eyebrow: 'Payment and account notifications',
               title: 'Notifications',
-              leading: Navigator.of(context).canPop()
+              leading: sydexCanGoBack(context)
                   ? SydexIconButton(
                       icon: Icons.arrow_back_rounded,
                       tooltip: 'Back',
@@ -78,7 +79,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                     Icon(
                       Icons.notifications_none_rounded,
                       size: 42,
-                      color: colors.outline,
+                      color: colors.onSurfaceVariant,
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -115,9 +116,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${payments[i].reference} · ${payments[i].receivedBy}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      '${payments[i].receivedBy}\n${payments[i].reference}',
                                       style: TextStyle(
                                         fontSize: 12.5,
                                         color: colors.onSurfaceVariant,

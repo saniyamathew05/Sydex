@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/sydex_ui.dart';
 
 class SignatureSettingsScreen extends StatelessWidget {
   const SignatureSettingsScreen({super.key});
@@ -9,7 +10,10 @@ class SignatureSettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Signature Settings')),
 
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
 
         children: [
           Container(

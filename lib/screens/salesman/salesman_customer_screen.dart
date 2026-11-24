@@ -17,6 +17,9 @@ import '../../services/currency_formatter.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/ledger_user_name_service.dart';
 import '../../services/payment_receipt_share_service.dart';
+import '../../services/payment_method_breakdown.dart';
+import '../../theme/sydex_theme.dart';
+import '../../services/owner_display_settings.dart';
 import '../../widgets/sydex_ui.dart';
 
 class SalesmanCustomerDetailsScreen extends StatefulWidget {
@@ -340,7 +343,7 @@ class _SalesmanCustomerDetailsScreenState
         : Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      color: isRefusal ? Theme.of(context).colorScheme.errorContainer : null,
+      color: isRefusal ? SydexColors.refusedTint(context) : null,
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(
@@ -362,7 +365,7 @@ class _SalesmanCustomerDetailsScreenState
                     '${isSale || (!isReturn && !isSale) ? '+' : '-'} ${CurrencyFormatter.rupees(type == 'payment' ? amountReceived : amount)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: isSale ? Colors.red : const Color(0xFF77736C),
+                      color: isSale ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   IconButton(
@@ -632,6 +635,7 @@ class _SalesmanCustomerDetailsScreenState
                         ),
                       ),
                       const SizedBox(height: 4),
+                      if (SalesmanDisplaySettings.show(SalesmanDisplaySettings.phone))
                       Row(
                         children: [
                           Flexible(
@@ -746,7 +750,7 @@ class _SalesmanCustomerDetailsScreenState
                         child: OutlinedButton(
                           onPressed: () => _recordSalesReturn(balance),
                           child: const Text(
-                            'Record sales return',
+                            'Sales return',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1117,19 +1121,19 @@ class _SalesmanCustomerDetailsScreenState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Payment Refused',
                         style: TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w600,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                       if (_refusalEntries.isNotEmpty)
                         Text(
                           '${_refusalEntries.length}',
-                          style: const TextStyle(
-                            color: Colors.red,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1150,22 +1154,17 @@ class _SalesmanCustomerDetailsScreenState
                                 '${date.year}';
                       final note = entry['notes']?.toString().trim() ?? '';
                       return Card(
-                        color: Color.alphaBlend(
-                          Theme.of(context).colorScheme.error.withValues(alpha: .08),
-                          Theme.of(context).colorScheme.surface,
-                        ),
+                        color: SydexColors.refusedTint(context),
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                            color: Theme.of(context).colorScheme.error,
+                            color: SydexColors.refused(context),
                           ),
                         ),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
+                            backgroundColor: SydexColors.refused(context),
                             child: Icon(
                               Icons.block_outlined,
                               color: Theme.of(context).colorScheme.onError,
@@ -1378,7 +1377,8 @@ class _SalesmanSaleDetailsScreenState
                     label: 'Location',
                     value: widget.customer.location,
                   ),
-                  if (widget.customer.phone.trim().isNotEmpty)
+                  if (widget.customer.phone.trim().isNotEmpty &&
+                      SalesmanDisplaySettings.show(SalesmanDisplaySettings.phone))
                     _SaleDetailRow(
                       label: 'Phone',
                       value: widget.customer.phone,
@@ -1629,9 +1629,9 @@ class _PaymentCardState extends State<_PaymentCard> {
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
 
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFF77736C).withValues(alpha: 0.12),
+          backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
 
-          child: const Icon(Icons.check_circle_outline, color: Color(0xFF77736C)),
+          child: Icon(Icons.check_circle_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
 
         title: Text(
@@ -1700,24 +1700,28 @@ class _PaymentCardState extends State<_PaymentCard> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(
+              Icon(
                 Icons.cloud_done_outlined,
                 size: 18,
-                color: Color(0xFF77736C),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
-              const Text(
+              Text(
                 'Server confirmed',
-                style: TextStyle(color: Color(0xFF77736C), fontSize: 12),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
               ),
             ],
           ),
 
-          if (payment.paymentMethodNote.trim().isNotEmpty) ...[
+          if (PaymentMethodBreakdown.noteText(
+            payment.paymentMethodNote,
+          ).isNotEmpty) ...[
             const SizedBox(height: 4),
             _BalanceItem(
               label: 'Method note',
-              value: payment.paymentMethodNote.trim(),
+              value: PaymentMethodBreakdown.noteText(
+                payment.paymentMethodNote,
+              ),
             ),
           ],
 

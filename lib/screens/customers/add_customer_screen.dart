@@ -684,7 +684,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   if (_selectedRouteIds.isNotEmpty &&
                       _selectedRouteLocations.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>( isExpanded: true,
                       initialValue:
                           _selectedRouteLocations.contains(
                             locationController.text.trim(),
@@ -915,7 +915,7 @@ class _FormField extends StatelessWidget {
           vertical: 12,
         ),
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest,
+        fillColor: colorScheme.surfaceContainerLowest,
         counterText: maxLength != null ? null : '',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

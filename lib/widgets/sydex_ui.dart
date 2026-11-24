@@ -155,10 +155,14 @@ class SydexTwoColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < breakpoint) {
+      if (constraints.maxWidth < breakpoint || secondary.isEmpty) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...primary, ...secondary],
+          children: [
+            ...primary,
+            if (secondary.isNotEmpty) const SizedBox(height: 12),
+            ...secondary,
+          ],
         );
       }
       return Row(
@@ -264,7 +268,7 @@ class SydexScreenHeader extends StatelessWidget {
               ],
               Text(
                 title,
-                maxLines: 1,
+                maxLines: large ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: large ? 26 : 17,
@@ -453,7 +457,7 @@ class SydexSection extends StatelessWidget {
                   style: TextButton.styleFrom(
                     minimumSize: const Size(44, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    textStyle: const TextStyle(
+                    textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -892,6 +896,182 @@ class SydexReveal extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// The main amount on a form: a clearly bordered box with the currency sign,
+/// so it is obvious where to type.
+class SydexAmountField extends StatelessWidget {
+  const SydexAmountField({
+    super.key,
+    required this.controller,
+    required this.label,
+    this.trailing,
+    this.enabled = true,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final Widget? trailing;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: color, width: width),
+    );
+    final idle = border(colors.onSurfaceVariant.withValues(alpha: .6), 1.5);
+    const digits = TextStyle(
+      fontSize: 30,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -.6,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colors.onSurface,
+                ),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          onChanged: onChanged,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: digits,
+          decoration: InputDecoration(
+            hintText: 'Enter amount',
+            hintStyle: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: colors.onSurfaceVariant,
+            ),
+            filled: true,
+            fillColor: colors.surfaceContainerLowest,
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 10),
+              child: Text(
+                '₹',
+                style: digits.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            prefixIconConstraints: const BoxConstraints(),
+            contentPadding: const EdgeInsets.fromLTRB(0, 16, 16, 16),
+            border: idle,
+            enabledBorder: idle,
+            disabledBorder: idle,
+            focusedBorder: border(colors.onSurface, 2),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A compact drop-down for filtering a list: caption, current choice, arrow.
+class SydexFilterDropdown extends StatelessWidget {
+  const SydexFilterDropdown({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) => PopupMenuButton<String>(
+        tooltip: 'Filter by ${label.toLowerCase()}',
+        position: PopupMenuPosition.under,
+        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+        onSelected: onSelected,
+        itemBuilder: (context) => [
+          for (final option in options)
+            PopupMenuItem<String>(
+              value: option,
+              child: Row(
+                children: [
+                  Expanded(child: Text(option)),
+                  if (option == selected)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: colors.onSurface,
+                    ),
+                ],
+              ),
+            ),
+        ],
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 9, 8, 9),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      selected,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/salesman_visit_service.dart';
+import '../../widgets/customer_map.dart';
+import '../../widgets/sydex_ui.dart';
 
+/// Every customer with a saved place, with today's route numbered in order.
 class SalesmanRouteMapScreen extends StatefulWidget {
   const SalesmanRouteMapScreen({super.key, required this.onBack});
   final VoidCallback onBack;
@@ -16,13 +16,12 @@ class SalesmanRouteMapScreen extends StatefulWidget {
 }
 
 class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
-  final _client = Supabase.instance.client;
-  List<Map<String, dynamic>> _customers = const [];
-  Set<String> _visited = <String>{};
+  List<CustomerStop> _stops = const [];
+  int _unplaced = 0;
   bool _loading = true;
   String? _error;
   LatLng? _currentLocation;
-  String? _selectedCustomerId;
+  int _version = 0;
 
   @override
   void initState() {
@@ -31,118 +30,122 @@ class _SalesmanRouteMapScreenState extends State<SalesmanRouteMapScreen> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await _loadCurrentLocation();
       final ids = await SalesmanVisitService.loadTodayCustomerIdsInOrder();
-      if (ids.isEmpty) {
-        if (mounted) setState(() { _customers = const []; _loading = false; });
-        return;
-      }
-      final rows = await _client
-          .from('customers')
-          .select('id, business_name, location, latitude, longitude')
-          .inFilter('id', ids);
-      final byId = {for (final row in rows) row['id'].toString(): Map<String, dynamic>.from(row)};
-      final ordered = ids.map((id) => byId[id]).whereType<Map<String, dynamic>>().where((row) {
-        final lat = double.tryParse(row['latitude']?.toString() ?? '');
-        final lon = double.tryParse(row['longitude']?.toString() ?? '');
-        return lat != null && lon != null;
-      }).toList();
       final statuses = await SalesmanVisitService.loadTodayStatuses();
+      final rows = List<Map<String, dynamic>>.from(
+        await Supabase.instance.client
+            .from('customers')
+            .select('id, business_name, location, latitude, longitude')
+            .eq('is_active', true)
+            .limit(2000),
+      );
+      final stops = <CustomerStop>[];
+      for (final row in rows) {
+        final id = row['id'].toString();
+        final at = ids.indexOf(id);
+        final stop = CustomerStop.fromRow(
+          row,
+          order: at < 0 ? null : at + 1,
+          status: statuses[id] ?? '',
+        );
+        if (stop != null) stops.add(stop);
+      }
       if (!mounted) return;
+      final placed = {for (final stop in stops) stop.id};
       setState(() {
-        _customers = ordered;
-        _visited = statuses.entries.where((entry) => entry.value == 'paid' || entry.value == 'rejected').map((entry) => entry.key).toSet();
+        _stops = stops;
+        _unplaced = ids.where((id) => !placed.contains(id)).length;
+        _version++;
         _loading = false;
       });
     } catch (error) {
-      if (mounted) setState(() { _error = error.toString(); _loading = false; });
+      debugPrint('Could not load the route map: $error');
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load the route map.';
+          _loading = false;
+        });
+      }
     }
   }
 
+  /// The map works without a position, so a problem here is never fatal.
   Future<void> _loadCurrentLocation() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return;
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    try {
+      final position = await SalesmanVisitService.captureLocationForVisit();
+      if (position != null) {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      }
+    } on Exception catch (error) {
+      debugPrint('Could not read the current location: $error');
     }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return;
-    }
-    final position = await Geolocator.getCurrentPosition();
-    _currentLocation = LatLng(position.latitude, position.longitude);
-  }
-
-  Future<void> _navigateTo(Map<String, dynamic> customer) async {
-    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${customer['latitude']},${customer['longitude']}');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
-    final points = _customers.map((row) => LatLng(double.parse(row['latitude'].toString()), double.parse(row['longitude'].toString()))).toList();
-    final hasMapLocation = _currentLocation != null || points.isNotEmpty;
-    final center = _currentLocation ?? (points.isEmpty ? const LatLng(20.5937, 78.9629) : points.first);
-    final pending = _customers.where((row) => !_visited.contains(row['id'].toString())).toList();
-    final selectedMatches = _selectedCustomerId == null
-        ? const <Map<String, dynamic>>[]
-        : _customers.where((row) => row['id'].toString() == _selectedCustomerId).toList();
-    final selected = selectedMatches.isEmpty ? null : selectedMatches.first;
-    final next = selected ?? (pending.isEmpty ? null : pending.first);
-    final routePoints = _currentLocation != null && next != null
-        ? [_currentLocation!, LatLng(double.parse(next['latitude'].toString()), double.parse(next['longitude'].toString()))]
-        : const <LatLng>[];
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(onPressed: widget.onBack, icon: const Icon(Icons.arrow_back)),
-        title: const Text("Today's route map"),
-        actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text('Could not load route map.'))
-          : Column(children: [
-              if (next != null) ListTile(
-                leading: const Icon(Icons.navigation_outlined),
-                title: Text('Next: ${next['business_name']}'),
-                subtitle: Text(next['location']?.toString() ?? ''),
-                trailing: FilledButton(onPressed: () => _navigateTo(next), child: const Text('Navigate')),
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          child: SydexScreenHeader(
+            eyebrow: 'Today’s stops and customers',
+            title: 'Route map',
+            actions: [
+              SydexIconButton(
+                icon: Icons.refresh_rounded,
+                tooltip: 'Refresh',
+                onPressed: _loading ? null : _load,
               ),
-              Expanded(child: hasMapLocation
-                  ? FlutterMap(
-                options: MapOptions(
-                  initialCenter: center,
-                  // Street-level delivery view, similar to food-delivery apps.
-                  initialZoom: _currentLocation != null ? 16.5 : 15,
-                ),
-                children: [
-                  TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.horizon.horizon'),
-                  if (routePoints.isNotEmpty)
-                    PolylineLayer(polylines: [Polyline(points: routePoints, strokeWidth: 5, color: Theme.of(context).colorScheme.primary)]),
-                  MarkerLayer(markers: [
-                    if (_currentLocation != null)
-                      Marker(point: _currentLocation!, width: 46, height: 46, child: const Icon(Icons.my_location, color: Colors.blue, size: 30)),
-                    ..._customers.map((row) => Marker(
-                    point: LatLng(double.parse(row['latitude'].toString()), double.parse(row['longitude'].toString())),
-                    width: 48, height: 56,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedCustomerId = row['id'].toString()),
-                      child: Icon(Icons.location_on, size: 44, color: row['id'].toString() == _selectedCustomerId ? Colors.orange : (_visited.contains(row['id'].toString()) ? Colors.blue : const Color(0xFF77736C))),
+            ],
+          ),
+        ),
+        if (_unplaced > 0 && !_loading)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '$_unplaced customer${_unplaced == 1 ? '' : 's'} on your route will appear after the first visit with location on.',
+                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+              ),
+            ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error!),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _load,
+                          child: const Text('Try again'),
+                        ),
+                      ],
                     ),
-                  )),
-                  ]),
-                  const RichAttributionWidget(attributions: [TextSourceAttribution('© OpenStreetMap contributors')]),
-                ],
-              )
-                  : const Center(
-                      child: Text(
-                        'Turn on location or visit a customer to see the delivery map.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )),
-            ]),
+                  )
+                : CustomerMap(
+                    key: ValueKey(_version),
+                    stops: _stops,
+                    currentLocation: _currentLocation,
+                    emptyMessage:
+                        'Turn on location or visit a customer to see the map.',
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }

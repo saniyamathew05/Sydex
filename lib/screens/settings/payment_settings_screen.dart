@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 class PaymentSettingsScreen extends StatefulWidget {
   const PaymentSettingsScreen({super.key});
@@ -168,7 +169,10 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.primary))
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
 
               children: [
                 _PaymentSettingCard(
@@ -212,7 +216,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
 
                   subtitle: 'Currency used for payments and balances',
 
-                  child: DropdownButtonFormField<String>(
+                  child: DropdownButtonFormField<String>( isExpanded: true,
                     initialValue: _currency,
 
                     decoration: const InputDecoration(
@@ -495,7 +499,7 @@ class _PaymentSettingCard extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          child,
+          Material(type: MaterialType.transparency, child: child),
         ],
       ),
     );

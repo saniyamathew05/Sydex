@@ -10,6 +10,7 @@ import '../../services/transaction_service.dart';
 
 import '../../services/currency_formatter.dart';
 import '../../theme/sydex_theme.dart';
+import '../../widgets/root_back_guard.dart';
 import '../../widgets/sydex_ui.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
@@ -167,7 +168,7 @@ class _ReportsContentState extends State<_ReportsContent> {
     return SydexScreenHeader(
       eyebrow: 'Business reports',
       title: 'Reports',
-      leading: Navigator.of(context).canPop()
+      leading: sydexCanGoBack(context)
           ? SydexIconButton(
               icon: Icons.arrow_back_rounded,
               tooltip: 'Back',
@@ -441,7 +442,7 @@ class _ReportsContentState extends State<_ReportsContent> {
         mainAxisAlignment: MainAxisAlignment.center,
 
         children: [
-          Icon(Icons.show_chart_rounded, size: 48, color: Colors.grey.shade300),
+          Icon(Icons.show_chart_rounded, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
 
           const SizedBox(height: 10),
 
@@ -1351,7 +1352,7 @@ class _CollectionChartPainter extends CustomPainter {
       ..color = lineColor
       ..style = PaintingStyle.fill;
 
-    final textStyle = TextStyle(
+    final textStyle = TextStyle(fontFamily: 'Segoe UI', 
       fontSize: 10,
 
       color: labelColor,

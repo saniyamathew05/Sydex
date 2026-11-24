@@ -20,6 +20,13 @@ class PaymentMethodBreakdown {
     return result;
   }
 
+  /// The hand-written part of a payment note, without the stored split.
+  static String noteText(String? note) => (note ?? '')
+      .split(' • ')
+      .where((part) => !part.contains(marker))
+      .join(' • ')
+      .trim();
+
   static Map<String, double> parse(String? note) {
     final result = <String, double>{};
     for (final entry in parseOrdered(note)) {

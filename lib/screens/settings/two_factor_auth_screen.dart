@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr/qr.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 /// Authenticator-app TOTP management. Secrets are held only while setup is open.
 class TwoFactorAuthScreen extends StatefulWidget {
@@ -124,7 +125,10 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     body: _loading
         ? const Center(child: CircularProgressIndicator())
         : ListView(
-            padding: const EdgeInsets.all(20),
+            padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
             children: [
               Text(
                 'Protect your account',

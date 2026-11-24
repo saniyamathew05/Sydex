@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../services/subscription_service.dart';
+import '../../widgets/sydex_ui.dart';
 
 class SubscriptionBillingScreen extends StatefulWidget {
   const SubscriptionBillingScreen({super.key});
@@ -63,7 +64,10 @@ class _SubscriptionBillingScreenState extends State<SubscriptionBillingScreen> {
           final entitlement = snapshot.data!;
           final isAndroid = SubscriptionService.supportsGooglePlay;
           return ListView(
-            padding: const EdgeInsets.all(20),
+            padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
             children: [
               Icon(Icons.workspace_premium_rounded,
                   size: 54, color: Theme.of(context).colorScheme.primary),

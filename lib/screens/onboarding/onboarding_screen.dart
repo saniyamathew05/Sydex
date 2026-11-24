@@ -53,7 +53,7 @@ const _steps = <_Step>[
   _Step(
     '04 · Insight',
     'Every rupee accounted for.',
-    'Reports, a payment ledger split by method, GPS visit audits and customer statements you can export in seconds.',
+    'Reports, a payment ledger split by method, a customer map and customer statements you can export in seconds.',
   ),
   _Step(
     '05 · Security',

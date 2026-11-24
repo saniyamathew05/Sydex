@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Sydex minimal design system.
 ///
 /// Flat colour, hairline borders and quiet motion. Ink (#141414) is the
-/// primary colour; green is reserved for money coming in, amber for pending
+/// primary colour, amber is for pending
 /// and red for refused/bounced/destructive. Every screen picks these up from
 /// the theme, so no screen needs hard-coded colours.
 abstract final class SydexColors {
@@ -34,6 +34,18 @@ abstract final class SydexColors {
       Theme.of(context).brightness == Brightness.dark
       ? const Color(0xFF262626)
       : ink;
+
+  /// Light red behind a refused payment.
+  static Color refusedTint(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF4C1D1D)
+      : const Color(0xFFFEECEC);
+
+  /// Border and icon colour that goes with [refusedTint].
+  static Color refused(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFFF87171)
+      : const Color(0xFFDC2626);
 }
 
 const _ease = Curves.easeOutCubic;
@@ -44,11 +56,10 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
 
   // Primary: ink by default. On dark backgrounds ink turns into near-white so
   // primary buttons keep strong contrast. Other accent choices still work.
-  // In dark mode the ink accent becomes a soft grey so both kinds of existing
-  // usage stay readable: primary as text on dark surfaces, and white text
-  // drawn on primary-coloured fills.
   final primary = dark
-      ? (isInk ? const Color(0xFF9C978F) : Color.lerp(accent, Colors.white, .42)!)
+      ? (isInk
+            ? const Color(0xFFDEDAD3)
+            : Color.lerp(accent, Colors.white, .42)!)
       : accent;
   final onPrimary = dark ? SydexColors.ink : Colors.white;
 
@@ -82,10 +93,16 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     onSurface: text,
     onSurfaceVariant: muted,
     surfaceContainerLowest: paper,
-    surfaceContainerLow: dark ? const Color(0xFF141414) : const Color(0xFFFBFBFA),
+    surfaceContainerLow: dark
+        ? const Color(0xFF141414)
+        : const Color(0xFFFBFBFA),
     surfaceContainer: tile,
-    surfaceContainerHigh: dark ? const Color(0xFF262626) : const Color(0xFFEDECE8),
-    surfaceContainerHighest: dark ? const Color(0xFF2E2E2E) : const Color(0xFFE7E5E0),
+    surfaceContainerHigh: dark
+        ? const Color(0xFF262626)
+        : const Color(0xFFEDECE8),
+    surfaceContainerHighest: dark
+        ? const Color(0xFF2E2E2E)
+        : const Color(0xFFE7E5E0),
     outline: dark ? const Color(0xFF3A3A3A) : SydexColors.lineStrong,
     outlineVariant: line,
     shadow: Colors.black,
@@ -181,8 +198,15 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
   const buttonPadding = WidgetStatePropertyAll(
     EdgeInsets.symmetric(horizontal: 20, vertical: 14),
   );
-  const buttonText = WidgetStatePropertyAll(
-    TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0),
+  // ButtonStyle.textStyle replaces the theme's label style outright, so start
+  // from labelLarge to keep the app's font family on buttons.
+  final buttonLabel = textTheme.labelLarge ?? const TextStyle();
+  final buttonText = WidgetStatePropertyAll(
+    buttonLabel.copyWith(
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+    ),
   );
   final filled = ButtonStyle(
     minimumSize: buttonSize,
@@ -221,7 +245,12 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     overlayColor: WidgetStatePropertyAll(text.withValues(alpha: .05)),
   );
 
+  // Component text styles replace the inherited style, so each one names the
+  // app font explicitly.
+  final family = textTheme.bodyMedium?.fontFamily;
+
   return base.copyWith(
+    disabledColor: dark ? const Color(0xFF8A867F) : const Color(0xFF77736C),
     colorScheme: colors,
     scaffoldBackgroundColor: paper,
     canvasColor: paper,
@@ -265,8 +294,8 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(
         foregroundColor: WidgetStatePropertyAll(text),
-        textStyle: const WidgetStatePropertyAll(
-          TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        textStyle: WidgetStatePropertyAll(
+          buttonLabel.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         shape: WidgetStatePropertyAll(rounded(12)),
         overlayColor: WidgetStatePropertyAll(text.withValues(alpha: .05)),
@@ -286,7 +315,8 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       hoverElevation: 0,
       highlightElevation: 0,
       shape: rounded(18),
-      extendedTextStyle: const TextStyle(
+      extendedTextStyle: TextStyle(
+        fontFamily: family,
         fontSize: 15,
         fontWeight: FontWeight.w600,
       ),
@@ -296,9 +326,17 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       fillColor: surface,
       isDense: false,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      labelStyle: TextStyle(color: muted, fontSize: 14),
-      floatingLabelStyle: TextStyle(color: text, fontWeight: FontWeight.w500),
-      hintStyle: TextStyle(color: SydexColors.faint, fontSize: 14),
+      labelStyle: TextStyle(fontFamily: family, color: muted, fontSize: 14),
+      floatingLabelStyle: TextStyle(
+        fontFamily: family,
+        color: text,
+        fontWeight: FontWeight.w500,
+      ),
+      hintStyle: TextStyle(
+        fontFamily: family,
+        color: SydexColors.faint,
+        fontSize: 14,
+      ),
       prefixIconColor: muted,
       suffixIconColor: muted,
       border: OutlineInputBorder(
@@ -333,8 +371,18 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       checkmarkColor: onPrimary,
       side: BorderSide(color: line),
       shape: const StadiumBorder(),
-      labelStyle: TextStyle(color: text, fontSize: 13, fontWeight: FontWeight.w500),
+      labelStyle: TextStyle(
+        fontFamily: family,
+        // Filter chips use this style when selected too.
+        color: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? onPrimary : text,
+        ),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
       secondaryLabelStyle: TextStyle(
+        fontFamily: family,
         color: onPrimary,
         fontSize: 13,
         fontWeight: FontWeight.w500,
@@ -372,6 +420,7 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (s) => TextStyle(
+          fontFamily: family,
           fontSize: 11,
           fontWeight: s.contains(WidgetState.selected)
               ? FontWeight.w600
@@ -386,11 +435,13 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       selectedIconTheme: IconThemeData(color: text),
       unselectedIconTheme: const IconThemeData(color: SydexColors.faint),
       selectedLabelTextStyle: TextStyle(
+        fontFamily: family,
         color: text,
         fontWeight: FontWeight.w600,
         fontSize: 12,
       ),
-      unselectedLabelTextStyle: const TextStyle(
+      unselectedLabelTextStyle: TextStyle(
+        fontFamily: family,
         color: SydexColors.faint,
         fontSize: 12,
       ),
@@ -408,7 +459,11 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       indicatorColor: text,
       dividerColor: line,
       indicatorSize: TabBarIndicatorSize.label,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      labelStyle: TextStyle(
+        fontFamily: family,
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
     ),
     listTileTheme: ListTileThemeData(
       iconColor: text,
@@ -416,7 +471,11 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       tileColor: Colors.transparent,
       shape: rounded(12),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      subtitleTextStyle: TextStyle(color: muted, fontSize: 12.5),
+      subtitleTextStyle: TextStyle(
+        fontFamily: family,
+        color: muted,
+        fontSize: 12.5,
+      ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: surface,
@@ -443,7 +502,7 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       elevation: 6,
       shadowColor: Colors.black.withValues(alpha: .12),
       shape: rounded(14, side: line),
-      textStyle: TextStyle(color: text, fontSize: 14),
+      textStyle: TextStyle(fontFamily: family, color: text, fontSize: 14),
     ),
     menuTheme: MenuThemeData(
       style: MenuStyle(
@@ -456,6 +515,7 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
       behavior: SnackBarBehavior.floating,
       backgroundColor: dark ? SydexColors.darkText : SydexColors.ink,
       contentTextStyle: TextStyle(
+        fontFamily: family,
         color: dark ? SydexColors.ink : Colors.white,
         fontSize: 14,
       ),
@@ -470,6 +530,7 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
         borderRadius: BorderRadius.circular(8),
       ),
       textStyle: TextStyle(
+        fontFamily: family,
         color: dark ? SydexColors.ink : Colors.white,
         fontSize: 12,
       ),
@@ -483,7 +544,9 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? onPrimary : surface,
+        (s) => s.contains(WidgetState.selected)
+            ? onPrimary
+            : (dark ? muted : surface),
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected) ? primary : colors.outline,
@@ -495,12 +558,12 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
         (s) => s.contains(WidgetState.selected) ? primary : Colors.transparent,
       ),
       checkColor: WidgetStatePropertyAll(onPrimary),
-      side: BorderSide(color: colors.outline, width: 1.5),
+      side: BorderSide(color: muted, width: 1.5),
       shape: rounded(5),
     ),
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? primary : colors.outline,
+        (s) => s.contains(WidgetState.selected) ? primary : muted,
       ),
     ),
     datePickerTheme: DatePickerThemeData(
@@ -520,12 +583,14 @@ ThemeData buildSydexTheme(Brightness brightness, Color accent) {
     dataTableTheme: DataTableThemeData(
       headingRowColor: WidgetStatePropertyAll(paper),
       headingTextStyle: TextStyle(
+        fontFamily: family,
         color: muted,
         fontSize: 11.5,
         fontWeight: FontWeight.w500,
         letterSpacing: .6,
       ),
       dataTextStyle: TextStyle(
+        fontFamily: family,
         color: text,
         fontSize: 13,
         fontFeatures: const [FontFeature.tabularFigures()],

@@ -14,6 +14,7 @@ import 'screens/onboarding/onboarding_screen.dart';
 
 import 'services/theme_controller.dart';
 import 'services/history_display_settings.dart';
+import 'services/profile_store.dart';
 import 'services/owner_display_settings.dart';
 
 import 'services/auth_service.dart';
@@ -62,6 +63,7 @@ Future<void> main() async {
   await ThemeController.loadTheme();
   await HistoryDisplaySettings.load();
   await OwnerDisplaySettings.load();
+  await ProfileStore.loadDevice();
   await CurrencyFormatter.load();
   await BusinessDateService.load();
   await OnboardingStore.load();
@@ -230,7 +232,23 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
             onPointerDown: (_) => _recordActivity(),
             onPointerMove: (_) => _recordActivity(),
             onPointerSignal: (_) => _recordActivity(),
-            child: child ?? const SizedBox.shrink(),
+            child: ValueListenableBuilder<String>(
+              valueListenable: ProfileStore.textSize,
+              builder: (context, _, _) {
+                final device = MediaQuery.textScalerOf(context).scale(1);
+                // Never smaller than the phone's own larger-text setting.
+                final wanted = device * ProfileStore.textScale;
+                final scale = wanted > 1.5
+                    ? (device > 1.5 ? device : 1.5)
+                    : wanted;
+                return MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+            ),
           ),
           home: const AuthGate(),
         ),
@@ -369,12 +387,14 @@ class _AuthGateState extends State<AuthGate> {
       if (!mounted) return;
 
       if (role == 'owner') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OwnerMainScreen()),
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => OwnerMainScreen(userName: name)),
+          (_) => false,
         );
       } else if (role == 'salesman') {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => SalesmanHome(userName: name)),
+          (_) => false,
         );
       } else {
         await AuthService.signOut();
@@ -521,7 +541,8 @@ class WelcomeScreen extends StatelessWidget {
     final accent = ThemeController.accentColor.value;
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.sizeOf(context);
-    final isWide = size.width >= 760;
+    // A phone turned sideways is wide but too short for the two-panel layout.
+    final isWide = size.width >= 760 && size.height >= 540;
     // Wide screens keep a dark brand panel; phones use the light layout.
     final heroColor = isWide ? SydexColors.hero(context) : scheme.surfaceContainerLowest;
     final onHero = isWide ? Colors.white : scheme.onSurface;
@@ -652,10 +673,19 @@ class WelcomeScreen extends StatelessWidget {
                   Expanded(child: actions),
                 ],
               )
-            : Column(
-                children: [
-                  Expanded(child: hero),
-                  actions,
+            : CustomScrollView(
+                slivers: [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: SizedBox(width: double.infinity, child: hero),
+                        ),
+                        actions,
+                      ],
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -1446,17 +1476,9 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
 
       if (role == 'owner') {
-        Navigator.pushReplacement(
-          context,
-
-          MaterialPageRoute(builder: (_) => const OwnerMainScreen()),
-        );
+        _openHome(OwnerMainScreen(userName: name));
       } else if (role == 'salesman') {
-        Navigator.pushReplacement(
-          context,
-
-          MaterialPageRoute(builder: (_) => SalesmanHome(userName: name)),
-        );
+        _openHome(SalesmanHome(userName: name));
       } else {
         await AuthService.signOut();
 
@@ -1471,6 +1493,16 @@ class _LoginScreenState extends State<LoginScreen>
         });
       }
     }
+  }
+
+  /// Opens the signed-in home with nothing left underneath it. If the welcome
+  /// page stayed below, going back from any tab would land there and look
+  /// like a sign-out.
+  void _openHome(Widget home) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => home),
+      (_) => false,
+    );
   }
 
   Future<void> _signInWithGoogle() async {
@@ -1995,11 +2027,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.eco_rounded,
-                            color: Colors.white,
-                            size: 34,
-                          ),
+                          SydexLogoMark(size: 38, inverted: true),
                           SizedBox(height: 14),
                           Text(
                             'Welcome to Sydex',
@@ -2046,7 +2074,7 @@ class _RegisterCompanyScreenState extends State<RegisterCompanyScreen> {
                           v!.trim().isEmpty ? 'Enter company name' : null,
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>( isExpanded: true,
                       initialValue: _selectedMarket,
                       decoration: _decoration(
                         'Business location',

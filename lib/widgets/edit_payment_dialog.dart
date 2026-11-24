@@ -306,7 +306,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
                     onChanged: _setSplit,
                   ),
                   if (!_split)
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>( isExpanded: true,
                       initialValue: _method,
                       decoration: const InputDecoration(
                         labelText: 'Payment method',
@@ -322,7 +322,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
                         children: [
                           Expanded(
                             flex: 2,
-                            child: DropdownButtonFormField<String>(
+                            child: DropdownButtonFormField<String>( isExpanded: true,
                               key: ObjectKey(_rows[i]),
                               initialValue: _rows[i].method,
                               decoration: const InputDecoration(

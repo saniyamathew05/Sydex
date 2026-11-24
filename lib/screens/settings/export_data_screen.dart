@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 class ExportDataScreen extends StatefulWidget {
   const ExportDataScreen({super.key});
@@ -246,7 +247,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       appBar: AppBar(title: const Text('Export Data')),
 
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 760,
+        ),
 
         children: [
           Container(

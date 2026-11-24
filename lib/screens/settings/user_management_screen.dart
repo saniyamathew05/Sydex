@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/sydex_ui.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -300,7 +301,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
                     const SizedBox(height: 16),
 
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>( isExpanded: true,
                       initialValue: selectedRole,
 
                       decoration: const InputDecoration(
@@ -546,7 +547,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
                     const SizedBox(height: 16),
 
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>( isExpanded: true,
                       initialValue: selectedRole,
 
                       decoration: const InputDecoration(
@@ -997,7 +998,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       ],
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 860,
+          bottom: 100,
+        ),
 
                       itemCount: _users.length,
 
@@ -1063,8 +1068,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               _isSalesmanActive(
                                                 user['last_seen']?.toString(),
                                               )
-                                              ? const Color(0xFF77736C)
-                                              : Colors.grey,
+                                              ? Theme.of(context).colorScheme.onSurface
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
 
                                           shape: BoxShape.circle,
                                         ),
@@ -1072,7 +1077,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
                                       const SizedBox(width: 6),
 
-                                      Text(
+                                      Flexible(
+                                        child: Text(
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         _isSalesmanActive(
                                               user['last_seen']?.toString(),
                                             )
@@ -1084,11 +1092,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               _isSalesmanActive(
                                                 user['last_seen']?.toString(),
                                               )
-                                              ? const Color(0xFF77736C)
-                                              : Colors.grey,
+                                              ? Theme.of(context).colorScheme.onSurface
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
 
                                           fontWeight: FontWeight.w600,
                                         ),
+                                      ),
                                       ),
                                     ],
                                   ),

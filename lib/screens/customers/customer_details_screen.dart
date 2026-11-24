@@ -29,6 +29,7 @@ import '../payments/payment_screen.dart';
 import '../purchases/add_purchase_screen.dart';
 import '../../services/currency_formatter.dart';
 import '../../widgets/edit_payment_dialog.dart';
+import '../../theme/sydex_theme.dart';
 import '../../widgets/sydex_ui.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
@@ -1033,7 +1034,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       context,
 
       MaterialPageRoute(
-        builder: (_) => PaymentScreen(customer: _displayCustomer),
+        builder: (_) => PaymentScreen(
+          customer: _displayCustomer,
+          offerLocation: _isOwner,
+        ),
       ),
     );
 
@@ -2443,7 +2447,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           : SafeArea(
               top: false,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                padding: sydexPageInsets(
+                  MediaQuery.sizeOf(context).width,
+                  maxWidth: 920,
+                  top: 10,
+                  bottom: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   border: Border(
@@ -2464,9 +2473,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
                         onPressed: _recordPayment,
                         icon: const Icon(Icons.south_west_rounded, size: 18),
-                        label: const Text('Receive payment', maxLines: 1),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Receive payment', maxLines: 1),
+                        ),
                       ),
                     ),
                   ],
@@ -2571,7 +2586,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     ),
     child: Column(
       children: [
-        Icon(Icons.photo_library_outlined, size: 38, color: Color(0xFF8A9B8F)),
+        Icon(Icons.photo_library_outlined, size: 38, color: Color(0xFF8A867F)),
         SizedBox(height: 8),
         Text(
           'No signatures or photos yet',
@@ -2613,7 +2628,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
               size: 48,
 
-              color: Theme.of(context).colorScheme.outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
 
             const SizedBox(height: 12),
@@ -2711,6 +2726,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         (type == 'payment' ? 'cash' : '');
 
     final paymentMethodNote = entry['payment_method_note']?.toString() ?? '';
+    // The stored split ("Split amounts: cash=…") is shown as its own row, so
+    // only the hand-written part of the note is shown as a note.
+    final methodNoteText = PaymentMethodBreakdown.noteText(paymentMethodNote);
     final displayedPaymentMethod =
         PaymentMethodBreakdown.display(paymentMethodNote) ??
         _paymentMethodLabel(paymentMethod);
@@ -2748,17 +2766,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
-          color: isRefusal
-              ? Color.alphaBlend(
-                  Theme.of(context).colorScheme.error.withValues(alpha: .08),
-                  Theme.of(context).colorScheme.surface,
-                )
-              : null,
+          color: isRefusal ? SydexColors.refusedTint(context) : null,
         shape: isRefusal
             ? RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: Theme.of(context).colorScheme.error,
+                  color: SydexColors.refused(context),
                   width: 1.5,
                 ),
               )
@@ -2793,7 +2806,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   CircleAvatar(
                     radius: 21,
                     backgroundColor: isRefusal
-                        ? Theme.of(context).colorScheme.error
+                        ? SydexColors.refused(context)
                         : null,
 
                     child: Icon(
@@ -2851,6 +2864,29 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             color: Theme.of(
                               context,
                             ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+
+                        const SizedBox(height: 4),
+
+                        Text(
+                          isRefusal
+                              ? CurrencyFormatter.currentAmountDue(
+                                  currentBalance,
+                                )
+                              : isPurchase || isBouncedCheck
+                              ? '+${_money(displayedAmount)}'
+                              : '-${_money(displayedAmount)}',
+                          style: TextStyle(
+                            fontSize: isRefusal ? 14 : 18,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isRefusal ||
+                                    isPurchase ||
+                                    isBouncedCheck ||
+                                    entry['is_bounced'] == true
+                                ? Theme.of(context).colorScheme.error
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -2980,27 +3016,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       ],
                     ),
 
-                  Text(
-                    isRefusal
-                        ? CurrencyFormatter.currentAmountDue(currentBalance)
-                        : isPurchase || isBouncedCheck
-                        ? '+${_money(displayedAmount)}'
-                        : '-${_money(displayedAmount)}',
-
-                    style: TextStyle(
-                      fontSize: 18,
-
-                      fontWeight: FontWeight.w600,
-
-                      color:
-                          isRefusal ||
-                              isPurchase ||
-                              isBouncedCheck ||
-                              entry['is_bounced'] == true
-                          ? Colors.red
-                          : const Color(0xFF77736C),
-                    ),
-                  ),
                 ],
               ),
 
@@ -3110,9 +3125,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   _detailRow('Payment Split', splitDetails),
                 ],
 
-                if (paymentMethodNote.isNotEmpty) ...[
+                if (methodNoteText.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  _detailRow('Payment Method Note', paymentMethodNote),
+                  _detailRow('Payment Method Note', methodNoteText),
                 ],
 
                 const SizedBox(height: 8),
@@ -3131,7 +3146,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 ),
               ],
 
-              if (notes.isNotEmpty) ...[
+              if (notes.isNotEmpty && !isRefusal) ...[
                 const SizedBox(height: 14),
 
                 Container(
@@ -3175,8 +3190,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   Widget _detailRow(String title, String value) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
+          flex: 2,
           child: Text(
             title,
             style: TextStyle(
@@ -3185,7 +3202,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           ),
         ),
 
-        Text(value, style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(width: 12),
+
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
       ],
     );
   }

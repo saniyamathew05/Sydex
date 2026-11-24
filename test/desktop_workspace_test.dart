@@ -27,7 +27,7 @@ void main() {
                     onTap: () {},
                   ),
                   WorkspaceDestination(
-                    label: 'Import old cards',
+                    label: 'Route map',
                     icon: Icons.document_scanner_outlined,
                     onTap: () => opened = true,
                   ),
@@ -47,7 +47,7 @@ void main() {
     expect(opened, isTrue);
     await tester.tap(find.byTooltip('Expand navigation'));
     await tester.pumpAndSettle();
-    expect(find.text('Import old cards'), findsOneWidget);
+    expect(find.text('Route map'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

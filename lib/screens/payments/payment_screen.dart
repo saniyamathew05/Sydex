@@ -14,6 +14,7 @@ import '../../services/customer_service.dart';
 
 import '../../services/transaction_service.dart';
 import '../../services/currency_formatter.dart';
+import '../../services/salesman_visit_service.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
 import '../../services/payment_service.dart';
@@ -22,7 +23,14 @@ import '../../widgets/sydex_ui.dart';
 class PaymentScreen extends StatefulWidget {
   final Customer customer;
 
-  const PaymentScreen({super.key, required this.customer});
+  /// Offers to save the customer's place. Salesmen's visits save it already.
+  final bool offerLocation;
+
+  const PaymentScreen({
+    super.key,
+    required this.customer,
+    this.offerLocation = false,
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -32,6 +40,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Color get inkForeground => Theme.of(context).brightness == Brightness.dark
       ? Colors.white
       : Colors.black;
+
+  bool _saveLocation = false;
 
   final TextEditingController _amountController = TextEditingController();
 
@@ -522,12 +532,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       await TransactionService.loadTransactions();
 
+      final locationSaved =
+          !_saveLocation ||
+          await SalesmanVisitService.saveCustomerLocation(widget.customer.id);
+
       if (!mounted) {
         return;
       }
 
       _showMessage(
         'Payment saved. ${CurrencyFormatter.rupees(received)} received.'
+        '${locationSaved ? '' : ' The location could not be saved.'}'
         ' WhatsApp receipt delivery is queued automatically when enabled.',
       );
 
@@ -698,9 +713,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: isError ? const TextStyle(color: Colors.white) : null,
+        ),
 
-        backgroundColor: isError ? Colors.red : null,
+        backgroundColor: isError ? const Color(0xFFA61B1B) : null,
       ),
     );
   }
@@ -805,8 +823,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          label(
-                            'Amount to settle',
+                          SydexAmountField(
+                            controller: _amountController,
+                            label: 'Payment amount',
+                            enabled: !_isSaving,
                             trailing: TextButton(
                               onPressed: _isSaving ? null : _setFullBalance,
                               style: TextButton.styleFrom(
@@ -816,27 +836,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 ),
                               ),
                               child: const Text('Use full balance'),
-                            ),
-                          ),
-                          TextField(
-                            controller: _amountController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            style: const TextStyle(
-                              fontSize: 34,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.8,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                            decoration: const InputDecoration(
-                              prefixText: '₹ ',
-                              hintText: '0.00',
-                              filled: false,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -881,6 +880,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       onTap: _isSaving ? null : _selectDate,
                     ),
                   ),
+                  if (widget.offerLocation &&
+                      SalesmanVisitService.canSaveCustomerLocation) ...[
+                    const SizedBox(height: 14),
+                    SydexCard(
+                      padding: EdgeInsets.zero,
+                      child: SwitchListTile(
+                        title: const Text('I’m at the customer’s shop'),
+                        subtitle: const Text(
+                          'Saves this place on the visit audit map',
+                        ),
+                        value: _saveLocation,
+                        onChanged: _isSaving
+                            ? null
+                            : (value) => setState(() => _saveLocation = value),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   SydexReveal(
                     index: 2,
@@ -934,7 +950,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 children: [
                                   Expanded(
                                     flex: 5,
-                                    child: DropdownButtonFormField<String>(
+                                    child: DropdownButtonFormField<String>( isExpanded: true,
                                       initialValue: _paymentParts[index].method,
                                       decoration: InputDecoration(
                                         labelText: 'Method ${index + 1}',
@@ -1096,7 +1112,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          padding: sydexPageInsets(
+            MediaQuery.sizeOf(context).width,
+            maxWidth: 720,
+            top: 12,
+            bottom: 14,
+          ),
           decoration: BoxDecoration(
             color: colors.surfaceContainerLowest,
             border: Border(top: BorderSide(color: colors.outlineVariant)),

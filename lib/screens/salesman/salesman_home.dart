@@ -4,6 +4,11 @@ import 'dart:async';
 // ignore_for_file: unused_element, unused_element_parameter, dead_code, unused_local_variable
 import 'package:flutter/material.dart';
 import '../../widgets/desktop_workspace.dart';
+import '../../services/owner_display_settings.dart';
+import '../../services/profile_store.dart';
+import '../../widgets/profile_avatar.dart';
+import '../../widgets/root_back_guard.dart';
+import '../settings/profile_screen.dart';
 import '../../widgets/sydex_ui.dart';
 import 'package:flutter/services.dart';
 
@@ -68,10 +73,33 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
   bool _forcedLogoutInProgress = false;
 
+  String get _userName => ProfileStore.name.value ?? widget.userName;
+
+  void _refresh() {
+    if (!mounted) return;
+    setState(() {
+      if (selectedIndex == 3 && !_showMap) selectedIndex = 0;
+    });
+  }
+
+  bool get _showMap => SalesmanDisplaySettings.show(SalesmanDisplaySettings.map);
+
+  /// Opens the page chosen in My profile, unless already moved elsewhere.
+  Future<void> _openStartPage() async {
+    await ProfileStore.loadUser();
+    final page = ProfileStore.startPage.value;
+    if (!mounted || page == 0 || selectedIndex != 0) return;
+    if (page == 3 && !_showMap) return;
+    setState(() => selectedIndex = page.clamp(0, 3));
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ProfileStore.name.addListener(_refresh);
+    SalesmanDisplaySettings.values.addListener(_refresh);
+    _openStartPage();
     _loadData();
 
     _startPresenceMonitoring();
@@ -191,6 +219,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
       });
     }
 
+    SalesmanDisplaySettings.load();
     await CustomerService.loadCustomers();
     await TransactionService.loadTransactions();
 
@@ -566,7 +595,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
       MaterialPageRoute(
         builder: (_) =>
-            SettingsScreen(role: 'salesman', userName: widget.userName),
+            SettingsScreen(role: 'salesman', userName: _userName),
       ),
     );
   }
@@ -787,10 +816,21 @@ class _SalesmanHomeState extends State<SalesmanHome>
           reveal(
             SydexScreenHeader(
               large: false,
-              leading: SydexAvatar(widget.userName, size: 44),
+              leading: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ProfileScreen(userName: _userName, role: 'salesman'),
+                  ),
+                ),
+                child: ProfileAvatar(_userName, size: 44),
+              ),
               eyebrow: today,
-              title: '${_getGreeting()}, ${widget.userName}',
+              title: '${_getGreeting()}, $_userName',
               actions: [
+                const ThemeToggleButton(),
                 SydexIconButton(
                   icon: Icons.refresh_rounded,
                   tooltip: 'Refresh data',
@@ -938,10 +978,11 @@ class _SalesmanHomeState extends State<SalesmanHome>
                 itemHeight: 104,
                 maxColumns: 4,
                 children: [
-                  SydexStatTile(
-                    label: 'Collected today',
-                    value: CurrencyFormatter.rupees(collectedToday),
-                  ),
+                  if (SalesmanDisplaySettings.show(SalesmanDisplaySettings.collected))
+                    SydexStatTile(
+                      label: 'Collected today',
+                      value: CurrencyFormatter.rupees(collectedToday),
+                    ),
                   SydexStatTile(
                     label: 'Payments received',
                     value: '$paymentCount',
@@ -955,14 +996,16 @@ class _SalesmanHomeState extends State<SalesmanHome>
                   SydexStatTile(
                     label: 'Pending visits',
                     value: '$pending',
-                    footnote:
-                        'To collect ${CurrencyFormatter.rupees(pendingCollection)}',
+                    footnote: SalesmanDisplaySettings.show(SalesmanDisplaySettings.collected)
+                        ? 'To collect ${CurrencyFormatter.rupees(pendingCollection)}'
+                        : null,
                   ),
                 ],
               ),
             ),
             ],
             secondary: [
+          if (SalesmanDisplaySettings.show(SalesmanDisplaySettings.qr)) ...[
           reveal(
               SydexCard(
                 onTap: _showPaymentQr,
@@ -1000,12 +1043,14 @@ class _SalesmanHomeState extends State<SalesmanHome>
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded, color: colors.outline),
+                    Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
                   ],
                 ),
               ),
             ),
           const SizedBox(height: 12),
+          ],
+          if (SalesmanDisplaySettings.show(SalesmanDisplaySettings.recentPayments))
           reveal(
               SydexSection(
                 title: 'Recent payments',
@@ -1167,7 +1212,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
                       Icon(
                         Icons.people_outline_rounded,
                         size: 42,
-                        color: colors.outline,
+                        color: colors.onSurfaceVariant,
                       ),
                       const SizedBox(height: 12),
                       Center(
@@ -1265,7 +1310,9 @@ class _SalesmanHomeState extends State<SalesmanHome>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${customer.location} · ${CurrencyFormatter.customerBalance(TransactionService.getCustomerBalance(customer.id))}',
+                    SalesmanDisplaySettings.show(SalesmanDisplaySettings.routeBalances)
+                        ? '${customer.location} · ${CurrencyFormatter.customerBalance(TransactionService.getCustomerBalance(customer.id))}'
+                        : customer.location,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1888,6 +1935,8 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
   @override
   void dispose() {
+    ProfileStore.name.removeListener(_refresh);
+    SalesmanDisplaySettings.values.removeListener(_refresh);
     WidgetsBinding.instance.removeObserver(this);
     _presenceTimer?.cancel();
 
@@ -1920,7 +1969,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
 
   Widget _navigationRail(BuildContext context) {
     return DesktopWorkspaceSidebar(
-      userName: widget.userName,
+      userName: _userName,
       role: 'Marketing Executive',
       onProfile: _openSettings,
       action: IconButton.filledTonal(
@@ -1935,6 +1984,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
           ('Payments', Icons.payments_outlined),
           ('Route map', Icons.map_outlined),
         ].indexed)
+          if (item.$1 != 3 || _showMap)
           WorkspaceDestination(
             label: item.$2.$1,
             icon: item.$2.$2,
@@ -1967,7 +2017,10 @@ class _SalesmanHomeState extends State<SalesmanHome>
       "Today's Route Map",
     ];
 
-    return LayoutBuilder(
+    return RootBackGuard(
+      atHome: () => selectedIndex == 0,
+      onGoHome: () => setState(() => selectedIndex = 0),
+      child: LayoutBuilder(
       builder: (context, constraints) {
         final useRail = constraints.maxWidth >= 1000;
         final content = Scaffold(
@@ -1995,23 +2048,24 @@ class _SalesmanHomeState extends State<SalesmanHome>
               : NavigationBar(
                   selectedIndex: _phoneNavigationIndex,
                   onDestinationSelected: _selectPhoneNavigation,
-                  destinations: const [
-                    NavigationDestination(
+                  destinations: [
+                    const NavigationDestination(
                       icon: Icon(Icons.home_outlined),
                       selectedIcon: Icon(Icons.home_rounded),
                       label: 'Today',
                     ),
-                    NavigationDestination(
+                    const NavigationDestination(
                       icon: Icon(Icons.route_outlined),
                       selectedIcon: Icon(Icons.route_rounded),
                       label: 'Route',
                     ),
-                    NavigationDestination(
+                    const NavigationDestination(
                       icon: Icon(Icons.payments_outlined),
                       selectedIcon: Icon(Icons.payments_rounded),
                       label: 'Payments',
                     ),
-                    NavigationDestination(
+                    if (_showMap)
+                      const NavigationDestination(
                       icon: Icon(Icons.map_outlined),
                       selectedIcon: Icon(Icons.map_rounded),
                       label: 'Map',
@@ -2028,6 +2082,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
           ],
         );
       },
+      ),
     );
   }
 }
@@ -2715,7 +2770,7 @@ class _CustomerCard extends StatelessWidget {
 
                               color: hasBalance
                                   ? Theme.of(context).colorScheme.error
-                                  : const Color(0xFF77736C),
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
 
@@ -2729,7 +2784,7 @@ class _CustomerCard extends StatelessWidget {
 
                               color: hasBalance
                                   ? Theme.of(context).colorScheme.error
-                                  : const Color(0xFF77736C),
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
 
                               fontWeight: FontWeight.w600,
                             ),
@@ -2857,7 +2912,7 @@ class _PaymentPreviewCard extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w600,
 
-              color: const Color(0xFF77736C),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),

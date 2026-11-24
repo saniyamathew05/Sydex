@@ -5,6 +5,7 @@ import '../../services/customer_service.dart';
 import '../../services/transaction_service.dart';
 import '../../services/purchase_service.dart';
 import '../../services/currency_formatter.dart';
+import '../../services/salesman_visit_service.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
 import '../../widgets/sydex_ui.dart';
@@ -19,6 +20,8 @@ class AddPurchaseScreen extends StatefulWidget {
 }
 
 class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
+  bool _saveLocation = false;
+
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _finalAmountController = TextEditingController();
 
@@ -210,6 +213,9 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
         transactionDate: _selectedDate,
       );
 
+      final locationSaved =
+          !_saveLocation ||
+          await SalesmanVisitService.saveCustomerLocation(customer.id);
       await CustomerService.loadCustomers();
       await TransactionService.loadTransactions();
 
@@ -217,7 +223,11 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
         return;
       }
 
-      _showMessage('Sale added successfully.');
+      _showMessage(
+        locationSaved
+            ? 'Sale added successfully.'
+            : 'Sale added, but the location could not be saved.',
+      );
 
       Navigator.pop(context, true);
     } catch (error) {
@@ -294,8 +304,11 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
-          backgroundColor: isError ? Colors.red : null,
+          content: Text(
+            message,
+            style: isError ? const TextStyle(color: Colors.white) : null,
+          ),
+          backgroundColor: isError ? const Color(0xFFA61B1B) : null,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
@@ -457,34 +470,18 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                   SydexReveal(
                     index: 1,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SydexEyebrow('Sale amount'),
-                        TextField(
+                        SydexAmountField(
                           controller: _amountController,
-                          textAlign: TextAlign.center,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
+                          label: 'Sale amount',
                           enabled: !_isSaving,
                           onChanged: (_) => setState(() {}),
-                          style: const TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -1.2,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
-                          decoration: const InputDecoration(
-                            hintText: '₹0',
-                            filled: false,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                          ),
                         ),
+                        const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
-                          alignment: WrapAlignment.center,
+                          runSpacing: 6,
                           children: [
                             SydexBadge(
                               'Discount ${CurrencyFormatter.rupees(discount)}',
@@ -540,6 +537,22 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                       ),
                     ),
                   ),
+                  if (SalesmanVisitService.canSaveCustomerLocation) ...[
+                    const SizedBox(height: 14),
+                    SydexCard(
+                      padding: EdgeInsets.zero,
+                      child: SwitchListTile(
+                        title: const Text('I’m at the customer’s shop'),
+                        subtitle: const Text(
+                          'Saves this place on the visit audit map',
+                        ),
+                        value: _saveLocation,
+                        onChanged: _isSaving
+                            ? null
+                            : (value) => setState(() => _saveLocation = value),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Text(
                     'This sale will increase the customer\'s outstanding balance.',
@@ -557,7 +570,12 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          padding: sydexPageInsets(
+            MediaQuery.sizeOf(context).width,
+            maxWidth: 650,
+            top: 12,
+            bottom: 14,
+          ),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLowest,
             border: Border(top: BorderSide(color: colorScheme.outlineVariant)),

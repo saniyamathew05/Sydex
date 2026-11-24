@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_avatar.dart';
 import 'sydex_ui.dart';
 
 /// A destination can open a retained workspace page or a focused action.
@@ -259,16 +260,7 @@ class _DesktopWorkspaceSidebarState extends State<DesktopWorkspaceSidebar> {
                         horizontal: 19,
                       ),
                       onTap: widget.onProfile,
-                      leading: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: tile,
-                        child: Text(
-                          widget.userName.isEmpty
-                              ? 'S'
-                              : widget.userName[0].toUpperCase(),
-                          style: TextStyle(color: foreground),
-                        ),
-                      ),
+                      leading: ProfileAvatar(widget.userName, size: 36),
                       title: _collapsed
                           ? null
                           : Text(

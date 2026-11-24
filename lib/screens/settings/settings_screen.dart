@@ -6,7 +6,9 @@ import '../../main.dart';
 
 import '../../services/theme_controller.dart';
 import '../../services/history_display_settings.dart';
-import '../../services/owner_display_settings.dart';
+import '../../services/profile_store.dart';
+import '../../widgets/profile_avatar.dart';
+import 'display_settings_screen.dart';
 
 import 'business_information_screen.dart';
 
@@ -137,20 +139,26 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const _SettingsSectionTitle(title: 'ACCOUNT'),
 
-          ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-
-            title: Text(
-              userName,
-
-              style: const TextStyle(fontWeight: FontWeight.w700),
+          ListenableBuilder(
+            listenable: ProfileStore.changes,
+            builder: (context, _) => ListTile(
+              leading: ProfileAvatar(userName, size: 44),
+              title: Text(
+                ProfileStore.name.value ?? userName,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '$email\n${isOwner ? 'Owner' : 'Marketing Executive'}',
+              ),
+              isThreeLine: true,
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ProfileScreen(userName: userName, role: role),
+                ),
+              ),
             ),
-
-            subtitle: Text(
-              '$email\n${isOwner ? 'Owner' : 'Marketing Executive'}',
-            ),
-
-            isThreeLine: true,
           ),
 
           const Divider(),
@@ -255,49 +263,19 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          if (isOwner) const _SettingsSectionTitle(title: 'OWNER DISPLAY'),
+          if (isOwner) const _SettingsSectionTitle(title: 'DISPLAY'),
 
           if (isOwner)
-            ValueListenableBuilder<bool>(
-              valueListenable: OwnerDisplaySettings.showBalances,
-              builder: (context, value, _) => SwitchListTile(
-                secondary: const Icon(Icons.account_balance_wallet_outlined),
-                title: const Text('Show balances'),
-                subtitle: const Text(
-                  'Display outstanding balances on owner screens',
+            ListTile(
+              leading: const Icon(Icons.visibility_outlined),
+              title: const Text('Display options'),
+              subtitle: const Text('What owners and salesmen see in the app'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const DisplaySettingsScreen(),
                 ),
-                value: value,
-                onChanged: (value) => OwnerDisplaySettings.setBalances(value),
-              ),
-            ),
-
-          if (isOwner)
-            ValueListenableBuilder<bool>(
-              valueListenable: OwnerDisplaySettings.showRecentPayments,
-              builder: (context, value, _) => SwitchListTile(
-                secondary: const Icon(Icons.history_outlined),
-                title: const Text('Show recent payment history'),
-                subtitle: const Text(
-                  'Show recent payments in the owner dashboard',
-                ),
-                value: value,
-                onChanged: (value) =>
-                    OwnerDisplaySettings.setRecentPayments(value),
-              ),
-            ),
-
-          if (isOwner)
-            ValueListenableBuilder<bool>(
-              valueListenable: OwnerDisplaySettings.showQuickActions,
-              builder: (context, value, _) => SwitchListTile(
-                secondary: const Icon(Icons.bolt_outlined),
-                title: const Text('Show quick actions'),
-                subtitle: const Text(
-                  'Display shortcut actions on the dashboard',
-                ),
-                value: value,
-                onChanged: (value) =>
-                    OwnerDisplaySettings.setQuickActions(value),
               ),
             ),
 
@@ -645,13 +623,16 @@ class SettingsScreen extends StatelessWidget {
 
             child: Card(
               child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
+                leading: Icon(
+                  Icons.logout,
+                  color: Theme.of(context).colorScheme.error,
+                ),
 
-                title: const Text(
+                title: Text(
                   'Log out',
 
                   style: TextStyle(
-                    color: Colors.red,
+                    color: Theme.of(context).colorScheme.error,
 
                     fontWeight: FontWeight.w700,
                   ),

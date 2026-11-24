@@ -15,7 +15,9 @@ import '../../services/notification_read_store.dart';
 import '../../services/owner_display_settings.dart';
 import '../../widgets/desktop_workspace.dart';
 import '../../services/payment_method_breakdown.dart';
+import '../../widgets/profile_avatar.dart';
 import '../../widgets/sydex_ui.dart';
+import '../settings/profile_screen.dart';
 
 /// Owner overview for the Sydex desktop experience.
 /// All financial/customer figures are read from the existing services.
@@ -30,9 +32,7 @@ class OwnerDashboard extends StatefulWidget {
     this.onAddCustomer,
     this.onRecordPurchase,
     this.onOpenReports,
-    this.onOpenAssistant,
     this.onReceivePayment,
-    this.onOpenCardImport,
     this.onOpenSalesmen,
     this.userName = 'Owner',
   });
@@ -46,9 +46,7 @@ class OwnerDashboard extends StatefulWidget {
   final VoidCallback? onAddCustomer;
   final VoidCallback? onRecordPurchase;
   final VoidCallback? onOpenReports;
-  final VoidCallback? onOpenAssistant;
   final VoidCallback? onReceivePayment;
-  final VoidCallback? onOpenCardImport;
   final VoidCallback? onOpenSalesmen;
 
   @override
@@ -71,9 +69,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   Color get _line => Theme.of(context).colorScheme.outlineVariant;
   Color get _muted => Theme.of(context).colorScheme.onSurfaceVariant;
   Color get _pageBackground => Theme.of(context).scaffoldBackgroundColor;
-  static const _red = Color(0xFFA61B1B);
-  static const _orange = Color(0xFF8A5300);
-  static const _blue = Color(0xFF77736C);
+  Color get _red => Theme.of(context).colorScheme.error;
+  Color get _orange => Theme.of(context).colorScheme.tertiary;
+  Color get _blue => Theme.of(context).colorScheme.onSurfaceVariant;
 
   int get _newSalesmanPaymentCount => _todaySalesmanPayments.values
       .expand((entry) => entry.paymentIds)
@@ -495,17 +493,23 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           reveal(
             SydexScreenHeader(
               large: false,
-              leading: SydexAvatar(widget.userName, size: 44),
+              leading: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ProfileScreen(userName: widget.userName, role: 'owner'),
+                  ),
+                ),
+                child: ProfileAvatar(widget.userName, size: 44),
+              ),
               eyebrow: _todayLabel(),
               title: '${_greeting()}, ${widget.userName}',
               actions: [
-                if (widget.onOpenAssistant != null)
-                  SydexIconButton(
-                    icon: Icons.auto_awesome_outlined,
-                    tooltip: 'Open Sydie assistant',
-                    onPressed: widget.onOpenAssistant,
-                    filled: true,
-                  ),
+                // Wide windows have this button in the top toolbar.
+                if (MediaQuery.sizeOf(context).width < 900)
+                  const ThemeToggleButton(),
                 SydexIconButton(
                   icon: Icons.notifications_none_rounded,
                   tooltip: 'Notifications',
@@ -604,6 +608,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 ),
               ),
             ),
+            if (OwnerDisplaySettings.show(OwnerDisplaySettings.stats)) ...[
             const SizedBox(height: 12),
             reveal(
               SydexAutoGrid(
@@ -611,7 +616,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 itemHeight: 132,
                 maxColumns: 4,
                 children: [
-                  SydexStatTile(
+                  if (OwnerDisplaySettings.show(OwnerDisplaySettings.balances))
+                    SydexStatTile(
                     icon: Icons.schedule_rounded,
                     label: 'Outstanding',
                     value: _money(receivable),
@@ -641,6 +647,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 ],
               ),
             ),
+            ],
+            if (OwnerDisplaySettings.show(OwnerDisplaySettings.quickActions)) ...[
             const SizedBox(height: 12),
             reveal(
               SydexSection(
@@ -688,14 +696,16 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       onTap: widget.onOpenVisitAudit,
                     ),
                     SydexQuickAction(
-                      icon: Icons.document_scanner_outlined,
-                      label: 'Old card import',
-                      onTap: widget.onOpenCardImport,
+                      icon: Icons.badge_outlined,
+                      label: 'Salesmen',
+                      onTap: widget.onOpenSalesmen,
                     ),
                   ],
                 ),
               ),
             ),
+            ],
+            if (OwnerDisplaySettings.show(OwnerDisplaySettings.paymentsChart)) ...[
             const SizedBox(height: 12),
             reveal(
               SydexSection(
@@ -707,7 +717,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
             ),
             ],
+            ],
             secondary: [
+          if (OwnerDisplaySettings.show(OwnerDisplaySettings.salesmanActivity)) ...[
           reveal(
               SydexSection(
                 title: 'Salesman activity',
@@ -724,6 +736,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
             ],
             const SizedBox(height: 12),
+            ],
+            if (OwnerDisplaySettings.show(OwnerDisplaySettings.recentPayments)) ...[
             reveal(
               SydexSection(
                 title: 'Recent payments',
@@ -733,6 +747,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
             ),
             const SizedBox(height: 12),
+            ],
+            if (OwnerDisplaySettings.show(OwnerDisplaySettings.locationDue) && OwnerDisplaySettings.show(OwnerDisplaySettings.balances))
             reveal(
               SydexSection(
                 title: 'Location-wise due',
@@ -960,9 +976,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   }
 
   Widget _recentPayments(List<PaymentTransaction> recent) =>
-      ValueListenableBuilder<bool>(
-        valueListenable: OwnerDisplaySettings.showRecentPayments,
-        builder: (context, visible, _) => visible
+      ValueListenableBuilder<Map<String, bool>>(
+        valueListenable: OwnerDisplaySettings.values,
+        builder: (context, _, _) =>
+            OwnerDisplaySettings.show(OwnerDisplaySettings.recentPayments)
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1228,7 +1245,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                                 ? Theme.of(
                                     context,
                                   ).colorScheme.surfaceContainerHighest
-                                : const Color(0xFFECEBFA),
+                                : const Color(0xFFF1F0ED),
                             valueColor: AlwaysStoppedAnimation(_green),
                           ),
                         ),

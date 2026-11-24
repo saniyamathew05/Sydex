@@ -14,6 +14,8 @@ import '../../services/payment_receipt_share_service.dart';
 import '../../services/supabase_pagination.dart';
 import '../../models/customer.dart';
 import '../../theme/sydex_theme.dart';
+import '../../services/owner_display_settings.dart';
+import '../../widgets/root_back_guard.dart';
 import '../../widgets/sydex_ui.dart';
 
 class SalesmanPaymentsScreen extends StatefulWidget {
@@ -27,7 +29,22 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
-  List<Map<String, dynamic>> _payments = [];
+  List<Map<String, dynamic>> _allPayments = [];
+
+  bool get _showTeam => SalesmanDisplaySettings.show(SalesmanDisplaySettings.teamPayments);
+
+  /// The loaded entries, without the kinds the owner chose not to show.
+  List<Map<String, dynamic>> get _payments {
+    final showRefused = SalesmanDisplaySettings.show(SalesmanDisplaySettings.refused);
+    final me = _supabase.auth.currentUser?.id;
+    return _allPayments.where((payment) {
+      if (!showRefused &&
+          payment['entry_type']?.toString().toLowerCase() == 'refusal') {
+        return false;
+      }
+      return _showTeam || payment['user_id']?.toString() == me;
+    }).toList();
+  }
 
   bool _isLoading = true;
   String? _loadError;
@@ -123,11 +140,17 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   void initState() {
     super.initState();
 
+    SalesmanDisplaySettings.values.addListener(_onDisplayChanged);
     _loadPayments();
+  }
+
+  void _onDisplayChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    SalesmanDisplaySettings.values.removeListener(_onDisplayChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -290,7 +313,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       if (!mounted) return;
 
       setState(() {
-        _payments = routePayments;
+        _allPayments = routePayments;
         _loadError = null;
         _isLoading = false;
       });
@@ -558,7 +581,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
   Widget _header() => SydexScreenHeader(
     eyebrow: 'All payments received',
     title: 'Payments',
-    leading: Navigator.of(context).canPop()
+    leading: sydexCanGoBack(context)
         ? SydexIconButton(
             icon: Icons.arrow_back_rounded,
             tooltip: 'Back',
@@ -622,10 +645,13 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
 
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Team payment history',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                _showTeam ? 'Team payment history' : 'My payment history',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
 
@@ -736,38 +762,63 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        SydexChoiceChips(
-          options: dateOptions.keys.toList(),
-          selected: labelFor(dateOptions, _dateFilter),
-          onSelected: (label) {
-            final value = dateOptions[label]!;
-            if (value == 'date') {
-              _chooseDate();
-            } else {
-              setState(() {
-                _dateFilter = value;
-                _selectedDate = null;
-                _selectedDateRange = null;
-              });
-            }
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final dropdowns = [
+              SydexFilterDropdown(
+                label: 'Date',
+                options: dateOptions.keys.toList(),
+                selected: labelFor(dateOptions, _dateFilter),
+                onSelected: (label) {
+                  final value = dateOptions[label]!;
+                  if (value == 'date') {
+                    _chooseDate();
+                  } else {
+                    setState(() {
+                      _dateFilter = value;
+                      _selectedDate = null;
+                      _selectedDateRange = null;
+                    });
+                  }
+                },
+              ),
+              SydexFilterDropdown(
+                label: 'Payment method',
+                options: methodOptions.keys.toList(),
+                selected: labelFor(methodOptions, _methodFilter),
+                onSelected: (label) =>
+                    setState(() => _methodFilter = methodOptions[label]!),
+              ),
+              if (salesmanOptions.length > 2)
+                SydexFilterDropdown(
+                  label: 'Salesman',
+                  options: salesmanOptions.keys.toList(),
+                  selected: labelFor(salesmanOptions, _salesmanFilter),
+                  onSelected: (label) =>
+                      setState(() => _salesmanFilter = salesmanOptions[label]!),
+                ),
+            ];
+            final perRow = constraints.maxWidth >= 620
+                ? dropdowns.length
+                : 2;
+            final width =
+                (constraints.maxWidth - 10 * (perRow - 1)) / perRow;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final (index, dropdown) in dropdowns.indexed)
+                  SizedBox(
+                    // A dropdown alone on the last line fills it.
+                    width: perRow == 2 && index == 2
+                        ? constraints.maxWidth
+                        : width - .01,
+                    child: dropdown,
+                  ),
+              ],
+            );
           },
         ),
-        const SizedBox(height: 8),
-        SydexChoiceChips(
-          options: methodOptions.keys.toList(),
-          selected: labelFor(methodOptions, _methodFilter),
-          onSelected: (label) =>
-              setState(() => _methodFilter = methodOptions[label]!),
-        ),
-        if (salesmanOptions.length > 2) ...[
-          const SizedBox(height: 8),
-          SydexChoiceChips(
-            options: salesmanOptions.keys.toList(),
-            selected: labelFor(salesmanOptions, _salesmanFilter),
-            onSelected: (label) =>
-                setState(() => _salesmanFilter = salesmanOptions[label]!),
-          ),
-        ],
         if (filtered)
           Align(
             alignment: Alignment.centerLeft,
@@ -795,7 +846,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
         ? 'All payment methods'
         : _formatPaymentMethod(_methodFilter);
     final summaryTitle = _methodFilter == 'all'
-        ? 'Team Total • $_selectedPeriodLabel'
+        ? '${_showTeam ? 'Team' : 'My'} total • $_selectedPeriodLabel'
         : '$methodLabel Total • $_selectedPeriodLabel';
 
     return Container(
@@ -873,7 +924,9 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
           const SizedBox(height: 5),
 
           Text(
-            'Combined total received by both salesmen',
+            _showTeam
+                ? 'Combined total received by all salesmen'
+                : 'Total you received',
 
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.76),
@@ -919,16 +972,13 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       return Container(
         margin: const EdgeInsets.only(bottom: 11),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            Theme.of(context).colorScheme.error.withValues(alpha: .08),
-            Theme.of(context).colorScheme.surface,
-          ),
+          color: SydexColors.refusedTint(context),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: error),
+          border: Border.all(color: SydexColors.refused(context)),
         ),
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: error,
+            backgroundColor: SydexColors.refused(context),
             child: Icon(
               Icons.block_outlined,
               color: Theme.of(context).colorScheme.onError,
@@ -1172,7 +1222,7 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF77736C),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1558,17 +1608,17 @@ class _SalesmanPaymentDetailsScreenState
                   padding: const EdgeInsets.all(13),
 
                   decoration: BoxDecoration(
-                    color: const Color(0xFF77736C).withValues(alpha: 0.12),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
 
                     shape: BoxShape.circle,
                   ),
 
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_rounded,
 
                     size: 46,
 
-                    color: Color(0xFF77736C),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
 
@@ -1671,8 +1721,11 @@ class _SalesmanPaymentDetailsScreenState
 
               _InfoRow(label: 'Payment method', value: paymentMethod),
 
-              if (paymentMethodNote.isNotEmpty)
-                _InfoRow(label: 'Method note', value: paymentMethodNote),
+              if (PaymentMethodBreakdown.noteText(paymentMethodNote).isNotEmpty)
+                _InfoRow(
+                  label: 'Method note',
+                  value: PaymentMethodBreakdown.noteText(paymentMethodNote),
+                ),
 
               _InfoRow(
                 label: 'Old balance',
@@ -1705,7 +1758,7 @@ class _SalesmanPaymentDetailsScreenState
                 value: CurrencyFormatter.balanceAfter(remainingBalance),
 
                 valueColor: remainingBalance == 0
-                    ? const Color(0xFF77736C)
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
                     : null,
               ),
             ],

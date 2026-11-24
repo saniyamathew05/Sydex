@@ -8,6 +8,7 @@ import '../../services/currency_formatter.dart';
 import '../../services/salesman_visit_service.dart';
 import '../../services/transaction_service.dart';
 import 'salesman_customer_screen.dart';
+import '../../widgets/sydex_ui.dart';
 
 /// Salesman's daily route and visit-status screen.
 ///
@@ -191,7 +192,10 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
           : RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: sydexPageInsets(
+          MediaQuery.sizeOf(context).width,
+          maxWidth: 860,
+        ),
                 children: [
                   if (_error != null) ...[
                     _ErrorBanner(message: _error!),
@@ -323,10 +327,10 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
         ? 'Refused today'
         : 'Not visited';
     final statusColor = status == 'paid'
-        ? const Color(0xFF77736C)
+        ? Theme.of(context).colorScheme.onSurfaceVariant
         : status == 'rejected'
         ? theme.colorScheme.error
-        : theme.colorScheme.outline;
+        : theme.colorScheme.onSurfaceVariant;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -431,7 +435,7 @@ class _SalesmanVisitScreenState extends State<SalesmanVisitScreen> {
                             );
                             if (mounted) await _refresh();
                           },
-                    child: const Text('Open customer'),
+                    child: const Text('Open', semanticsLabel: 'Open customer'),
                   ),
                 ],
               ],

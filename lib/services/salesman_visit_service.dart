@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Normalization helper supports legacy route payloads.
 // ignore_for_file: unused_element
 import 'dart:convert';
@@ -485,6 +486,33 @@ class SalesmanVisitService {
     } catch (_) {
       // Recording a payment or visit must not depend on optional GPS capture.
       return null;
+    }
+  }
+
+  /// Whether this device can say where it is when standing at a shop.
+  static bool get canSaveCustomerLocation =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// Saves where the owner is standing as the customer's place on the map.
+  /// Never throws: the sale or payment has already been saved.
+  static Future<bool> saveCustomerLocation(String customerId) async {
+    final position = await captureLocationForVisit();
+    if (position == null) return false;
+    try {
+      final rows = await _client
+          .from('customers')
+          .update({
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+          })
+          .eq('id', customerId)
+          .select('id');
+      return rows.isNotEmpty;
+    } catch (error) {
+      debugPrint('Could not save the customer location: $error');
+      return false;
     }
   }
 
