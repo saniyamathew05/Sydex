@@ -94,6 +94,8 @@ void main() {
       url: 'http://127.0.0.1:9',
       publishableKey: 'test-only-placeholder',
       httpClient: MockClient(_backend),
+      // Sign-in links need a native plugin that tests do not have.
+      authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
     );
   });
 
