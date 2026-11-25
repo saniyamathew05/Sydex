@@ -542,8 +542,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       _showMessage(
         'Payment saved. ${CurrencyFormatter.rupees(received)} received.'
-        '${locationSaved ? '' : ' The location could not be saved.'}'
-        ' WhatsApp receipt delivery is queued automatically when enabled.',
+        '${locationSaved ? '' : ' The location could not be saved.'}',
       );
 
       _paymentRequestKey = null;
@@ -758,9 +757,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final colors = Theme.of(context).colorScheme;
     final received = _amountReceived;
     final remaining = _remainingBalance;
-    final hasCustomerPhone = widget.customer.phone
-        .replaceAll(RegExp(r'\D'), '')
-        .isNotEmpty;
 
     Widget label(String text, {Widget? trailing}) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -1089,16 +1085,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ),
                             ),
                           ),
-                          if (hasCustomerPhone) ...[
-                            const SizedBox(height: 10),
-                            Text(
-                              'If WhatsApp receipts are enabled and this customer has opted in, the receipt is queued automatically after saving.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),

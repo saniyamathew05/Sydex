@@ -688,18 +688,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     }
   }
 
-  Future<void> _shareCustomerReceipt() async {
+  /// Sends the receipt of one payment, or of the latest.
+  Future<void> _shareCustomerReceipt([String? paymentId]) async {
     if (_sharingReceipt) return;
     setState(() => _sharingReceipt = true);
     try {
-      await PaymentReceiptShareService.shareLatest(
+      await PaymentReceiptShareService.send(
         context: context,
         customer: _displayCustomer,
+        paymentId: paymentId,
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share receipt: $error')),
+        SnackBar(
+          content: Text(
+            'Could not send the receipt. ${PaymentReceiptShareService.errorText(error)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _sharingReceipt = false);
@@ -2262,8 +2268,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             ),
                             SydexQuickAction(
                               icon: Icons.ios_share_rounded,
-                              label: _sharingReceipt ? 'Preparing…' : 'Share receipt',
-                              onTap: _sharingReceipt ? null : _shareCustomerReceipt,
+                              label: _sharingReceipt ? 'Preparing…' : 'Send receipt',
+                              onTap: _sharingReceipt ? null : () => _shareCustomerReceipt(),
                             ),
                             SydexQuickAction(
                               icon: Icons.call_outlined,
@@ -2533,10 +2539,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 label: const Text('WhatsApp'),
               ),
               OutlinedButton.icon(
-                onPressed: _sharingReceipt ? null : _shareCustomerReceipt,
+                onPressed: _sharingReceipt
+                    ? null
+                    : () => _shareCustomerReceipt(),
                 icon: const Icon(Icons.receipt_long_outlined, size: 16),
                 label: Text(
-                  _sharingReceipt ? 'Preparing receipt…' : 'Share receipt',
+                  _sharingReceipt ? 'Preparing receipt…' : 'Send receipt',
                 ),
               ),
               if (_isOwner)
@@ -3173,6 +3181,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
                 _SignaturePreview(
                   signaturePath: entry['signature_path'].toString(),
+                ),
+              ],
+
+              if (type == 'payment' && entry['is_bounced'] != true) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _sharingReceipt
+                        ? null
+                        : () => _shareCustomerReceipt(entry['id']?.toString()),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('Send receipt on WhatsApp'),
+                  ),
                 ),
               ],
             ],

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/transaction.dart';
+import 'payment_method_breakdown.dart';
 
 class PaymentReceiptService {
   PaymentReceiptService._();
@@ -52,7 +53,12 @@ class PaymentReceiptService {
     Uint8List? signatureBytes,
   }) async {
     const width = 840;
-    const height = 1260;
+    final split = PaymentMethodBreakdown.parseOrdered(
+      payment.paymentMethodNote,
+    );
+    // Each part of a split payment gets its own line.
+    final extra = split.length > 1 ? split.length * 44.0 + 12 - 56 : 0.0;
+    final height = (1260 + extra).toInt();
     const green = Color(0xFF141414);
     const ink = Color(0xFF1C1C1C);
     const muted = Color(0xFF657066);
@@ -64,7 +70,7 @@ class PaymentReceiptService {
 
     canvas.drawColor(const Color(0xFFF7F3EC), BlendMode.src);
     final card = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(36, 36, 768, 1188),
+      Rect.fromLTWH(36, 36, 768, 1188 + extra),
       const Radius.circular(28),
     );
     canvas.drawRRect(card, Paint()..color = Colors.white);
@@ -209,10 +215,34 @@ class PaymentReceiptService {
     );
     y += 132;
 
+    if (split.length > 1) {
+      for (final part in split) {
+        _drawRow(
+          canvas,
+          'Paid by ${PaymentMethodBreakdown.methodLabel(part.method)}',
+          _money(part.amount),
+          y,
+          labelColor: muted,
+          valueColor: ink,
+        );
+        y += 44;
+      }
+      y += 12;
+    } else {
+      _drawRow(
+        canvas,
+        'Payment method',
+        _methodName(payment.paymentMethod),
+        y,
+        labelColor: muted,
+        valueColor: ink,
+      );
+      y += 56;
+    }
     _drawRow(
       canvas,
-      'Payment method',
-      _methodName(payment.paymentMethod),
+      payment.previousBalance < 0 ? 'Previous advance' : 'Previous balance',
+      _money(payment.previousBalance.abs()),
       y,
       labelColor: muted,
       valueColor: ink,
@@ -220,25 +250,20 @@ class PaymentReceiptService {
     y += 56;
     _drawRow(
       canvas,
-      'Previous balance',
-      _money(payment.previousBalance),
-      y,
-      labelColor: muted,
-      valueColor: ink,
-    );
-    y += 56;
-    _drawRow(
-      canvas,
-      'Balance after payment',
-      _money(payment.remainingBalance),
+      payment.remainingBalance < 0
+          ? 'Advance after payment'
+          : 'Balance after payment',
+      _money(payment.remainingBalance.abs()),
       y,
       labelColor: muted,
       valueColor: ink,
     );
     y += 56;
 
-    final methodNote = payment.paymentMethodNote.trim();
-    if (methodNote.isNotEmpty && y < 890) {
+    final methodNote = PaymentMethodBreakdown.noteText(
+      payment.paymentMethodNote,
+    );
+    if (methodNote.isNotEmpty && y < 930 + extra) {
       _drawText(
         canvas,
         'PAYMENT NOTE',
@@ -263,7 +288,7 @@ class PaymentReceiptService {
       y += 52;
     }
     final notes = payment.notes.trim();
-    if (notes.isNotEmpty && y < 890) {
+    if (notes.isNotEmpty && y < 930 + extra) {
       _drawText(
         canvas,
         'NOTES',
@@ -284,7 +309,7 @@ class PaymentReceiptService {
         canvas,
         'SIGNATURE',
         76,
-        990,
+        990 + extra,
         680,
         color: muted,
         size: 14,
@@ -302,19 +327,19 @@ class PaymentReceiptService {
       final destination = _containRect(
         source.width,
         source.height,
-        const Rect.fromLTWH(76, 1020, 400, 110),
+        Rect.fromLTWH(76, 1020 + extra, 400, 110),
       );
       canvas.drawImageRect(signatureImage, source, destination, Paint());
       signatureImage.dispose();
       codec.dispose();
     }
 
-    _drawRule(canvas, 1162);
+    _drawRule(canvas, 1162 + extra);
     _drawText(
       canvas,
       'Thank you for your payment.',
       76,
-      1184,
+      1184 + extra,
       680,
       color: muted,
       size: 17,

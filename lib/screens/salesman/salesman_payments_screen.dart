@@ -395,15 +395,18 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
       phone: customer['phone']?.toString() ?? '',
     );
     try {
-      await PaymentReceiptShareService.shareLatest(
+      await PaymentReceiptShareService.send(
         context: context,
         customer: model,
+        paymentId: payment['id']?.toString(),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            'Could not send the receipt. ${PaymentReceiptShareService.errorText(error)}',
+          ),
         ),
       );
     }
@@ -1231,14 +1234,14 @@ class _SalesmanPaymentsScreenState extends State<SalesmanPaymentsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          tooltip: 'Share receipt',
+                          tooltip: 'Send receipt on WhatsApp',
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => _shareReceipt(payment),
                           icon: Icon(
-                            Icons.share_outlined,
-                            size: 17,
+                            Icons.receipt_long_outlined,
+                            size: 18,
                             color: Theme.of(context).colorScheme.primary,
                           ),
                         ),

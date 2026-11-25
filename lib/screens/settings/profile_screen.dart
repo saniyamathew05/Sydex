@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/payment_receipt_share_service.dart';
 import '../../services/profile_store.dart';
 import '../../services/theme_controller.dart';
 import '../../widgets/profile_avatar.dart';
@@ -22,6 +23,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _saving = false;
+  List<String> _whatsApps = const [];
+  String? _whatsApp;
 
   bool get _isOwner => widget.role == 'owner';
   String get _roleLabel => _isOwner ? 'Owner' : 'Marketing Executive';
@@ -30,6 +33,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     ProfileStore.loadUser();
+    _loadWhatsApp();
+  }
+
+  Future<void> _loadWhatsApp() async {
+    final apps = await PaymentReceiptShareService.installedApps();
+    final saved = await PaymentReceiptShareService.preferredApp();
+    if (mounted) {
+      setState(() {
+        _whatsApps = apps;
+        _whatsApp = saved;
+      });
+    }
   }
 
   void _message(String text) {
@@ -383,6 +398,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ProfileStore.setStartPage(startPages.indexOf(label)),
                   ),
                 ),
+                // Only a question on phones that have both.
+                if (_whatsApps.length > 1)
+                  _choice(
+                    title: 'Send receipts from',
+                    hint: 'The WhatsApp that opens for payment receipts.',
+                    child: _chips(
+                      [
+                        for (final app in _whatsApps)
+                          PaymentReceiptShareService.appName(app),
+                      ],
+                      PaymentReceiptShareService.appName(_whatsApp ?? ''),
+                      (label) async {
+                        final app = _whatsApps.firstWhere(
+                          (app) =>
+                              PaymentReceiptShareService.appName(app) == label,
+                        );
+                        await PaymentReceiptShareService.setPreferredApp(app);
+                        if (mounted) setState(() => _whatsApp = app);
+                      },
+                    ),
+                  ),
                 if (_isOwner)
                   ListTile(
                     leading: const Icon(Icons.visibility_outlined),

@@ -261,16 +261,25 @@ class _SalesmanCustomerDetailsScreenState
     }
   }
 
-  Future<void> _shareReceipt() async {
+  /// Sends the receipt of one payment, or of the latest.
+  Future<void> _shareReceipt([String? paymentId]) async {
     if (_preparingReceiptShare) return;
     setState(() => _preparingReceiptShare = true);
     try {
-      await PaymentReceiptShareService.shareLatest(
+      await PaymentReceiptShareService.send(
         context: context,
         customer: _customer,
+        paymentId: paymentId,
       );
+      // The number may have been added on the way.
+      final saved = CustomerService.getCustomerById(_customer.id);
+      if (mounted && saved != null) setState(() => _customer = saved);
     } catch (error) {
-      if (mounted) _showPhoneMessage('Could not share receipt: $error');
+      if (mounted) {
+        _showPhoneMessage(
+          'Could not send the receipt. ${PaymentReceiptShareService.errorText(error)}',
+        );
+      }
     } finally {
       if (mounted) setState(() => _preparingReceiptShare = false);
     }
@@ -846,7 +855,9 @@ class _SalesmanCustomerDetailsScreenState
                       SydexQuickAction(
                         icon: Icons.ios_share_rounded,
                         label: _preparingReceiptShare ? 'Preparing…' : 'Receipt',
-                        onTap: _preparingReceiptShare ? null : _shareReceipt,
+                        onTap: _preparingReceiptShare
+                            ? null
+                            : () => _shareReceipt(),
                       ),
                       SydexQuickAction(
                         icon: Icons.edit_outlined,
@@ -1104,6 +1115,9 @@ class _SalesmanCustomerDetailsScreenState
                       );
                       return _PaymentCard(
                         transaction: payment,
+                        onSendReceipt: payment.isBounced
+                            ? null
+                            : () => _shareReceipt(payment.id),
                         onEditDate: () => _editTransactionDate(
                           ledgerEntry.isEmpty ? {'id': payment.id, 'transaction_date': payment.transactionDate.toIso8601String()} : ledgerEntry,
                           payment: true,
@@ -1559,12 +1573,14 @@ class _PaymentCard extends StatefulWidget {
   final double? previousBalanceOverride;
   final double? remainingBalanceOverride;
   final VoidCallback? onEditDate;
+  final VoidCallback? onSendReceipt;
 
   const _PaymentCard({
     required this.transaction,
     this.previousBalanceOverride,
     this.remainingBalanceOverride,
     this.onEditDate,
+    this.onSendReceipt,
   });
 
   @override
@@ -1754,6 +1770,19 @@ class _PaymentCardState extends State<_PaymentCard> {
           ],
 
           const SizedBox(height: 16),
+
+          if (widget.onSendReceipt != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: widget.onSendReceipt,
+                  icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                  label: const Text('Send receipt on WhatsApp'),
+                ),
+              ),
+            ),
 
           if (widget.onEditDate != null)
             Align(
