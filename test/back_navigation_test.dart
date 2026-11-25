@@ -1,5 +1,6 @@
 // These packages are only needed here to fake the backend and location.
 // ignore_for_file: depend_on_referenced_packages
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -17,9 +18,36 @@ import 'package:sydex/screens/salesman/salesman_home.dart';
 import 'package:sydex/services/session_policy.dart';
 import 'package:sydex/theme/sydex_theme.dart';
 import 'package:sydex/theme/workspace_theme.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 const _uid = '00000000-0000-4000-8000-000000000001';
 String _role = 'owner';
+
+/// A live-updates connection that never opens, so no test uses the network.
+class _OfflineSocket extends Fake implements WebSocketChannel {
+  @override
+  Future<void> get ready => Completer<void>().future;
+
+  @override
+  Stream<dynamic> get stream => const Stream<dynamic>.empty();
+
+  @override
+  WebSocketSink get sink => _OfflineSink();
+
+  @override
+  int? get closeCode => null;
+
+  @override
+  String? get closeReason => null;
+}
+
+class _OfflineSink extends Fake implements WebSocketSink {
+  @override
+  void add(Object? data) {}
+
+  @override
+  Future<void> close([int? closeCode, String? closeReason]) async {}
+}
 
 /// Location is off, so no test depends on the computer's location service.
 class _NoLocation extends GeolocatorPlatform {
@@ -136,6 +164,9 @@ void main() {
       url: 'http://127.0.0.1:9',
       publishableKey: 'test-only-placeholder',
       httpClient: MockClient(_backend),
+      realtimeClientOptions: RealtimeClientOptions(
+        transport: (_, _) => _OfflineSocket(),
+      ),
     );
   });
 
