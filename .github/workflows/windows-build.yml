@@ -42,7 +42,15 @@ jobs:
         continue-on-error: true
 
       - name: Run Flutter tests
-        run: flutter test
+        shell: bash
+        run: |
+          set -o pipefail
+          # Name any failing test on the run page, where no log is needed.
+          if ! flutter test --reporter expanded 2>&1 | tee test.log; then
+            grep -E '\[E\]$|was thrown running a test|^Expected:|^  Actual:|_test\.dart:[0-9]+:' test.log | head -12 |
+              while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
 
       - name: Build Android release APK
         env:

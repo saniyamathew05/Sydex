@@ -15,6 +15,7 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'services/theme_controller.dart';
 import 'services/history_display_settings.dart';
 import 'services/profile_store.dart';
+import 'services/session_policy.dart';
 import 'services/owner_display_settings.dart';
 
 import 'services/auth_service.dart';
@@ -22,6 +23,7 @@ import 'services/login_connection.dart';
 import 'services/business_date_service.dart';
 import 'services/currency_formatter.dart';
 import 'theme/sydex_theme.dart';
+import 'widgets/desktop_canvas.dart';
 import 'widgets/sydex_ui.dart';
 import 'theme/workspace_theme.dart';
 
@@ -86,8 +88,8 @@ class BusinessPaymentApp extends StatefulWidget {
 
 class _BusinessPaymentAppState extends State<BusinessPaymentApp>
     with WidgetsBindingObserver {
-  /// Signed-in users are logged out after this long without any interaction.
-  static const _idleLimit = Duration(minutes: 5);
+  /// Signed-in owners are logged out after this long without any interaction.
+  static const _idleLimit = SessionPolicy.idleLimit;
 
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -119,7 +121,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
   void _recordActivity() {
     final now = DateTime.now();
     // Pointer moves fire very often; restarting the timer once a second is
-    // plenty for a five-minute limit.
+    // plenty for a limit of several minutes.
     if (now.difference(_lastActivity) < const Duration(seconds: 1)) return;
     _lastActivity = now;
     _restartIdleTimer();
@@ -130,9 +132,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
     _idleTimer = Timer(_idleLimit, () {
       if (DateTime.now().difference(_lastActivity) >= _idleLimit) {
         unawaited(
-          _signOutForSecurity(
-            'You were signed out after 5 minutes of inactivity.',
-          ),
+          _signOutForSecurity(SessionPolicy.idleMessage),
         );
       } else {
         _restartIdleTimer();
@@ -148,9 +148,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
         // check the elapsed time when the app comes back.
         if (DateTime.now().difference(_lastActivity) >= _idleLimit) {
           unawaited(
-            _signOutForSecurity(
-              'You were signed out after 5 minutes of inactivity.',
-            ),
+            _signOutForSecurity(SessionPolicy.idleMessage),
           );
         } else {
           _restartIdleTimer();
@@ -171,7 +169,8 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
   Future<void> _signOutForSecurity(String message) async {
     if (_signingOut) return;
-    if (Supabase.instance.client.auth.currentUser == null) {
+    if (!SessionPolicy.signsOutWhenIdle ||
+        Supabase.instance.client.auth.currentUser == null) {
       _lastActivity = DateTime.now();
       _restartIdleTimer();
       return;
@@ -227,7 +226,8 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
 
           navigatorKey: _navigatorKey,
           scaffoldMessengerKey: _messengerKey,
-          builder: (context, child) => Listener(
+          builder: (context, child) => DesktopCanvas(
+            child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: (_) => _recordActivity(),
             onPointerMove: (_) => _recordActivity(),
@@ -249,6 +249,7 @@ class _BusinessPaymentAppState extends State<BusinessPaymentApp>
                 );
               },
             ),
+          ),
           ),
           home: const AuthGate(),
         ),

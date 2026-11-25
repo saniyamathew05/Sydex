@@ -31,6 +31,8 @@ class OwnerDisplaySettings {
   static const enteredByRole = 'ledger_entered_by_role';
   static const notes = 'ledger_notes';
   static const refused = 'ledger_refused';
+  static const returns = 'ledger_returns';
+  static const ledgerBalance = 'ledger_balance';
 
   static const options = <DisplayOption>[
     DisplayOption(balances, 'Home', 'Balances', 'Outstanding and due amounts'),
@@ -78,6 +80,18 @@ class OwnerDisplaySettings {
       'Payment ledger',
       'Refused payments',
       'Refusals listed with payments',
+    ),
+    DisplayOption(
+      returns,
+      'Payment ledger',
+      'Sales returns',
+      'Returns listed with payments',
+    ),
+    DisplayOption(
+      ledgerBalance,
+      'Payment ledger',
+      'Pending balance',
+      'What each customer owes now',
     ),
   ];
 

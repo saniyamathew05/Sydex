@@ -18,6 +18,7 @@ import '../../services/salesman_visit_service.dart';
 import '../../services/business_date_service.dart';
 import '../../services/duplicate_transaction_service.dart';
 import '../../services/payment_service.dart';
+import '../../services/signature_service.dart';
 import '../../widgets/sydex_ui.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -72,6 +73,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     exportBackgroundColor: Colors.white,
   );
 
+  /// Some customers want the salesman to sign as well.
+  bool _salesmanSigns = false;
+  final SignatureController _salesmanSignatureController = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
+
   double _currentBalance = 0;
 
   bool _isLoadingBalance = true;
@@ -112,6 +121,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     _signatureController.dispose();
+    _salesmanSignatureController.dispose();
 
     super.dispose();
   }
@@ -252,8 +262,42 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  void _clearSignature() {
-    _signatureController.clear();
+  Widget _signaturePad(SignatureController controller, ColorScheme colors) =>
+      Container(
+        height: 200,
+        decoration: BoxDecoration(
+          border: Border.all(color: colors.outline),
+          borderRadius: BorderRadius.circular(14),
+          color: inkForeground,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Signature(
+            controller: controller,
+            backgroundColor: Colors.white,
+          ),
+        ),
+      );
+
+  /// What is wrong with the signatures, or null when they are complete.
+  String? get _signatureProblem => _signatureController.isEmpty
+      ? (_salesmanSigns
+            ? 'Please collect the customer’s signature.'
+            : 'Please collect the signature.')
+      : _salesmanSigns && _salesmanSignatureController.isEmpty
+      ? 'Please add the salesman’s signature.'
+      : null;
+
+  Future<Uint8List?> _signatureBytes() async {
+    final customer = await _signatureController.toPngBytes();
+    if (!_salesmanSigns || customer == null) return customer;
+    final salesman = await _salesmanSignatureController.toPngBytes();
+    if (salesman == null) return null;
+    return SignatureService.combine(customer: customer, salesman: salesman);
+  }
+
+  void _clearSignature(SignatureController controller) {
+    controller.clear();
 
     setState(() {});
   }
@@ -299,13 +343,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return null;
     }
 
-    if (_signatureController.isEmpty) {
-      _showMessage('Please collect the signature.', isError: true);
-
-      return null;
-    }
-
-    final bytes = await _signatureController.toPngBytes();
+    final bytes = await _signatureBytes();
 
     if (bytes == null || bytes.isEmpty) {
       _showMessage('Could not capture the signature.', isError: true);
@@ -459,8 +497,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       methodNote = methodNote.isEmpty ? breakdown : '$breakdown • $methodNote';
     }
 
-    if (_signatureController.isEmpty) {
-      _showMessage('Please collect the signature.', isError: true);
+    final signatureProblem = _signatureProblem;
+    if (signatureProblem != null) {
+      _showMessage(signatureProblem, isError: true);
 
       return;
     }
@@ -510,7 +549,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
         paymentMethodNote: methodNote,
 
-        signature: await _signatureController.toPngBytes() ?? Uint8List(0),
+        signature: await _signatureBytes() ?? Uint8List(0),
 
         signaturePath: signaturePath,
       );
@@ -1060,30 +1099,45 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          label(
-                            'Customer signature · required',
-                            trailing: TextButton(
-                              onPressed: _clearSignature,
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(44, 32),
+                          for (final (title, controller) in [
+                            (
+                              _salesmanSigns
+                                  ? 'Customer signature · required'
+                                  : 'Signature · required',
+                              _signatureController,
+                            ),
+                            if (_salesmanSigns)
+                              (
+                                'Salesman signature · required',
+                                _salesmanSignatureController,
                               ),
-                              child: const Text('Clear'),
-                            ),
-                          ),
-                          Container(
-                            height: 200,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: colors.outline),
-                              borderRadius: BorderRadius.circular(14),
-                              color: inkForeground,
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Signature(
-                                controller: _signatureController,
-                                backgroundColor: Colors.white,
+                          ]) ...[
+                            label(
+                              title,
+                              trailing: TextButton(
+                                onPressed: _isSaving
+                                    ? null
+                                    : () => _clearSignature(controller),
+                                style: TextButton.styleFrom(
+                                  minimumSize: const Size(44, 32),
+                                ),
+                                child: const Text('Clear'),
                               ),
                             ),
+                            _signaturePad(controller, colors),
+                            const SizedBox(height: 10),
+                          ],
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Salesman also signs'),
+                            subtitle: const Text(
+                              'Adds a second signature to the payment and receipt',
+                            ),
+                            value: _salesmanSigns,
+                            onChanged: _isSaving
+                                ? null
+                                : (value) =>
+                                      setState(() => _salesmanSigns = value),
                           ),
                         ],
                       ),

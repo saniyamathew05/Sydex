@@ -513,7 +513,7 @@ class _CollectionsArt extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CUSTOMER SIGNATURE', style: _label(context)),
+                Text('SIGNATURE', style: _label(context)),
                 const SizedBox(height: 6),
                 SizedBox(
                   height: 56,

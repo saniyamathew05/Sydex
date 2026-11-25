@@ -327,7 +327,13 @@ class PaymentReceiptService {
       final destination = _containRect(
         source.width,
         source.height,
-        Rect.fromLTWH(76, 1020 + extra, 400, 110),
+        // Two signatures in one picture need the full width.
+        Rect.fromLTWH(
+          76,
+          1020 + extra,
+          source.width / source.height > 3 ? 688 : 400,
+          110,
+        ),
       );
       canvas.drawImageRect(signatureImage, source, destination, Paint());
       signatureImage.dispose();

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/desktop_workspace.dart';
 import '../../services/owner_display_settings.dart';
 import '../../services/profile_store.dart';
+import '../../services/session_policy.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/root_back_guard.dart';
 import '../settings/profile_screen.dart';
@@ -96,6 +97,7 @@ class _SalesmanHomeState extends State<SalesmanHome>
   @override
   void initState() {
     super.initState();
+    SessionPolicy.signsOutWhenIdle = false;
     WidgetsBinding.instance.addObserver(this);
     ProfileStore.name.addListener(_refresh);
     SalesmanDisplaySettings.values.addListener(_refresh);

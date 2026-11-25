@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sydex/main.dart';
 import 'package:sydex/screens/owner/owner_main_screen.dart';
 import 'package:sydex/screens/salesman/salesman_home.dart';
+import 'package:sydex/services/session_policy.dart';
 import 'package:sydex/theme/sydex_theme.dart';
 import 'package:sydex/theme/workspace_theme.dart';
 
@@ -80,8 +81,21 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// Waits for something that depends on the (fake) backend, however slow the
+/// computer is. A fixed wait failed now and then on GitHub's machines.
+Future<void> _waitFor(WidgetTester tester, Finder finder) async {
+  for (var i = 0; i < 400 && finder.evaluate().isEmpty; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(finder, findsOneWidget);
+  await _settle(tester);
+}
+
 /// Signs in through the real Welcome and Login screens.
-Future<void> _signIn(WidgetTester tester, String role) async {
+Future<void> _signIn(WidgetTester tester, String role, Type home) async {
   _role = role;
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -102,7 +116,10 @@ Future<void> _signIn(WidgetTester tester, String role) async {
   final button = find.widgetWithText(FilledButton, 'Sign In');
   await tester.ensureVisible(button);
   await tester.tap(button);
-  await _settle(tester);
+  await _waitFor(tester, find.byType(home));
+  if (home == SalesmanHome) {
+    await _waitFor(tester, find.byType(IndexedStack));
+  }
 }
 
 Future<void> _close(WidgetTester tester) async {
@@ -142,8 +159,7 @@ void main() {
     testWidgets('$role: back never returns to the sign-in pages', (
       tester,
     ) async {
-      await _signIn(tester, role);
-      expect(find.byType(screen), findsOneWidget);
+      await _signIn(tester, role, screen);
       expect(find.byType(WelcomeScreen, skipOffstage: false), findsNothing);
 
       for (final tab in tabs) {
@@ -159,6 +175,7 @@ void main() {
         expect(find.byTooltip('Back'), findsNothing, reason: tab);
         await tester.binding.handlePopRoute();
         await _settle(tester);
+        expect(SessionPolicy.signsOutWhenIdle, role == 'owner');
         expect(find.byType(screen), findsOneWidget, reason: tab);
         expect(find.byType(WelcomeScreen), findsNothing, reason: tab);
         expect(closedTheApp(), isFalse, reason: tab);
@@ -172,7 +189,7 @@ void main() {
   testWidgets('back on the home tab asks before closing the app', (
     tester,
   ) async {
-    await _signIn(tester, 'owner');
+    await _signIn(tester, 'owner', OwnerMainScreen);
     await tester.binding.handlePopRoute();
     await _settle(tester);
     expect(find.text('Close Sydex?'), findsOneWidget);
@@ -195,7 +212,7 @@ void main() {
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    await _signIn(tester, 'owner');
+    await _signIn(tester, 'owner', OwnerMainScreen);
     final context = tester.element(find.byType(OwnerMainScreen));
     Navigator.of(context).push(
       MaterialPageRoute<void>(

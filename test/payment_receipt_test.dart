@@ -124,6 +124,21 @@ void main() {
     }
   }
 
+  /// Waits for a result that depends on the (fake) backend, however slow the
+  /// computer is.
+  Future<void> waitFor(WidgetTester tester, bool Function() done) async {
+    for (var i = 0; i < 400 && !done(); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 25)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await settle(tester);
+  }
+
+  bool handedOver() =>
+      error != null || calls.any((c) => c.method == 'sendToWhatsApp');
+
   Future<void> press(
     WidgetTester tester,
     Customer customer, {
@@ -155,7 +170,13 @@ void main() {
       ),
     );
     await tester.tap(find.text('Receipt'));
-    await settle(tester);
+    await waitFor(
+      tester,
+      () =>
+          handedOver() ||
+          find.byType(AlertDialog).evaluate().isNotEmpty ||
+          find.byType(BottomSheet).evaluate().isNotEmpty,
+    );
   }
 
   Map<Object?, Object?> sent() =>
@@ -206,7 +227,7 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField), '9847012345');
     await tester.tap(find.text('Save'));
-    await settle(tester);
+    await waitFor(tester, handedOver);
     expect(error, isNull);
     expect(sent()['phone'], '919847012345');
     expect(CustomerService.getCustomerById('c')!.phone, '9847012345');
@@ -216,7 +237,7 @@ void main() {
     apps = ['com.whatsapp', 'com.whatsapp.w4b'];
     await press(tester, _customer('9847012345'));
     await tester.tap(find.text('WhatsApp Business'));
-    await settle(tester);
+    await waitFor(tester, handedOver);
     expect(sent()['app'], 'com.whatsapp.w4b');
 
     calls.clear();

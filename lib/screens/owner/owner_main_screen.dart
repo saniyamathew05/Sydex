@@ -4,6 +4,8 @@ import '../../widgets/profile_avatar.dart';
 import '../../widgets/root_back_guard.dart';
 import '../../services/owner_display_settings.dart';
 import '../../services/profile_store.dart';
+import '../../services/session_policy.dart';
+import '../../services/supabase_pagination.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // Optional owner helpers remain available for compatibility with older layouts.
 // ignore_for_file: unused_field, unused_element, unused_element_parameter
@@ -60,6 +62,7 @@ class _OwnerMainScreenState extends State<OwnerMainScreen> {
   @override
   void initState() {
     super.initState();
+    SessionPolicy.signsOutWhenIdle = true;
     ProfileStore.name.addListener(_refresh);
     OwnerDisplaySettings.values.addListener(_refresh);
     _openStartPage();
@@ -1854,13 +1857,66 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   DateTime? _selectedDate;
   DateTimeRange? _selectedDateRange;
   List<Map<String, dynamic>> _refusedPayments = const [];
+  List<Map<String, dynamic>> _returns = const [];
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     CustomerService.dataVersion.addListener(_onCustomersChanged);
+    TransactionService.dataVersion.addListener(_loadOtherEntries);
+    _loadOtherEntries();
+  }
+
+  /// Refusals and returns are not payments, so they are loaded separately.
+  void _loadOtherEntries() {
     _loadRefusedPayments();
+    _loadReturns();
+  }
+
+  Future<void> _loadReturns() async {
+    try {
+      final rows = await SupabasePagination.loadAll(
+        (from, to) => Supabase.instance.client
+            .from('ledger_entries')
+            .select(
+              'id, customer_id, user_id, amount, transaction_date, created_at, notes',
+            )
+            .inFilter('entry_type', ['return', 'sales_return'])
+            .order('id')
+            .range(from, to),
+      );
+      final people = await _loadPeople(rows.map((row) => row['user_id']));
+      if (!mounted) return;
+      setState(() {
+        _returns = [
+          for (final row in rows)
+            {...row, 'person': people[row['user_id']?.toString()]},
+        ];
+      });
+    } catch (error) {
+      debugPrint('Could not load sales returns: $error');
+    }
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadPeople(
+    Iterable<Object?> ids,
+  ) async {
+    final userIds = ids.nonNulls.map((id) => id.toString()).toSet().toList();
+    if (userIds.isEmpty) return const {};
+    try {
+      return {
+        for (final person
+            in await Supabase.instance.client
+                .from('profiles')
+                .select('id, name, role')
+                .inFilter('id', userIds))
+          person['id'].toString(): person,
+      };
+    } catch (error) {
+      debugPrint('Could not load who made ledger entries: $error');
+      return const {};
+    }
   }
 
   Future<void> _loadRefusedPayments() async {
@@ -1873,26 +1929,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           .eq('status', 'rejected')
           .order('status_date', ascending: false);
       final refused = List<Map<String, dynamic>>.from(rows);
-      final userIds = refused
-          .map((row) => row['entered_by']?.toString())
-          .whereType<String>()
-          .toSet()
-          .toList();
-      var people = <String, Map<String, dynamic>>{};
-      if (userIds.isNotEmpty) {
-        try {
-          people = {
-            for (final person
-                in await Supabase.instance.client
-                    .from('profiles')
-                    .select('id, name, role')
-                    .inFilter('id', userIds))
-              person['id'].toString(): person,
-          };
-        } catch (error) {
-          debugPrint('Could not load who entered refusals: $error');
-        }
-      }
+      final people = await _loadPeople(
+        refused.map((row) => row['entered_by']),
+      );
       if (mounted) {
         setState(() {
           _refusedPayments = [
@@ -1906,6 +1945,70 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
+  bool _matchesDay(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (_dateFilter) {
+      case 'today':
+        if (day != today) return false;
+      case 'week':
+        final start = today.subtract(Duration(days: today.weekday - 1));
+        if (day.isBefore(start) || day.isAfter(today)) return false;
+      case 'month':
+        if (day.year != today.year || day.month != today.month) return false;
+      case 'date':
+        final range = _selectedDateRange;
+        if (range != null) {
+          final start = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
+          final end = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+          );
+          if (day.isBefore(start) || day.isAfter(end)) return false;
+        } else if (_selectedDate != null &&
+            day !=
+                DateTime(
+                  _selectedDate!.year,
+                  _selectedDate!.month,
+                  _selectedDate!.day,
+                )) {
+          return false;
+        }
+    }
+    return true;
+  }
+
+  List<Map<String, dynamic>> _filteredReturns() {
+    if (_methodFilter != 'all' && _methodFilter != 'return') return const [];
+    if (_methodFilter == 'all' &&
+        !OwnerDisplaySettings.show(OwnerDisplaySettings.returns)) {
+      return const [];
+    }
+    return _returns.where((row) {
+      final date = _returnDate(row);
+      if (date == null || !_matchesDay(date)) return false;
+      return _searchQuery.isEmpty ||
+          _customerName(row).toLowerCase().contains(_searchQuery) ||
+          'sales return'.contains(_searchQuery) ||
+          (row['notes']?.toString() ?? '').toLowerCase().contains(_searchQuery);
+    }).toList();
+  }
+
+  DateTime? _returnDate(Map<String, dynamic> row) =>
+      DateTime.tryParse(row['transaction_date']?.toString() ?? '')?.toLocal();
+
+  String _customerName(Map<String, dynamic> row) =>
+      CustomerService.getCustomerById(
+        row['customer_id']?.toString() ?? '',
+      )?.businessName ??
+      'Customer';
+
   List<Map<String, dynamic>> _filteredRefusedPayments() {
     if (_methodFilter != 'all' && _methodFilter != 'refused') return const [];
     if (_methodFilter == 'all' &&
@@ -1916,43 +2019,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     return _refusedPayments.where((row) {
       final date = DateTime.tryParse(
         row['created_at']?.toString() ?? '${row['status_date']}T00:00:00',
-      );
+      )?.toLocal();
       if (date == null) return false;
-      final day = DateTime(date.year, date.month, date.day);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      switch (_dateFilter) {
-        case 'today':
-          if (day != today) return false;
-        case 'week':
-          final start = today.subtract(Duration(days: today.weekday - 1));
-          if (day.isBefore(start) || day.isAfter(today)) return false;
-        case 'month':
-          if (day.year != today.year || day.month != today.month) return false;
-        case 'date':
-          final range = _selectedDateRange;
-          if (range != null) {
-            final start = DateTime(
-              range.start.year,
-              range.start.month,
-              range.start.day,
-            );
-            final end = DateTime(
-              range.end.year,
-              range.end.month,
-              range.end.day,
-            );
-            if (day.isBefore(start) || day.isAfter(end)) return false;
-          } else if (_selectedDate != null &&
-              day !=
-                  DateTime(
-                    _selectedDate!.year,
-                    _selectedDate!.month,
-                    _selectedDate!.day,
-                  )) {
-            return false;
-          }
-      }
+      if (!_matchesDay(date)) return false;
       final customer = row['customers'];
       final name = customer is Map
           ? customer['business_name']?.toString() ?? ''
@@ -1972,7 +2041,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         : (name: receivedBy.substring(at + 3), role: receivedBy.substring(0, at));
   }
 
-  ({String name, String? role}) _refusedBy(Map<String, dynamic> row) {
+  ({String name, String? role}) _enteredByPerson(Map<String, dynamic> row) {
     final person = row['person'];
     final name = person is Map ? person['name']?.toString().trim() ?? '' : '';
     final role = person is Map && person['role'] == 'owner'
@@ -1986,6 +2055,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   bool get _showRole =>
       OwnerDisplaySettings.show(OwnerDisplaySettings.enteredByRole);
   bool get _showNotes => OwnerDisplaySettings.show(OwnerDisplaySettings.notes);
+  bool get _showBalance =>
+      OwnerDisplaySettings.show(OwnerDisplaySettings.ledgerBalance);
 
   Widget _enteredByCell(
     ({String name, String? role}) person,
@@ -2017,6 +2088,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     required Widget method,
     required String notes,
     required Widget amount,
+    required Widget balance,
     required Widget actions,
     Color? background,
   }) => Container(
@@ -2051,6 +2123,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
         SizedBox(width: 128, child: amount),
+        if (_showBalance) SizedBox(width: 136, child: balance),
         const SizedBox(width: 4),
         SizedBox(width: 80, child: actions),
       ],
@@ -2071,12 +2144,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     return parsed == null ? raw : _formatDate(parsed);
   }
 
-  /// What the customer still owes, in the column where a payment shows the
-  /// amount received.
-  Widget _refusedBalance(Map<String, dynamic> row, ColorScheme colors) {
-    final balance = TransactionService.getCustomerBalance(
-      row['customer_id']?.toString() ?? '',
-    );
+  double _balanceOf(String customerId) =>
+      TransactionService.getCustomerBalance(customerId);
+
+  /// What the customer owes now, whatever the entry on that row was.
+  Widget _balanceCell(String customerId, ColorScheme colors) {
+    final balance = _balanceOf(customerId);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -2084,19 +2157,26 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         Text(
           _money(balance.abs()),
           maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: colors.onSurface,
-            fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        Text(
-          balance < 0 ? 'Advance' : 'Remaining balance',
-          maxLines: 1,
-          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
-        ),
+        if (balance < 0)
+          Text(
+            'Advance',
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
+          ),
       ],
     );
+  }
+
+  String _balanceLine(String customerId) {
+    final balance = _balanceOf(customerId);
+    return balance < 0
+        ? 'Advance ${_money(balance.abs())}'
+        : 'Pending balance ${_money(balance)}';
   }
 
   Widget _desktopRefusedRow(Map<String, dynamic> row, ColorScheme colors) =>
@@ -2105,7 +2185,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         background: SydexColors.refusedTint(context),
         date: _refusedDate(row),
         customer: _refusedName(row),
-        enteredBy: _refusedBy(row),
+        enteredBy: _enteredByPerson(row),
         method: Text(
           'Refused',
           style: TextStyle(
@@ -2114,59 +2194,125 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           ),
         ),
         notes: row['note']?.toString() ?? '',
-        amount: _refusedBalance(row, colors),
+        amount: const Text('—', textAlign: TextAlign.right),
+        balance: _balanceCell(row['customer_id']?.toString() ?? '', colors),
         actions: const SizedBox.shrink(),
       );
 
-  Widget _refusedTile(Map<String, dynamic> row, ColorScheme colors) {
-    final note = row['note']?.toString().trim() ?? '';
-    return Container(
-      color: SydexColors.refusedTint(context),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _refusedName(row),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                _TileDetails(
-                  date: _refusedDate(row),
-                  person: _showEnteredBy ? _refusedBy(row) : null,
-                  showRole: _showRole,
-                ),
-                const SizedBox(height: 8),
-                const SydexBadge('Refused', tone: SydexTone.negative),
-                if (_showNotes && note.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    note,
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+  Widget _desktopReturnRow(Map<String, dynamic> row, ColorScheme colors) =>
+      _ledgerRow(
+        colors: colors,
+        date: _formatDate(_returnDate(row)!),
+        customer: _customerName(row),
+        enteredBy: _enteredByPerson(row),
+        method: const Text(
+          'Sales return',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        notes: row['notes']?.toString() ?? '',
+        amount: Text(
+          _money((row['amount'] as num?)?.toDouble() ?? 0),
+          textAlign: TextAlign.right,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
-          const SizedBox(width: 12),
-          _refusedBalance(row, colors),
+        ),
+        balance: _balanceCell(row['customer_id']?.toString() ?? '', colors),
+        actions: const SizedBox.shrink(),
+      );
+
+  Widget _returnTile(Map<String, dynamic> row, ColorScheme colors) => _otherTile(
+    colors: colors,
+    customer: _customerName(row),
+    customerId: row['customer_id']?.toString() ?? '',
+    amount: _money((row['amount'] as num?)?.toDouble() ?? 0),
+    date: _formatDate(_returnDate(row)!),
+    person: _enteredByPerson(row),
+    badge: const SydexBadge('Sales return'),
+    note: row['notes']?.toString().trim() ?? '',
+  );
+
+  Widget _refusedTile(Map<String, dynamic> row, ColorScheme colors) =>
+      _otherTile(
+        colors: colors,
+        background: SydexColors.refusedTint(context),
+        customer: _refusedName(row),
+        customerId: row['customer_id']?.toString() ?? '',
+        date: _refusedDate(row),
+        person: _enteredByPerson(row),
+        badge: const SydexBadge('Refused', tone: SydexTone.negative),
+        note: row['note']?.toString().trim() ?? '',
+      );
+
+  /// A refusal or a return on a phone, laid out like a payment.
+  Widget _otherTile({
+    required ColorScheme colors,
+    required String customer,
+    required String customerId,
+    required String date,
+    required ({String name, String? role}) person,
+    required Widget badge,
+    required String note,
+    String? amount,
+    Color? background,
+  }) => Container(
+    width: double.infinity,
+    color: background,
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                customer,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (amount != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                amount,
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 2),
+        _TileDetails(
+          date: date,
+          person: _showEnteredBy ? person : null,
+          showRole: _showRole,
+          balance: _showBalance ? _balanceLine(customerId) : null,
+        ),
+        const SizedBox(height: 8),
+        badge,
+        if (_showNotes && note.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            note,
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+          ),
         ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 
   Future<void> _hidePayment(PaymentTransaction payment) async {
     try {
@@ -2189,6 +2335,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   @override
   void dispose() {
     CustomerService.dataVersion.removeListener(_onCustomersChanged);
+    TransactionService.dataVersion.removeListener(_loadOtherEntries);
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _ledgerHorizontalController.dispose();
@@ -2413,6 +2560,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             width: 128,
             child: Text('AMOUNT', textAlign: TextAlign.right),
           ),
+          if (_showBalance)
+            const SizedBox(
+              width: 136,
+              child: Text('PENDING BALANCE', textAlign: TextAlign.right),
+            ),
           const SizedBox(
             width: 84,
             child: Text('ACTIONS', textAlign: TextAlign.right),
@@ -2461,6 +2613,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
+      balance: _balanceCell(payment.customerId, colors),
       actions: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -2516,6 +2669,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       'GPay': 'gpay',
       'Online': 'online',
       'Refused': 'refused',
+      'Sales return': 'return',
     };
     String labelFor(Map<String, String> options, String value) =>
         options.entries
@@ -2534,31 +2688,41 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         ]),
         builder: (context, child) {
           final payments = _filteredPayments();
-          final refusedPayments = _filteredRefusedPayments();
           final timeline =
               <
                   ({
                     DateTime at,
                     PaymentTransaction? payment,
-                    Map<String, dynamic>? refused,
+                    Widget Function()? row,
+                    Widget Function()? tile,
                   })
                 >[
-                  ...payments.map(
-                    (payment) => (
-                      at: payment.transactionDate,
+                  for (final payment in payments)
+                    (
+                      at: payment.transactionDate.toLocal(),
                       payment: payment,
-                      refused: null,
+                      row: null,
+                      tile: null,
                     ),
-                  ),
-                  ...refusedPayments.map((row) {
-                    final parsed =
-                        DateTime.tryParse(
-                          row['created_at']?.toString() ??
-                              '${row['status_date']}T00:00:00',
-                        ) ??
-                        DateTime.fromMillisecondsSinceEpoch(0);
-                    return (at: parsed, payment: null, refused: row);
-                  }),
+                  for (final entry in _filteredRefusedPayments())
+                    (
+                      at:
+                          DateTime.tryParse(
+                            entry['created_at']?.toString() ??
+                                '${entry['status_date']}T00:00:00',
+                          )?.toLocal() ??
+                          DateTime.fromMillisecondsSinceEpoch(0),
+                      payment: null,
+                      row: () => _desktopRefusedRow(entry, colors),
+                      tile: () => _refusedTile(entry, colors),
+                    ),
+                  for (final entry in _filteredReturns())
+                    (
+                      at: _returnDate(entry)!,
+                      payment: null,
+                      row: () => _desktopReturnRow(entry, colors),
+                      tile: () => _returnTile(entry, colors),
+                    ),
                 ]
                 ..sort((a, b) => b.at.compareTo(a.at));
           final total = payments.fold<double>(
@@ -2679,7 +2843,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: SydexStatTile(
-                        label: 'Payments shown',
+                        label: 'Entries shown',
                         value: '${timeline.length}',
                       ),
                     ),
@@ -2731,7 +2895,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     // The table needs room for every column. Narrower windows
                     // get the same list as phones instead of cut-off names.
                     builder: (context, constraints) =>
-                        constraints.maxWidth >= 920
+                        constraints.maxWidth >= 1040
                         ? SydexCard(
                             padding: EdgeInsets.zero,
                             child: Column(
@@ -2748,10 +2912,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                                           entry.payment!,
                                           colors,
                                         )
-                                      : _desktopRefusedRow(
-                                          entry.refused!,
-                                          colors,
-                                        ),
+                                      : entry.row!(),
                                 ],
                               ],
                             ),
@@ -2784,6 +2945,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                                                   )
                                                 : null,
                                             showRole: _showRole,
+                                            balance: _showBalance
+                                                ? _balanceLine(
+                                                    entry.payment!.customerId,
+                                                  )
+                                                : null,
                                             displayedReceived:
                                                 _amountForCurrentMethod(
                                                   entry.payment!,
@@ -2798,7 +2964,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                                                 _deletePayment(entry.payment!),
                                           ),
                                         )
-                                      : _refusedTile(entry.refused!, colors),
+                                      : entry.tile!(),
                                 ],
                               ],
                             ),
@@ -2888,11 +3054,13 @@ class _TileDetails extends StatelessWidget {
     required this.date,
     required this.person,
     required this.showRole,
+    required this.balance,
   });
 
   final String date;
   final ({String name, String? role})? person;
   final bool showRole;
+  final String? balance;
 
   @override
   Widget build(BuildContext context) {
@@ -2912,6 +3080,14 @@ class _TileDetails extends StatelessWidget {
                 : person!.name,
             style: style,
           ),
+        if (balance != null)
+          Text(
+            balance!,
+            style: style.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
       ],
     );
   }
@@ -2925,6 +3101,8 @@ class _PaymentTile extends StatelessWidget {
   final ({String name, String? role})? person;
 
   final bool showRole;
+
+  final String? balance;
 
   final double displayedReceived;
 
@@ -2944,6 +3122,8 @@ class _PaymentTile extends StatelessWidget {
     required this.person,
 
     required this.showRole,
+
+    required this.balance,
 
     required this.displayedReceived,
 
@@ -3000,7 +3180,12 @@ class _PaymentTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  _TileDetails(date: date, person: person, showRole: showRole),
+                  _TileDetails(
+                    date: date,
+                    person: person,
+                    showRole: showRole,
+                    balance: balance,
+                  ),
                   const SizedBox(height: 8),
                   if (splitLines.length > 1)
                     Container(
